@@ -1,0 +1,1267 @@
+{
+    "708157568": {
+        "setu": 933,
+        "yanche": 13,
+        "pulls": {
+            "3": 399,
+            "4": 504,
+            "5": 87,
+            "6": 30
+        },
+        "pull": 102
+    },
+    "701475648": {
+        "setu": 168,
+        "yanche": 0,
+        "pulls": {
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0
+        },
+        "pull": 0
+    },
+    "101790160": {
+        "setu": 184,
+        "yanche": 1,
+        "pulls": {
+            "6": 18,
+            "5": 42,
+            "4": 263,
+            "3": 217
+        },
+        "pull": 54
+    },
+    "952217271": {
+        "setu": 344,
+        "yanche": 6,
+        "pulls": {
+            "6": 28,
+            "5": 80,
+            "4": 545,
+            "3": 457
+        },
+        "pull": 111
+    },
+    "1007801503": {
+        "setu": 896,
+        "yanche": 0,
+        "pulls": {
+            "6": 32,
+            "5": 67,
+            "4": 470,
+            "3": 411
+        },
+        "pull": 98
+    },
+    "940461555": {
+        "setu": 7,
+        "yanche": 1,
+        "pulls": {
+            "6": 0,
+            "5": 0,
+            "4": 0,
+            "3": 0
+        },
+        "pull": 0
+    },
+    "756519601": {
+        "setu": 95,
+        "yanche": 2,
+        "pulls": {
+            "6": 2,
+            "5": 11,
+            "4": 36,
+            "3": 31
+        },
+        "pull": 8
+    },
+    "1081267415": {
+        "setu": 61,
+        "yanche": 0,
+        "pulls": {
+            "6": 25,
+            "5": 77,
+            "4": 628,
+            "3": 480
+        },
+        "pull": 121
+    },
+    "539199998": {
+        "setu": 0,
+        "yanche": 0,
+        "pulls": {
+            "6": 0,
+            "5": 0,
+            "4": 0,
+            "3": 0
+        },
+        "pull": 0
+    },
+    "users": {
+        "634915227": {
+            "poker": 12,
+            "setu": 160,
+            "question": 10,
+            "hit_xp": 66,
+            "yanche": 1,
+            "zc": 1
+        },
+        "1556674571": {
+            "six_star_pull": 4,
+            "poker": 0,
+            "setu": 11,
+            "only_four_three": 4
+        },
+        "444942596": {
+            "poker": 0,
+            "question": 1,
+            "setu": 2,
+            "roulette": 1,
+            "zc": 1
+        },
+        "513253902": {
+            "six_star_pull": 6,
+            "poker": 5,
+            "only_four_three": 5,
+            "setu": 339,
+            "hit_xp": 2,
+            "chp": 2,
+            "zc": 1
+        },
+        "1146311469": {
+            "poker": 0
+        },
+        "544429335": {
+            "six_star_pull": 1,
+            "only_four_three": 1
+        },
+        "1114539056": {
+            "six_star_pull": 1,
+            "setu": 133,
+            "chp": 1
+        },
+        "429877006": {
+            "six_star_pull": 2,
+            "only_four_three": 4,
+            "setu": 24,
+            "question": 3
+        },
+        "1812370819": {
+            "six_star_pull": 0,
+            "setu": 6,
+            "only_four_three": 1
+        },
+        "2749396890": {
+            "setu": 116,
+            "six_star_pull": 0,
+            "poker": 2,
+            "hit_xp": 43,
+            "question": 17,
+            "yanche": 2,
+            "only_four_three": 1,
+            "zc": 3,
+            "chp": 4
+        },
+        "517178000": {
+            "question": 0,
+            "yanche": 5,
+            "setu": 2,
+            "zc": 1,
+            "six_star_pull": 1
+        },
+        "1227342951": {
+            "six_star_pull": 2,
+            "question": 11
+        },
+        "921966830": {
+            "poker": 7,
+            "six_star_pull": 7,
+            "only_four_three": 9,
+            "zc": 4,
+            "question": 5,
+            "setu": 2
+        },
+        "846481051": {
+            "poker": 10,
+            "six_star_pull": 0,
+            "only_four_three": 4,
+            "setu": 26,
+            "zc": 10,
+            "chp": 15,
+            "question": 17
+        },
+        "1018982438": {
+            "poker": 3,
+            "setu": 11,
+            "hit_xp": 1
+        },
+        "1906641922": {
+            "poker": 3,
+            "setu": 9,
+            "six_star_pull": 2,
+            "question": 5,
+            "horse_race": 1,
+            "only_four_three": 1
+        },
+        "1797063226": {
+            "six_star_pull": 6,
+            "only_four_three": 10
+        },
+        "1261878359": {
+            "six_star_pull": 2,
+            "poker": 1,
+            "setu": 3
+        },
+        "568953931": {
+            "six_star_pull": 2,
+            "poker": 1,
+            "setu": 1,
+            "only_four_three": 1
+        },
+        "1279714046": {
+            "six_star_pull": 2,
+            "only_four_three": 1,
+            "poker": 2,
+            "setu": 16
+        },
+        "2545188708": {
+            "six_star_pull": 2,
+            "setu": 10,
+            "hit_xp": 1,
+            "question": 6
+        },
+        "1982367835": {
+            "only_four_three": 2,
+            "six_star_pull": 0,
+            "question": 2,
+            "setu": 6
+        },
+        "952297732": {
+            "setu": 33,
+            "question": 9,
+            "poker": 3
+        },
+        "443905729": {
+            "poker": 1,
+            "setu": 1
+        },
+        "786113931": {
+            "setu": 8,
+            "six_star_pull": 0,
+            "question": 9,
+            "zc": 1,
+            "chp": 3
+        },
+        "983840163": {
+            "six_star_pull": 1,
+            "only_four_three": 1,
+            "question": 2
+        },
+        "513155969": {
+            "setu": 11,
+            "hit_xp": 1,
+            "question": 19
+        },
+        "1710162137": {
+            "only_four_three": 1,
+            "six_star_pull": 0
+        },
+        "1035673772": {
+            "six_star_pull": 0,
+            "question": 1
+        },
+        "779212208": {
+            "setu": 8,
+            "yanche": 1
+        },
+        "754462392": {
+            "setu": 1,
+            "question": 1
+        },
+        "429805991": {
+            "setu": 19,
+            "hit_xp": 1,
+            "only_four_three": 1,
+            "six_star_pull": 0
+        },
+        "715794349": {
+            "setu": 1
+        },
+        "2469797559": {
+            "setu": 2
+        },
+        "2736661491": {
+            "six_star_pull": 2,
+            "only_four_three": 1,
+            "setu": 11,
+            "hit_xp": 1
+        },
+        "824397040": {
+            "six_star_pull": 1,
+            "setu": 2
+        },
+        "1464787640": {
+            "six_star_pull": 2,
+            "only_four_three": 3,
+            "setu": 2
+        },
+        "278897565": {
+            "poker": 5,
+            "setu": 17,
+            "only_four_three": 2,
+            "six_star_pull": 2,
+            "hit_xp": 1
+        },
+        "1506544316": {
+            "only_four_three": 1,
+            "six_star_pull": 2
+        },
+        "1045527175": {
+            "only_four_three": 1,
+            "six_star_pull": 0
+        },
+        "1175191462": {
+            "only_four_three": 2,
+            "six_star_pull": 0
+        },
+        "912924722": {
+            "six_star_pull": 2,
+            "setu": 1
+        },
+        "1271390844": {
+            "setu": 19,
+            "question": 7
+        },
+        "278986812": {
+            "setu": 26,
+            "question": 1
+        },
+        "1261845641": {
+            "setu": 1
+        },
+        "464891921": {
+            "setu": 7
+        },
+        "811988956": {
+            "question": 20,
+            "setu": 19,
+            "poker": 1
+        },
+        "854841174": {
+            "question": 1
+        },
+        "1924057071": {
+            "question": 14,
+            "setu": 1
+        },
+        "2742018048": {
+            "question": 2,
+            "setu": 2,
+            "hhsh": 1
+        },
+        "2470859402": {
+            "question": 1
+        },
+        "1079727394": {
+            "question": 3
+        },
+        "1771668068": {
+            "six_star_pull": 2
+        },
+        "1179277983": {
+            "only_four_three": 1,
+            "six_star_pull": 3,
+            "setu": 1
+        },
+        "527561283": {
+            "six_star_pull": 2,
+            "setu": 11,
+            "question": 2
+        },
+        "479088228": {
+            "setu": 27,
+            "question": 7,
+            "hit_xp": 1
+        },
+        "1979530883": {
+            "setu": 1
+        },
+        "1483187458": {
+            "setu": 13
+        },
+        "819432010": {
+            "setu": 19
+        },
+        "2805116652": {
+            "setu": 3,
+            "six_star_pull": 0
+        },
+        "1015541924": {
+            "setu": 1
+        },
+        "794922335": {
+            "six_star_pull": 0,
+            "question": 4,
+            "setu": 5
+        },
+        "821331062": {
+            "setu": 12,
+            "poker": 1
+        },
+        "505345550": {
+            "setu": 6,
+            "zc": 2
+        },
+        "1284281214": {
+            "setu": 39,
+            "yanche": 2,
+            "poker": 1,
+            "question": 20,
+            "zc": 10,
+            "hit_xp": 13
+        },
+        "809634828": {
+            "yanche": 4,
+            "setu": 1
+        },
+        "1502178390": {
+            "yanche": 1,
+            "six_star_pull": 2,
+            "setu": 6,
+            "zc": 5,
+            "chp": 2,
+            "hit_xp": 1,
+            "question": 14
+        },
+        "2818396409": {
+            "six_star_pull": 3,
+            "setu": 7,
+            "hit_xp": 2,
+            "zc": 1
+        },
+        "1453852731": {
+            "setu": 1,
+            "roulette": 1
+        },
+        "2595601078": {
+            "setu": 88,
+            "question": 9,
+            "six_star_pull": 2,
+            "only_four_three": 5,
+            "hit_xp": 6,
+            "yanche": 1,
+            "chp": 3,
+            "zc": 3
+        },
+        "15803458": {
+            "six_star_pull": 1,
+            "setu": 15,
+            "poker": 1,
+            "hit_xp": 1
+        },
+        "619868505": {
+            "six_star_pull": 0
+        },
+        "1454649738": {
+            "only_four_three": 1,
+            "six_star_pull": 0,
+            "setu": 6
+        },
+        "2543326196": {
+            "only_four_three": 1,
+            "six_star_pull": 2,
+            "setu": 1
+        },
+        "1062452099": {
+            "six_star_pull": 1,
+            "only_four_three": 1,
+            "setu": 1
+        },
+        "1332624294": {
+            "six_star_pull": 0,
+            "setu": 2,
+            "only_four_three": 1
+        },
+        "2363518950": {
+            "only_four_three": 1,
+            "six_star_pull": 0,
+            "setu": 1
+        },
+        "253697168": {
+            "only_four_three": 1,
+            "six_star_pull": 0
+        },
+        "825325299": {
+            "setu": 73,
+            "question": 3,
+            "hit_xp": 13
+        },
+        "2417097296": {
+            "setu": 5
+        },
+        "1534056494": {
+            "setu": 37
+        },
+        "819833970": {
+            "setu": 2
+        },
+        "869238580": {
+            "setu": 4,
+            "six_star_pull": 2
+        },
+        "1060278085": {
+            "setu": 483,
+            "question": 2,
+            "hit_xp": 205,
+            "only_four_three": 1,
+            "six_star_pull": 0
+        },
+        "765856376": {
+            "setu": 2
+        },
+        "1175527409": {
+            "setu": 7,
+            "question": 3,
+            "chp": 3,
+            "zc": 1
+        },
+        "1810216465": {
+            "setu": 15,
+            "poker": 1,
+            "hit_xp": 4,
+            "question": 1
+        },
+        "1115301976": {
+            "setu": 7
+        },
+        "1135195978": {
+            "six_star_pull": 0,
+            "only_four_three": 1,
+            "setu": 25
+        },
+        "836096847": {
+            "question": 9,
+            "setu": 6,
+            "chp": 1
+        },
+        "739313164": {
+            "poker": 4
+        },
+        "347974409": {
+            "setu": 29,
+            "question": 3,
+            "zc": 1
+        },
+        "1055049835": {
+            "setu": 8,
+            "question": 5,
+            "six_star_pull": 0
+        },
+        "1398670791": {
+            "six_star_pull": 1,
+            "question": 19,
+            "setu": 101,
+            "only_four_three": 1,
+            "hit_xp": 2,
+            "zc": 1,
+            "chp": 1
+        },
+        "2466476859": {
+            "six_star_pull": 1,
+            "hit_xp": 1,
+            "setu": 2,
+            "only_four_three": 1
+        },
+        "1363634305": {
+            "only_four_three": 3,
+            "six_star_pull": 2,
+            "setu": 25,
+            "question": 14,
+            "hit_xp": 3,
+            "zc": 8,
+            "poker": 1,
+            "horse_race": 2
+        },
+        "1345087112": {
+            "six_star_pull": 2,
+            "only_four_three": 5
+        },
+        "446542206": {
+            "setu": 16,
+            "hit_xp": 5,
+            "six_star_pull": 2
+        },
+        "2356060167": {
+            "setu": 20,
+            "poker": 1,
+            "only_four_three": 2,
+            "six_star_pull": 3,
+            "hit_xp": 1
+        },
+        "351385664": {
+            "setu": 12,
+            "zc": 1,
+            "chp": 1
+        },
+        "1466684880": {
+            "setu": 19
+        },
+        "405962420": {
+            "only_four_three": 1,
+            "six_star_pull": 1,
+            "setu": 5
+        },
+        "1304274443": {
+            "setu": 24
+        },
+        "1958347453": {
+            "setu": 8
+        },
+        "1648281995": {
+            "setu": 1,
+            "yanche": 2
+        },
+        "578133950": {
+            "setu": 2
+        },
+        "2726749622": {
+            "setu": 1,
+            "only_four_three": 6,
+            "six_star_pull": 1
+        },
+        "1036052927": {
+            "setu": 18,
+            "hit_xp": 2,
+            "only_four_three": 2,
+            "six_star_pull": 1
+        },
+        "1499453241": {
+            "setu": 5
+        },
+        "974813804": {
+            "setu": 9,
+            "six_star_pull": 1,
+            "hit_xp": 5
+        },
+        "1175305808": {
+            "setu": 54,
+            "six_star_pull": 1,
+            "hit_xp": 1
+        },
+        "1171343793": {
+            "setu": 2,
+            "six_star_pull": 0
+        },
+        "1677623394": {
+            "hit_xp": 1,
+            "setu": 31,
+            "zc": 1,
+            "question": 2
+        },
+        "2308530675": {
+            "setu": 4,
+            "hit_xp": 1,
+            "zc": 2,
+            "question": 2
+        },
+        "917984531": {
+            "setu": 21,
+            "six_star_pull": 1
+        },
+        "2113928446": {
+            "setu": 1,
+            "six_star_pull": 0
+        },
+        "2063997834": {
+            "question": 1,
+            "setu": 1
+        },
+        "594875076": {
+            "question": 2,
+            "setu": 3,
+            "six_star_pull": 1
+        },
+        "821144983": {
+            "question": 1
+        },
+        "1799940904": {
+            "question": 1,
+            "setu": 3
+        },
+        "424068738": {
+            "six_star_pull": 4,
+            "only_four_three": 6,
+            "setu": 28,
+            "question": 2,
+            "hit_xp": 1
+        },
+        "1737746179": {
+            "question": 1
+        },
+        "958850712": {
+            "question": 1
+        },
+        "2637895737": {
+            "question": 1
+        },
+        "951273572": {
+            "only_four_three": 1,
+            "six_star_pull": 0
+        },
+        "542130927": {
+            "six_star_pull": 4,
+            "only_four_three": 1,
+            "setu": 20,
+            "yanche": 1,
+            "zc": 2,
+            "hit_xp": 1
+        },
+        "1801630799": {
+            "only_four_three": 4,
+            "six_star_pull": 3,
+            "setu": 2,
+            "question": 4
+        },
+        "2104710572": {
+            "only_four_three": 1,
+            "six_star_pull": 0,
+            "poker": 1
+        },
+        "1183207547": {
+            "only_four_three": 3,
+            "six_star_pull": 2,
+            "setu": 4
+        },
+        "850920785": {
+            "setu": 16,
+            "six_star_pull": 0
+        },
+        "3222788313": {
+            "six_star_pull": 1,
+            "only_four_three": 2
+        },
+        "2956035282": {
+            "six_star_pull": 0
+        },
+        "474929373": {
+            "only_four_three": 1,
+            "six_star_pull": 1
+        },
+        "2981505143": {
+            "only_four_three": 1,
+            "six_star_pull": 0
+        },
+        "1103514525": {
+            "six_star_pull": 0,
+            "yanche": 1,
+            "setu": 1
+        },
+        "942674586": {
+            "six_star_pull": 1,
+            "setu": 6
+        },
+        "2227682124": {
+            "only_four_three": 1,
+            "six_star_pull": 0
+        },
+        "1176520461": {
+            "setu": 2
+        },
+        "707650466": {
+            "only_four_three": 1,
+            "six_star_pull": 0,
+            "setu": 1
+        },
+        "798614215": {
+            "setu": 20,
+            "hit_xp": 1
+        },
+        "1464644264": {
+            "setu": 4
+        },
+        "2190887179": {
+            "hit_xp": 2,
+            "setu": 5,
+            "yanche": 1,
+            "only_four_three": 2,
+            "six_star_pull": 0
+        },
+        "2351608705": {
+            "setu": 1
+        },
+        "415047784": {
+            "setu": 16
+        },
+        "526077430": {
+            "setu": 5,
+            "question": 2
+        },
+        "2424078251": {
+            "setu": 21,
+            "hit_xp": 2
+        },
+        "178862892": {
+            "only_four_three": 1,
+            "six_star_pull": 1,
+            "poker": 1
+        },
+        "1010271249": {
+            "only_four_three": 4,
+            "six_star_pull": 1
+        },
+        "924911642": {
+            "setu": 1
+        },
+        "1064323766": {
+            "setu": 3
+        },
+        "2890885303": {
+            "setu": 15
+        },
+        "1135087068": {
+            "six_star_pull": 0
+        },
+        "2223467525": {
+            "only_four_three": 1,
+            "six_star_pull": 0,
+            "setu": 1
+        },
+        "744812508": {
+            "setu": 1
+        },
+        "501954264": {
+            "setu": 4,
+            "hit_xp": 2
+        },
+        "752319034": {
+            "setu": 6,
+            "only_four_three": 2,
+            "six_star_pull": 1
+        },
+        "3309003591": {
+            "setu": 2
+        },
+        "1448965999": {
+            "setu": 8,
+            "poker": 1,
+            "question": 1,
+            "hit_xp": 1
+        },
+        "2604680136": {
+            "setu": 1
+        },
+        "576811313": {
+            "six_star_pull": 1,
+            "only_four_three": 2
+        },
+        "849873985": {
+            "only_four_three": 2,
+            "six_star_pull": 2,
+            "roulette": 1,
+            "setu": 2
+        },
+        "376296017": {
+            "six_star_pull": 1,
+            "only_four_three": 1
+        },
+        "1376552935": {
+            "setu": 1
+        },
+        "294327565": {
+            "setu": 26,
+            "chp": 2,
+            "zc": 5,
+            "question": 10,
+            "hit_xp": 15,
+            "only_four_three": 1,
+            "six_star_pull": 0
+        },
+        "734479801": {
+            "hit_xp": 1,
+            "setu": 2
+        },
+        "1327614887": {
+            "setu": 16,
+            "hit_xp": 1
+        },
+        "280260994": {
+            "setu": 8
+        },
+        "3353390600": {
+            "setu": 1
+        },
+        "1828735827": {
+            "setu": 20,
+            "six_star_pull": 1,
+            "only_four_three": 1
+        },
+        "1758258043": {
+            "setu": 12
+        },
+        "3370937153": {
+            "setu": 8
+        },
+        "826121903": {
+            "setu": 2
+        },
+        "226274360": {
+            "setu": 3
+        },
+        "13379747": {
+            "setu": 2
+        },
+        "105026": {
+            "setu": 1
+        },
+        "14589352": {
+            "setu": 1
+        },
+        "212801": {
+            "setu": 2
+        },
+        "1069005": {
+            "setu": 13
+        },
+        "163536": {
+            "setu": 1
+        },
+        "13240235": {
+            "setu": 2
+        },
+        "1431705": {
+            "setu": 4
+        },
+        "17370096": {
+            "setu": 1
+        },
+        "22597057": {
+            "setu": 1
+        },
+        "4889903": {
+            "setu": 2
+        },
+        "14437079": {
+            "setu": 1
+        },
+        "6359": {
+            "setu": 1
+        },
+        "515073324": {
+            "only_four_three": 1,
+            "six_star_pull": 0,
+            "setu": 1
+        },
+        "84644": {
+            "setu": 1
+        },
+        "594207729": {
+            "setu": 2
+        },
+        "512959107": {
+            "setu": 1
+        },
+        "2736210479": {
+            "setu": 4,
+            "hit_xp": 1,
+            "only_four_three": 1,
+            "six_star_pull": 0
+        },
+        "845555934": {
+            "hit_xp": 1,
+            "roulette": 1,
+            "poker": 1
+        },
+        "920239562": {
+            "setu": 1
+        },
+        "3225426421": {
+            "setu": 1,
+            "six_star_pull": 0
+        },
+        "4534443": {
+            "setu": 1
+        },
+        "13145842": {
+            "setu": 1
+        },
+        "3452804": {
+            "setu": 1
+        },
+        "2079164587": {
+            "setu": 11
+        },
+        "983857753": {
+            "setu": 1
+        },
+        "2696960443": {
+            "setu": 2
+        },
+        "610904291": {
+            "setu": 19,
+            "hit_xp": 4
+        },
+        "793951589": {
+            "setu": 3
+        },
+        "3312436630": {
+            "only_four_three": 1,
+            "six_star_pull": 2,
+            "setu": 1
+        },
+        "1718281963": {
+            "setu": 4
+        },
+        "870313541": {
+            "setu": 1
+        },
+        "389555531": {
+            "setu": 1
+        },
+        "1659991544": {
+            "setu": 1
+        },
+        "2598792946": {
+            "yanche": 1
+        },
+        "1579397082": {
+            "setu": 1
+        },
+        "2093229067": {
+            "setu": 2
+        },
+        "460720058": {
+            "setu": 1
+        },
+        "1282746860": {
+            "six_star_pull": 3,
+            "only_four_three": 8
+        },
+        "375126896": {
+            "setu": 1
+        },
+        "273706255": {
+            "setu": 2,
+            "chp": 2,
+            "six_star_pull": 1
+        },
+        "1193277141": {
+            "zc": 1
+        },
+        "674775207": {
+            "chp": 2
+        },
+        "2297036016": {
+            "six_star_pull": 2,
+            "roulette": 1
+        },
+        "543784054": {
+            "six_star_pull": 1
+        },
+        "2867402488": {
+            "six_star_pull": 0
+        },
+        "917543820": {
+            "six_star_pull": 0
+        },
+        "1530098211": {
+            "setu": 1
+        },
+        "69876070": {
+            "six_star_pull": 0
+        },
+        "544403786": {
+            "question": 3,
+            "six_star_pull": 7,
+            "only_four_three": 6
+        },
+        "1041580127": {
+            "question": 2
+        },
+        "305624414": {
+            "roulette": 1
+        },
+        "2170940599": {
+            "roulette": 2
+        },
+        "649895768": {
+            "roulette": 1
+        },
+        "2936002796": {
+            "zc": 2
+        },
+        "635863761": {
+            "setu": 3,
+            "six_star_pull": 1
+        },
+        "3259336": {
+            "setu": 29
+        },
+        "2131660": {
+            "setu": 2
+        },
+        "177784": {
+            "setu": 1
+        },
+        "2003931": {
+            "setu": 1
+        },
+        "2961360798": {
+            "six_star_pull": 0,
+            "setu": 1
+        },
+        "2524447897": {
+            "six_star_pull": 0,
+            "only_four_three": 1
+        },
+        "273093853": {
+            "six_star_pull": 1
+        },
+        "1138400969": {
+            "only_four_three": 2,
+            "six_star_pull": 0,
+            "poker": 1
+        },
+        "379490373": {
+            "only_four_three": 1,
+            "six_star_pull": 0
+        },
+        "1749482265": {
+            "six_star_pull": 2,
+            "only_four_three": 2
+        },
+        "4722561": {
+            "only_four_three": 1,
+            "six_star_pull": 0
+        },
+        "2656156498": {
+            "only_four_three": 1,
+            "six_star_pull": 3
+        },
+        "2537735778": {
+            "six_star_pull": 0
+        },
+        "378494395": {
+            "poker": 1
+        },
+        "1292822972": {
+            "question": 1
+        },
+        "2469775928": {
+            "setu": 1,
+            "six_star_pull": 1
+        },
+        "3188209943": {
+            "setu": 1
+        },
+        "2105242717": {
+            "setu": 1
+        },
+        "598787214": {
+            "setu": 1
+        },
+        "137228191": {
+            "setu": 2
+        },
+        "2697986811": {
+            "hhsh": 1
+        },
+        "791373595": {
+            "hhsh": 1
+        },
+        "3235877253": {
+            "hhsh": 1
+        },
+        "842844985": {
+            "hhsh": 1
+        },
+        "3351867564": {
+            "six_star_pull": 0,
+            "only_four_three": 1
+        },
+        "149079149": {
+            "question": 12,
+            "setu": 9,
+            "poker": 1,
+            "yanche": 1,
+            "zc": 2,
+            "hit_xp": 1
+        },
+        "1412738835": {
+            "question": 8,
+            "roulette": 2,
+            "setu": 3
+        },
+        "284481112": {
+            "setu": 2,
+            "roulette": 2
+        },
+        "562783257": {
+            "roulette": 1
+        },
+        "872401892": {
+            "setu": 2
+        },
+        "954215416": {
+            "hhsh": 1
+        },
+        "2624803406": {
+            "setu": 1
+        },
+        "1132285745": {
+            "setu": 1
+        },
+        "1143153850": {
+            "setu": 1
+        },
+        "624204007": {
+            "six_star_pull": 0,
+            "question": 2,
+            "only_four_three": 1
+        }
+    },
+    "xp": {
+        "\u7dca\u7e1b": 19,
+        "bondage": 1,
+        "\u7d27\u7f1a": 12,
+        "mummification": 0,
+        "\u4e73\u80f6\u8863": 0,
+        "\u30e9\u30d0\u30fc": 2,
+        "\u4e73\u80f6": 0,
+        "\u30de\u30df\u30d5\u30a3\u30b1\u30fc\u30b7\u30e7\u30f3": 1,
+        "\u7e1b\u308a": 7,
+        "shibari": 0,
+        "\u7e1b\u308b": 0,
+        "\u30d0\u30ad\u30e5\u30fc\u30e0\u30d9\u30c3\u30c9": 5,
+        "\u62d8\u675f": 16,
+        "\u76d1\u7981": 0,
+        "\u771f\u7a7a": 1,
+        "latex": 5,
+        "\u767e\u5408": 21,
+        "\u30e1\u30a4\u30c9": 3,
+        "\u767d\u30bf\u30a4\u30c4": 69,
+        "\u767d\u4e1d": 100,
+        "\u7e04\u7e1b\u308a": 1,
+        "\u733f\u8f61": 4,
+        "DID": 0,
+        "\u30d5\u30e9\u30f3\u30c9\u30fc\u30eb": 1,
+        "\u30b9\u30af\u6c34": 9,
+        "\u30bb\u30fc\u30e9\u30fc\u670d": 2,
+        "\u9ed2\u30bf\u30a4\u30c4": 43,
+        "\u88e4\u889c": 80,
+        "\u30cb\u30fc\u30bd": 2,
+        "\u767d\u30cb\u30fc\u30bd": 11
+    },
+    "149079149": {
+        "setu": 1,
+        "yanche": 0,
+        "pulls": {},
+        "pull": 0
+    },
+    "310235706": {
+        "setu": 14,
+        "yanche": 1,
+        "pulls": {},
+        "pull": 0
+    }
+}
