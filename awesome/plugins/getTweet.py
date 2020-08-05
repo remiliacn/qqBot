@@ -47,7 +47,7 @@ async def send_tweet():
     if diff_list:
         for ch_name in diff_list:
             tweet.set_new_tweet_by_ch_name(ch_name=ch_name, tweet=new_tweet_list[ch_name])
-            nonebot.logger.warning('发现新推！\n%s' % new_tweet_list[ch_name])
+            nonebot.logger.warning(f'发现新推！ [来自{ch_name}]\n{new_tweet_list[ch_name]}')
             if re.match(r'^RT', new_tweet_list[ch_name]):
                 response = '------%s转了一个推：-----\n%s' % (ch_name, new_tweet_list[ch_name])
             elif re.match(r'^@', new_tweet_list[ch_name]):

@@ -1,27 +1,36 @@
+import json
 import shutil
 
-import nonebot, requests, pixivpy3, os, random, time, re
-import json
+import aiocqhttp.event
+import nonebot
+import os
+import pixivpy3
+import random
+import re
+import requests
+import time
 from aiocqhttp import MessageSegment
 from nonebot.message import CanceledException
 from nonebot.plugin import PluginManager
 
 import config
-import aiocqhttp.event
-from awesome.adminControl import shadiaoAdmin, setuSanity
 from Shadiao import WaifuFinder, ark_nights, Shadiao, pcr_news
+from awesome.adminControl import shadiaoAdmin, setuSanity
 from awesome.adminControl import userControl
+from awesome.adminControl import permission as perm
+
+get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
 
 if not os.path.exists("E:/pixivPic/"):
     os.makedirs("E:/pixivPic/")
 
 @nonebot.message_preprocessor
-async def message_preprocessing(bot: nonebot.NoneBot, event: aiocqhttp.event, plugin_manager: PluginManager):
+async def message_preprocessing(unused1: nonebot.NoneBot, event: aiocqhttp.event, unused2: PluginManager):
     group_id = event.group_id
     if group_id is not None:
-        if not admin_control.get_data(group_id, 'enabled') and event['user_id'] != 634915227:
+        if not admin_control.get_data(group_id, 'enabled') \
+        and not get_privilege(event['user_id'], perm.OWNER):
             raise CanceledException('Group disabled')
-
 
 class arknightsPity:
     def __init__(self):
@@ -52,7 +61,7 @@ sanity_meter = setuSanity.SetuSanity()
 aapi = pixivpy3.AppPixivAPI()
 api = ark_nights.ArkHeadhunt(times=10)
 admin_control = shadiaoAdmin.Shadiaoadmin()
-answer_api = userControl.Grouplearning()
+user_control_module = userControl.Grouplearning()
 ark_pool_pity = arknightsPity()
 
 
@@ -110,17 +119,15 @@ async def sanityChecker(session: nonebot.CommandSession):
     if idNum in sanity_meter.get_sanity_dict():
         sanity = sanity_meter.get_sanity(idNum)
     else:
-        sanity = 40
-        sanity_meter.set_sanity(idNum, 40)
+        sanity = sanity_meter.get_max_sanity()
+        sanity_meter.set_sanity(idNum, sanity_meter.get_max_sanity())
 
     await session.send('您的剩余理智为：%d' % sanity)
 
 @nonebot.on_command('理智补充', only_to_me=False)
 async def sanityRefill(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    adminDict = admin_control.get_admin_users()
-    idNum = str(ctx['user_id'])
-    if idNum not in adminDict or not adminDict[idNum]:
+    if not get_privilege(ctx['user_id'], perm.ADMIN):
         await session.finish('您没有权限补充理智')
         return
 
@@ -141,8 +148,8 @@ async def sanityRefill(session: nonebot.CommandSession):
 @nonebot.on_command('happy', aliases={'快乐时光'}, only_to_me=False)
 async def startHappyHours(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    idNum = str(ctx['user_id'])
-    if idNum == 634915227:
+    id_num = str(ctx['user_id'])
+    if get_privilege(id_num, perm.OWNER):
         if sanity_meter.happy_hours:
             sanity_meter.happy_hours = False
             await session.finish('已设置关闭快乐时光')
@@ -156,20 +163,21 @@ async def startHappyHours(session: nonebot.CommandSession):
 @nonebot.on_command('设置R18', only_to_me=False)
 async def SetR18(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    trustDict = admin_control.get_trusted_user()
-    idNum = str(ctx['user_id'])
-    if idNum not in trustDict or not trustDict[idNum]:
+    if not get_privilege(ctx['user_id'], perm.WHITELIST):
         await session.finish('您无权进行该操作')
 
     if 'group_id' in ctx:
-        idNum = ctx['group_id']
+        id_num = ctx['group_id']
+    else:
+        await session.finish('请在需要禁用或开启R18的群内使用本指令')
+        id_num = -1
 
     setting = session.get('stats', prompt='请设置开启或关闭')
     if re.match('.*?开', setting):
-        admin_control.set_data(idNum, 'R18', True)
+        admin_control.set_data(id_num, 'R18', True)
         resp = '开启'
     else:
-        admin_control.set_data(idNum, 'R18', False)
+        admin_control.set_data(id_num, 'R18', False)
         resp = '关闭'
 
     await session.finish('Done! 已设置%s' % resp)
@@ -187,8 +195,9 @@ async def tenPolls(session : nonebot.CommandSession):
         await session.send('这是群组功能')
         return
 
-    if ctx['user_id'] == 634915227:
+    if get_privilege(ctx['user_id'], perm.OWNER):
         api.get_randomized_results(98)
+
     else:
         offset = ark_pool_pity.getOffsetSetting(ctx['group_id'])
         api.get_randomized_results(offset)
@@ -264,10 +273,8 @@ async def get_xp_stat_data(session : nonebot.CommandSession):
 @nonebot.on_command('娱乐开关', only_to_me=False)
 async def pixivOff(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    admin_dict = admin_control.get_admin_users()
     id_num = str(ctx['user_id'])
-
-    if id_num not in admin_dict or not admin_dict[id_num]:
+    if not get_privilege(id_num, perm.WHITELIST):
         await session.finish('您无权进行该操作')
 
     group_id = session.get('group_id', prompt='请输入要禁用所有功能的qq群')
@@ -281,25 +288,10 @@ async def pixivOff(session: nonebot.CommandSession):
         admin_control.set_data(group_id, 'enabled', True)
         await session.finish('已开启娱乐功能！')
 
-@nonebot.on_command('色图状态查询', only_to_me=False)
-async def getPixivStats(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    if 'group_id' not in ctx:
-        return
-
-    group_id = ctx['group_id']
-
-    if admin_control.get_data(group_id, 'banned'):
-        await session.finish('色图功能目前为开启状态！')
-
-    await session.finish('色图功能目前为关闭状态！')
-
 @nonebot.on_command('设置色图禁用', only_to_me=False)
 async def setBlackListGroup(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    trustedDict = admin_control.get_trusted_user()
-    idNum = str(ctx['user_id'])
-    if idNum in trustedDict and trustedDict[idNum]:
+    if get_privilege(ctx['user_id'], perm.WHITELIST):
         group_id = session.get('group_id', prompt='请输入要禁用的qq群')
         try:
             admin_control.set_data(group_id, 'banned', True)
@@ -311,9 +303,7 @@ async def setBlackListGroup(session: nonebot.CommandSession):
 @nonebot.on_command('删除色图禁用', only_to_me=False)
 async def deleteBlackListGroup(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    trustedDict = admin_control.get_trusted_user()
-    idNum = str(ctx['user_id'])
-    if idNum in trustedDict and trustedDict[idNum]:
+    if get_privilege(ctx['user_id'], perm.WHITELIST):
         group_id = session.get('group_id', prompt='请输入要禁用的qq群')
         try:
             admin_control.set_data(group_id, 'banned', False)
@@ -341,10 +331,7 @@ async def _setGroupProperty(session: nonebot.CommandSession):
 @nonebot.on_command('闪照设置', only_to_me=False)
 async def set_exempt(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if str(ctx['user_id']) not in admin_control.get_admin_users():
-        return
-
-    if 'group_id' not in ctx:
+    if not get_privilege(ctx['user_id'], perm.ADMIN) or 'group_id' not in ctx:
         return
 
     group_id = ctx['group_id']
@@ -359,7 +346,7 @@ async def set_exempt(session : nonebot.CommandSession):
 @nonebot.on_command('验车', only_to_me=False)
 async def avValidator(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if answer_api.get_if_user_banned(ctx['user_id']):
+    if get_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     keyWord = session.get('keyWord', prompt='在？你要让我查什么啊baka')
@@ -381,25 +368,24 @@ async def pixivSend(session: nonebot.CommandSession):
     doMultiply = False
 
     ctx = session.ctx.copy()
-    if answer_api.get_if_user_banned(ctx['user_id']):
+    if get_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     group_id = ctx['group_id'] if 'group_id' in ctx else -1
     user_id = ctx['user_id']
-    trustDict = admin_control.get_trusted_user()
-    if 'group_id' in ctx and user_id != 634915227:
+    if 'group_id' in ctx and not get_privilege(user_id, perm.OWNER):
         if admin_control.get_data(ctx['group_id'], 'banned'):
             await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
 
     if group_id in sanity_meter.get_sanity_dict():
         sanity = sanity_meter.get_sanity(group_id)
 
-    elif 'group_id' not in ctx and (str(group_id) not in trustDict or not trustDict[str(group_id)]):
+    elif 'group_id' not in ctx and not get_privilege(user_id, perm.WHITELIST):
         await session.finish('我主人还没有添加你到信任名单哦。请找BOT制作者要私聊使用权限~')
 
     else:
-        sanity = 35
-        sanity_meter.set_sanity(group_id=group_id, sanity=35)
+        sanity = sanity_meter.get_max_sanity()
+        sanity_meter.set_sanity(group_id=group_id, sanity=sanity_meter.get_max_sanity())
 
     if sanity <= 0:
         if group_id not in sanity_meter.remind_dict or not sanity_meter.remind_dict[group_id]:
@@ -435,7 +421,7 @@ async def pixivSend(session: nonebot.CommandSession):
 
     if re.match(r'.*?祈.*?雨', keyWord):
         if re.match(r'(屑|垃.*?圾|辣.*?鸡|笨.*?蛋).*?祈.*?雨', keyWord):
-            answer_api.add_banned(str(ctx['user_id']))
+            user_control_module.set_user_privilege(str(ctx['user_id']), perm.BANNED, True)
             await session.finish('恭喜您被自动加入黑名单啦！')
 
         await session.finish('我静观天象，发现现在这个时辰不适合发我主人的色图。')
@@ -456,7 +442,7 @@ async def pixivSend(session: nonebot.CommandSession):
         admin_control.set_if_authed(False)
         try:
             admin_control.set_access_token(
-                access_token=aapi.auth(username=config.userName, password=config.passWord).response.access_token)
+                access_token=aapi.auth(username=config.user_name, password=config.password).response.access_token)
             await session.send('新的P站匿名访问链接已建立……')
             admin_control.set_if_authed(True)
 
@@ -464,9 +450,14 @@ async def pixivSend(session: nonebot.CommandSession):
             return
 
     if '{user=' in keyWord:
-        keyWord = re.findall(r'{user=(.*?)}', keyWord)[0]
+        keyWord = re.findall(r'{user=(.*?)}', keyWord)
+        if keyWord:
+            keyWord = keyWord[0]
+        else:
+            await session.finish('未找到该用户。')
+
         json_user = aapi.search_user(word=keyWord, sort="popular_desc")
-        if json_user:
+        if json_user.user_previews:
             user_id = json_user.user_previews[0].user.id
             json_result = aapi.user_illusts(user_id)
         else:
@@ -492,12 +483,14 @@ async def pixivSend(session: nonebot.CommandSession):
     if illust['meta_single_page']:
         if 'original_image_url' in illust['meta_single_page']:
             image_url = illust.meta_single_page['original_image_url']
+        else:
+            image_url = illust.image_urls['medium']
     else:
         image_url = illust.image_urls['medium']
 
     nonebot.logger.info("%s: %s, %s" % (illust.title, image_url, illust.id))
     image_file_name = image_url.split('/')[-1].replace('_', '')
-    path = 'D:/CQP/QPro/data/image/' + image_file_name
+    path = 'D:/go-cqhttp/data/images/' + image_file_name
     nonebot.logger.info("PATH = " + path)
     bot = nonebot.get_bot()
     if not os.path.exists(path):
@@ -509,14 +502,16 @@ async def pixivSend(session: nonebot.CommandSession):
         except Exception as err:
             nonebot.logger.warning(f'Download image error: {err}')
 
-    time.sleep(1)
+    try:
+        nickname = ctx['sender']['nickname']
+    except TypeError:
+        nickname = 'null'
+
     if not isR18:
         try:
             await session.send(
-                f'[CQ:at,qq={user_id}]\nPixiv ID: {illust.id}\n'
+                f'[CQ:at,qq={user_id}]\nPixiv ID: {illust.id}\n' + MessageSegment.image(f'file:///{path}')
             )
-
-            await session.send(MessageSegment.image(image_file_name))
 
             if not monitored:
                 sanity_meter.drain_sanity(group_id=group_id, sanity=1 if not doMultiply else multiplier)
@@ -530,9 +525,9 @@ async def pixivSend(session: nonebot.CommandSession):
 
     elif isR18 and (group_id == -1 or admin_control.get_data(group_id, 'R18')):
         if not is_exempt:
-            await session.send(MessageSegment.image(image_file_name, destruct=True))
+            await session.send(MessageSegment.image(f'file:///{path}', destruct=True))
         else:
-            await session.send(MessageSegment.image(image_file_name))
+            await session.send(MessageSegment.image(f'file:///{path}'))
         if not monitored:
             sanity_meter.drain_sanity(group_id=group_id, sanity=2 if not doMultiply else 2 * multiplier)
 
@@ -540,29 +535,22 @@ async def pixivSend(session: nonebot.CommandSession):
     else:
         await session.send('我找到色图了！\n但是我发给我主人了_(:зゝ∠)_')
         await bot.send_private_msg(user_id=634915227,
-                                   message='图片来自：%s\n'
-                                           'Pixiv ID: %d\n' % (
-                                           ctx['sender']['nickname'], illust.id) +
-                                           MessageSegment.image(image_file_name))
+                                   message=f"图片来自：{nickname}\n" +
+                                           f'Pixiv ID: {illust.id}\n' +
+                                           MessageSegment.image(f'file:///{path}')
+        )
+
 
     sanity_meter.set_usage(group_id, 'setu')
     if 'group_id' in ctx:
         sanity_meter.set_user_data(user_id, 'setu')
 
-    if monitored and user_id != 634915227:
-        try:
-            nickname = ctx['sender']['nickname']
-        except TypeError:
-            nickname = 'null'
-
+    if monitored and not get_privilege(user_id, perm.OWNER):
         await bot.send_private_msg(user_id=634915227,
-                                   message='图片来自：%s\n'
-                                           '查询关键词:%s\nPixiv ID: %d\n'
-                                           '关键字在监控中' % (
-                                               nickname, keyWord, illust.id))
-
-        await bot.send_private_msg(user_id=634915227,
-                                   message=MessageSegment.image(image_file_name))
+                                   message=f'图片来自：{nickname}\n'
+                                           f'查询关键词:{keyWord}\n'
+                                           f'Pixiv ID: {illust.id}\n'
+                                           '关键字在监控中' + f'[CQ:image,file=file:///{path}]')
 
 @nonebot.on_command('ghs', only_to_me=False)
 async def get_random_image(session: nonebot.CommandSession):
@@ -600,7 +588,7 @@ async def get_random():
         with open(path, 'wb') as f:
             f.write(image_page.content)
 
-    return MessageSegment.image(filename) if not is_nsfw else MessageSegment.image(filename, destruct=True)
+    return MessageSegment.image(f'file:///{path}') if not is_nsfw else MessageSegment.image(f'file:///{path}', destruct=True)
 
 @pixivSend.args_parser
 @avValidator.args_parser
@@ -619,9 +607,8 @@ async def _(session: nonebot.CommandSession):
 @nonebot.on_command('嘴臭一个', aliases=('骂我', '你再骂', '小嘴抹蜜', '嘴臭一下', '机器人骂我'), only_to_me=False)
 async def zuiChou(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if answer_api.get_if_user_banned(ctx['user_id']):
-        await session.send('略略略，我主人把你拉黑了。哈↑哈↑哈')
-        return
+    if get_privilege(ctx['user_id'], perm.BANNED):
+        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     if 'group_id' in ctx:
         sanity_meter.set_user_data(ctx['user_id'], 'zc')
@@ -658,6 +645,9 @@ async def zuiChou(session: nonebot.CommandSession):
 @nonebot.on_command('彩虹屁', aliases=('拍个马屁', '拍马屁', '舔TA'), only_to_me=False)
 async def caiHongPi(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
+
+    if get_privilege(ctx['user_id'], perm.BANNED):
+        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     if 'group_id' in ctx:
         sanity_meter.set_user_data(ctx['user_id'], 'chp')

@@ -1,15 +1,58 @@
+import json
+from os.path import exists
+from typing import Union
+from awesome.adminControl.permission import *
+
+USER_T = Union[OWNER, ADMIN, WHITELIST, BANNED]
+
+def _init_data(path: str) -> dict:
+    if exists(path):
+        with open(path, 'r') as file:
+            fl = file.read()
+            return json.loads(str(fl))
+
+    else:
+        empty_dict = {}
+        with open(path, 'w+') as fl:
+            json.dump(empty_dict, fl, indent=4)
+
+    return {}
+
+
 class Grouplearning:
     def __init__(self):
-        file = open('config/learning.json', 'r+')
-        fl = file.read()
-        import json
-        self.user_dict = json.loads(str(fl))
-        file = open('config/bannedUser.json', 'r+')
-        fl = file.read()
-        self.banned_dict = json.loads(str(fl))
+        self.WORD_DICT_PATH = 'config/learning.json'
+        self.USER_DICT_PATH = 'config/users.json'
+
+        self.answer_dict = _init_data(self.WORD_DICT_PATH)
+        self.user_privilege = _init_data(self.USER_DICT_PATH)
+
         self.last_question = {}
-        print('Done getting stuffs')
         self.user_repeat_question_count = {}
+
+    def set_user_privilege(self, user_id: Union[int, str], tag: USER_T, stat: bool):
+        if isinstance(user_id, int):
+            user_id = str(user_id)
+
+        if user_id not in self.user_privilege:
+            self.user_privilege[user_id] = {
+                'OWNER' : False,
+                'ADMIN' : False,
+                'WHITELIST' : False,
+                'BANNED' : False
+            }
+
+        self.user_privilege[user_id][tag] = stat
+        self.make_a_json(self.USER_DICT_PATH)
+
+    def get_user_privilege(self, user_id: Union[int, str], tag: USER_T) -> bool:
+        if isinstance(user_id, int):
+            user_id = str(user_id)
+
+        if user_id not in self.user_privilege:
+            return False
+
+        return self.user_privilege[user_id][tag]
 
     def set_user_repeat_question(self, user_id):
         if user_id not in self.user_repeat_question_count:
@@ -23,67 +66,51 @@ class Grouplearning:
 
         return self.user_repeat_question_count[user_id]
 
-    def add_banned(self, user_id):
-        self.banned_dict[user_id] = True
-        self.make_a_banned_json()
-
-    def delete_banned(self, user_id):
-        if user_id in self.banned_dict:
-            self.banned_dict[user_id] = False
-            self.make_a_banned_json()
-
-    def get_if_user_banned(self, user_id):
-        user_id = str(user_id)
-        if user_id in self.banned_dict:
-            return self.banned_dict[user_id]
-
-        return False
-
     def add_response(self, question, answer_dict):
-        self.user_dict[question] = answer_dict
-        self.make_a_json()
+        self.answer_dict[question] = answer_dict
+        self.make_a_json(self.WORD_DICT_PATH)
 
     def rewrite_file(self, question, answer_dict):
-        if question not in self.user_dict:
+        if question not in self.answer_dict:
             return False
 
-        if 'restriction' not in self.user_dict[question] or not self.user_dict[question]['restriction']:
-            self.user_dict[question] = answer_dict
-            self.make_a_json()
+        if 'restriction' not in self.answer_dict[question] or not self.answer_dict[question]['restriction']:
+            self.answer_dict[question] = answer_dict
+            self.make_a_json(self.WORD_DICT_PATH)
             return True
 
         return False
 
     def delete_response(self, key_word):
-        if key_word in self.user_dict:
-            del self.user_dict[key_word]
-            self.make_a_json()
+        if key_word in self.answer_dict:
+            del self.answer_dict[key_word]
+            self.make_a_json(self.WORD_DICT_PATH)
             return True
 
         return False
 
     def get_user_dict(self):
-        return self.user_dict
+        return self.answer_dict
 
     def get_user_response(self, question):
-        return self.user_dict[question]['answer']
+        return self.answer_dict[question]['answer']
 
-    def make_a_json(self):
+    def make_a_json(self, path: str):
         import json
-        with open('config/learning.json', 'w+') as f:
-            json.dump(self.user_dict, f, indent=4)
+        if path == self.WORD_DICT_PATH:
+            with open(path, 'w+') as f:
+                json.dump(self.answer_dict, f, indent=4)
 
-    def make_a_banned_json(self):
-        import json
-        with open('config/bannedUser.json', 'w+') as f:
-            json.dump(self.banned_dict, f, indent=4)
+        elif path == self.USER_DICT_PATH:
+            with open(path, 'w+') as f:
+                json.dump(self.user_privilege, f, indent=4)
 
     def get_response_info(self, question):
-        if question in self.user_dict:
+        if question in self.answer_dict:
             return '关键词%s的加入情况如下：\n' \
                    '加入者QQ：%d\n' \
                    '加入人QQ昵称：%s\n' \
-                   '录入回答：%s' % (question, self.user_dict[question]['from_user'],
-                                self.user_dict[question]['user_nickname'], self.user_dict[question]['answer'])
+                   '录入回答：%s' % (question, self.answer_dict[question]['from_user'],
+                                self.answer_dict[question]['user_nickname'], self.answer_dict[question]['answer'])
 
         return '该关键词我还没有学习过哦~'

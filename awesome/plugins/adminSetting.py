@@ -1,18 +1,27 @@
-import nonebot, re, json
-import requests
-import random, time
+import config
+import json
+import random
+import re
+import time
 from math import *
+
+import nonebot
+import requests
+
+from awesome.adminControl import permission as perm
 from awesome.adminControl import userControl, shadiaoAdmin
 from awesome.plugins.Shadiao import sanity_meter
 
-answer_api = userControl.Grouplearning()
-admin_control = shadiaoAdmin.Shadiaoadmin()\
+user_control_module = userControl.Grouplearning()
+admin_control = shadiaoAdmin.Shadiaoadmin()
+
+get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
 
 @nonebot.on_command('添加监控词', only_to_me=False)
 async def add_monitor_word(session : nonebot.CommandSession):
     keyWord = session.get('keyWord', prompt='要加什么进来呢？')
     ctx = session.ctx.copy()
-    if ctx['user_id'] != 634915227:
+    if not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish('您无权使用本命令')
 
     sanity_meter.set_new_xp(keyWord)
@@ -22,7 +31,7 @@ async def add_monitor_word(session : nonebot.CommandSession):
 async def add_blacklist_word(session : nonebot.CommandSession):
     key_word = session.get('key_word', prompt='要加什么进来呢？')
     ctx = session.ctx.copy()
-    if ctx['user_id'] != 634915227:
+    if not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish('您无权使用本命令')
 
     keyWords = key_word.split()
@@ -34,12 +43,11 @@ async def add_blacklist_word(session : nonebot.CommandSession):
         await session.finish('第二输入非数字。')
 
 @nonebot.on_command('添加信任', only_to_me=False)
-async def add_trust(session : nonebot.CommandSession):
+async def add_whitelist(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
     bot = nonebot.get_bot()
-    if ctx['user_id'] != 634915227:
-        await session.send('您无权使用该功能')
-        return
+    if not get_privilege(ctx['user_id'], perm.OWNER):
+        await session.finish('您无权使用该功能')
 
     id_num = session.get('user_id', prompt='请输入要添加的qq号')
     try:
@@ -48,35 +56,31 @@ async def add_trust(session : nonebot.CommandSession):
         await session.send('主人啊，这是数字么？')
         return
 
-    admin_control.add_trusted_user(id_num)
+    user_control_module.set_user_privilege(id_num, perm.WHITELIST, True)
     await bot.send_private_msg(user_id=id_num, message='您已被机器人的主人添加信任')
     await session.send('添加成功！')
 
 @nonebot.on_command('移除信任', aliases={'删除信任', '解除信任'}, only_to_me=False)
 async def delete_trust(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if ctx['user_id'] != 634915227:
-        await session.send('您无权使用该功能')
-        return
+    if not get_privilege(ctx['user_id'], perm.OWNER):
+        await session.finish('您无权使用该功能')
 
     id_num = session.get('user_id', prompt='请输入要添加的qq号')
     try:
         id_num = int(id_num)
     except ValueError:
-        await session.send('主人啊，这是数字么？')
-        return
+        await session.finish('主人啊，这是数字么？')
 
-    admin_control.delete_trusted_user(id_num)
+    user_control_module.set_user_privilege(id_num, perm.WHITELIST, False)
     await session.send('移除成功！')
 
 @nonebot.on_command('添加管理', only_to_me=False)
 async def add_admin(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
     bot = nonebot.get_bot()
-    id_num = ctx['user_id']
-    if id_num != 634915227:
-        await session.send('您无权进行此操作')
-        return
+    if not get_privilege(ctx['user_id'], perm.OWNER):
+        await session.finish('您无权使用该功能')
 
     id_num = session.get('user_id', prompt='请输入要添加的qq号')
     try:
@@ -85,18 +89,16 @@ async def add_admin(session : nonebot.CommandSession):
         await session.send('主人啊，这是数字么？')
         return
 
-    admin_control.add_admin_user(id_num)
-    admin_control.add_trusted_user(id_num)
+    user_control_module.set_user_privilege(id_num, 'ADMIN', True)
+    user_control_module.set_user_privilege(id_num, 'WHITELIST', True)
     await bot.send_private_msg(user_id=id_num, message='您已被机器人的主人给予机器人管理权限')
     await session.send('添加完成')
 
 @nonebot.on_command('删除管理', only_to_me=False)
 async def delete_admin(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    id_num = ctx['user_id']
-    if id_num != 634915227:
-        await session.send('您无权进行此操作')
-        return
+    if not get_privilege(ctx['user_id'], perm.OWNER):
+        await session.finish('您无权使用该功能')
 
     id_num = session.get('user_id', prompt='请输入要添加的qq号')
     try:
@@ -105,37 +107,31 @@ async def delete_admin(session: nonebot.CommandSession):
         await session.send('主人啊，这是数字么？')
         return
 
-    admin_control.delete_admin_user(id_num)
-    admin_control.delete_trusted_user(id_num)
+    user_control_module.set_user_privilege(id_num, 'ADMIN', False)
+    user_control_module.set_user_privilege(id_num, 'WHITELIST', False)
     await session.send('移除完成')
 
 @nonebot.on_command('我懂了', only_to_me=False)
 async def add_ai_real_response(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
-    admin_dict = admin_control.admin_user
-    prompt = '那么这个问题我该怎么回答呢？'
-
-    if str(ctx['user_id']) not in admin_dict or not admin_dict[str(ctx['user_id'])]:
-        await session.send('您无权加入信用语句')
-        return
+    trusted = get_privilege(ctx['user_id'], perm.ADMIN) or get_privilege(ctx['user_id'], perm.OWNER)
+    if not trusted:
+        await session.finish('您无权加入信任语句')
 
     question = session.get('question', prompt='请输入回答的问题')
     question = str(question).replace('\n', ' ')
 
     if re.match(r'\[CQ:image', question):
-        await session.send('我主人说如果有人加图片应答就要这么回答。\n你加nm呢？')
-        return
+        await session.finish('我主人说如果有人加图片应答就要这么回答。\n你加nm呢？')
 
-    if question in answer_api.get_user_dict():
-        prompt = '已删除该回答的原始回答，请加入信用回答'
-        answer_api.delete_response(question)
+    if question in user_control_module.get_user_dict():
+        user_control_module.delete_response(question)
 
-    answer = session.get('answer', prompt=prompt)
+    answer = session.get('answer', prompt='已删除该回答的原始回答，请加入信用回答')
     answer = str(answer).replace('\n', ' ')
 
-    if re.match(r'\$', answer) and ctx['user_id'] != 634915227:
-        await session.send('您无权封印此语料')
-        return
+    if re.match(r'\$', answer) and not get_privilege(ctx['user_id'], perm.OWNER):
+        await session.finish('您无权封印此语料')
 
     answer_dict = {
         'answer': answer,
@@ -145,7 +141,7 @@ async def add_ai_real_response(session : nonebot.CommandSession):
         'restriction': True
     }
 
-    answer_api.add_response(question, answer_dict)
+    user_control_module.add_response(question, answer_dict)
     await session.send('回答已添加！')
 
 @nonebot.on_command('问题', only_to_me=False)
@@ -154,7 +150,7 @@ async def sendAnswer(session : nonebot.CommandSession):
     question = session.get('question', prompt='啊？你要问我什么？')
     question = str(question).lower()
     ctx = session.ctx.copy()
-    if answer_api.get_if_user_banned(ctx['user_id']):
+    if get_privilege(ctx['user_id'], perm.BANNED):
         await session.finish()
 
     sanity_meter.set_user_data(ctx['user_id'], 'question')
@@ -235,8 +231,8 @@ def _simple_ai_process(question: str) -> str:
 
     return response
 
-def _math_fetch(question: str, userID: int) -> (bool, str):
-    if re.match(r'.*?name__', question) and userID != 634915227:
+def _math_fetch(question: str, user_id: int) -> (bool, str):
+    if re.match(r'.*?name__', question) and not get_privilege(user_id, perm.OWNER):
         return True, '检测到危险指令。拒绝执行'
 
     if re.match(r'.*?(sudo|ls|rm|curl|chmod|usermod|newgrp|vim|objdump|aux|lambda)', question):
@@ -271,21 +267,21 @@ def _math_fetch(question: str, userID: int) -> (bool, str):
     return True, f'运算结果是：{answer}\n我算的对吧~'
 
 def prefetch(question: str, user_id: int) -> (bool, str):
-    if question == answer_api.last_question:
-        repeat_count = answer_api.get_user_repeat_question(user_id)
+    if question == user_control_module.last_question:
+        repeat_count = user_control_module.get_user_repeat_question(user_id)
         if repeat_count == 6:
-            answer_api.add_banned(str(user_id))
+            user_control_module.set_user_privilege(str(user_id), perm.BANNED, True)
             return False, ''
 
         if repeat_count > 3:
             return False, ''
 
-        answer_api.set_user_repeat_question(user_id)
+        user_control_module.set_user_repeat_question(user_id)
         return True, '你怎么又问一遍？'
 
-    elif question in answer_api.get_user_dict():
-        answer_api.last_question = question
-        return True, answer_api.get_user_response(question)
+    elif question in user_control_module.get_user_dict():
+        user_control_module.last_question = question
+        return True, user_control_module.get_user_response(question)
 
     if re.match(r'.*?おやすみ', question):
         return False, ''
@@ -332,8 +328,8 @@ def _request_api_response(question: str) -> str:
             page = requests.get(
                 f'http://i.itpk.cn/api.php?question={question}'
                 f'&limit=5'
-                f'&api_key=9433894687a1cabc7ff1a23aa3081ac2'
-                f'&api_secret=lnolyg5fdfd4',
+                f'&api_key={config.itpk_key}'
+                f'&api_secret={config.itpk_secret}',
                 timeout=5)
 
             if not '笑话' in question:
@@ -351,11 +347,9 @@ def _request_api_response(question: str) -> str:
 @nonebot.on_command('移除语料', only_to_me=False)
 async def delete_ai_response(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
-    trustDict = admin_control.get_trusted_user()
-    id_num = str(ctx['user_id'])
-    if id_num in trustDict and trustDict[id_num]:
+    if get_privilege(ctx['user_id'], perm.WHITELIST):
         key_word = session.get('key_word', prompt='请输入要移除的语料')
-        if answer_api.delete_response(key_word):
+        if user_control_module.delete_response(key_word):
             await session.send('已删除该语料')
         else:
             await session.send('语料删除失败，关键词未找到。')
@@ -380,16 +374,12 @@ async def _deleteAIResponse(session: nonebot.CommandSession):
 @nonebot.on_command('语料查询', only_to_me=False)
 async def getAnswerInfo(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
-    trust_dict = admin_control.get_trusted_user()
-    id_num = str(ctx['user_id'])
-    if id_num in trust_dict and trust_dict[id_num]:
+    if get_privilege(ctx['user_id'], perm.WHITELIST):
         keyWord = session.get('keyWord', prompt='请输入需要查询的预料关键词')
-        await session.send(answer_api.get_response_info(keyWord))
+        await session.send(user_control_module.get_response_info(keyWord))
 
 @nonebot.on_natural_language(only_to_me=False, only_short_message=True)
 async def send_answer(session : nonebot.NLPSession):
-    import random, time
-
     random.seed(time.time_ns())
     rand_num = random.randint(0, 100000)
     ctx = session.ctx.copy()
@@ -401,16 +391,16 @@ async def send_answer(session : nonebot.NLPSession):
     if admin_control.get_data(group_id, 'enabled'):
 
         message = str(ctx['raw_message'])
-        if answer_api.get_if_user_banned(ctx['user_id']):
+        if get_privilege(ctx['user_id'], perm.BANNED):
             return
 
         if 'group_id' in ctx:
-            if rand_num < 70000 and message in answer_api.get_user_dict():
+            if rand_num < 70000 and message in user_control_module.get_user_dict():
                 group_id = str(ctx['group_id'])
                 try:
-                    if group_id not in answer_api.last_question or answer_api.last_question[group_id] != message:
-                        answer_api.last_question[group_id] = message
-                        await session.send(answer_api.get_user_response(message))
+                    if group_id not in user_control_module.last_question or user_control_module.last_question[group_id] != message:
+                        user_control_module.last_question[group_id] = message
+                        await session.send(user_control_module.get_user_response(message))
 
                 except Exception as err:
                     print(f"Something went wrong: {err}")
@@ -434,16 +424,14 @@ async def send_answer(session : nonebot.NLPSession):
 @nonebot.on_command('ban', only_to_me=False)
 async def ban_someone(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
-    trust_dict = admin_control.get_admin_users()
-    id_num = str(ctx['user_id'])
-    if id_num in trust_dict and trust_dict[id_num]:
+    if get_privilege(ctx['user_id'], perm.ADMIN):
         try:
             user_id = int(session.get('user_id', prompt='请输入要封禁的qq'))
         except ValueError:
             await session.send('输入非QQ号，发生错误！')
             return
 
-        answer_api.add_banned(str(user_id))
+        user_control_module.set_user_privilege(str(user_id), 'BANNED', True)
         await session.send('Done!!')
 
     else:
@@ -453,16 +441,14 @@ async def ban_someone(session : nonebot.CommandSession):
 @nonebot.on_command('unban', only_to_me=False)
 async def unban_someone(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
-    trust_dict = admin_control.get_admin_users()
-    id_num = str(ctx['user_id'])
-    if id_num in trust_dict and trust_dict[id_num]:
+    if get_privilege(ctx['user_id'], perm.ADMIN):
         try:
             user_id = int(session.get('user_id', prompt='请输入要封禁的qq'))
         except ValueError:
             await session.send('输入非QQ号，发生错误！')
             return
 
-        answer_api.delete_banned(str(user_id))
+        user_control_module.set_user_privilege(str(user_id), perm.BANNED, False)
         await session.send('Done!!')
 
     else:

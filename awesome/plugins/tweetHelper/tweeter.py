@@ -1,10 +1,10 @@
 import twitter, config, logging, re, requests, os, time
 
 try:
-    api = twitter.Api(consumer_key=config.consumerKey,
-                      consumer_secret=config.consumerSecret,
-                      access_token_key=config.accessToken,
-                      access_token_secret=config.accessSecret)
+    api = twitter.Api(consumer_key=config.consumer_key,
+                      consumer_secret=config.consumer_secret,
+                      access_token_key=config.access_token,
+                      access_token_secret=config.access_secret)
 
 except Exception as e:
     print("getTweet init failed %s" % e)

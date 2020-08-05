@@ -1,10 +1,13 @@
 import asyncio
+from random import randint, seed
+from time import time_ns
 
 import nonebot
-from time import time_ns
+
 from Shadiao import pokerGame, ruGame
-from random import randint, seed
 from awesome.plugins.Shadiao import admin_control, sanity_meter
+from awesome.adminControl import permission as perm
+from awesome.plugins.adminSetting import get_privilege
 
 class Storer:
     def __init__(self):
@@ -157,7 +160,6 @@ async def russianRoulette(session : nonebot.CommandSession):
     if 'group_id' in ctx:
         if admin_control.get_data(ctx['group_id'], 'banned'):
             await session.send('已设置禁止该群的娱乐功能。如果确认这是错误的话，请联系bot制作者')
-            admin_control.setPrivate(True)
             return
     else:
         await session.finish('这是群组游戏！')
@@ -175,7 +177,7 @@ async def russianRoulette(session : nonebot.CommandSession):
         await session.send('咔')
     else:
         death = game.get_death(id_num)
-        if user_id == 634915227:
+        if get_privilege(user_id, perm.OWNER):
             await session.send('[CQ:at,qq=634915227] sv_cheats 1 -> 成功触发免死\n'
                                '本应中枪几率为：%.2f' % (1 / (7 - death)))
             return
@@ -219,7 +221,7 @@ async def the_poker_game(session : nonebot.CommandSession):
     else:
         await session.finish('抱歉哦这是群组游戏。')
 
-    if ctx['user_id'] == 634915227:
+    if get_privilege(user_id, perm.OWNER):
         drawed_card, time_seed = poker.get_random_card(user_id, str(ctx['group_id']), rigged=10)
     else:
         drawed_card, time_seed = poker.get_random_card(user_id, str(ctx['group_id']))

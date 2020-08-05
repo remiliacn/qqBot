@@ -3,7 +3,7 @@ from os.path import exists
 
 class SetuSanity:
     def __init__(self):
-        self.max_sanity = 35
+        self.max_sanity = 30
         self.sanity_dict = {}
         self.happy_hours = False
         self.remind_dict = {}
@@ -15,6 +15,9 @@ class SetuSanity:
         self.bad_keyword_file = 'config/setu.json'
         self.bad_keywords = {}
         self._init_bad_word()
+
+    def get_max_sanity(self) -> int:
+        return self.max_sanity
 
     def get_bad_word_dict(self) -> dict:
         return self.bad_keywords['bad_words']
@@ -174,7 +177,7 @@ class SetuSanity:
     def set_remid_dict(self, group_id, stats):
         self.remind_dict[group_id] = stats
 
-    def set_sanity(self, group_id, sanity=40):
+    def set_sanity(self, group_id, sanity=2000):
         self.sanity_dict[group_id] = sanity
 
     def drain_sanity(self, group_id, sanity=1):

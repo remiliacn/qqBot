@@ -1,6 +1,13 @@
-import nonebot, json
 from re import match, findall
 from subprocess import Popen
+
+import json
+import nonebot
+
+from awesome.adminControl import permission as perm
+from awesome.plugins.adminSetting import user_control_module
+
+get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
 
 @nonebot.on_command('下源', only_to_me=False)
 async def getVideoFromID(session : nonebot.CommandSession):
@@ -31,7 +38,7 @@ async def getVideoFromID(session : nonebot.CommandSession):
 @nonebot.on_command('checkNow', only_to_me=False)
 async def checkNow(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if ctx['user_id'] == 634915227:
+    if get_privilege(ctx['user_id'], perm.OWNER):
         Popen('py D:/forDownload.py bulk', stdin=None, stdout=None, stderr=None, close_fds=True, shell=True)
 
 @nonebot.scheduler.scheduled_job('interval', seconds=1200)
