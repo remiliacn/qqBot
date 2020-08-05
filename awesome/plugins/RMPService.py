@@ -8,8 +8,7 @@ async def get_rmp_rating(session : nonebot.CommandSession):
     api = RMPClass.RateMyProfAPI(teacher=teacher_name)
     api.retrieve_rmp_info()
     if api.get_rmp_info() == '/5.0':
-        await session.send('好像什么没有查到！换一个名字试试？')
-        return
+        await session.finish('好像什么没有查到！换一个名字试试？')
 
     await session.send('热门标签：%s\n评分%s' % (api.get_first_tag(), api.get_rmp_info()))
 

@@ -1,40 +1,29 @@
 import json
+import os
+import random
+import re
 import shutil
+import time
 
 import aiocqhttp.event
 import nonebot
-import os
 import pixivpy3
-import random
-import re
 import requests
-import time
 from aiocqhttp import MessageSegment
 from nonebot.message import CanceledException
 from nonebot.plugin import PluginManager
 
 import config
 from Shadiao import WaifuFinder, ark_nights, Shadiao, pcr_news
+from awesome.adminControl import permission as perm
 from awesome.adminControl import shadiaoAdmin, setuSanity
 from awesome.adminControl import userControl
-from awesome.adminControl import permission as perm
 
-get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
-
-if not os.path.exists("E:/pixivPic/"):
-    os.makedirs("E:/pixivPic/")
-
-@nonebot.message_preprocessor
-async def message_preprocessing(unused1: nonebot.NoneBot, event: aiocqhttp.event, unused2: PluginManager):
-    group_id = event.group_id
-    if group_id is not None:
-        if not admin_control.get_data(group_id, 'enabled') \
-        and not get_privilege(event['user_id'], perm.OWNER):
-            raise CanceledException('Group disabled')
 
 class arknightsPity:
     def __init__(self):
         self.sanityPollDict = {}
+
     def recordPoll(self, group_id):
         if group_id not in self.sanityPollDict:
             self.sanityPollDict[group_id] = 10
@@ -65,11 +54,25 @@ user_control_module = userControl.UserControl()
 ark_pool_pity = arknightsPity()
 
 
+get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
+
+if not os.path.exists("E:/pixivPic/"):
+    os.makedirs("E:/pixivPic/")
+
+@nonebot.message_preprocessor
+async def message_preprocessing(unused1: nonebot.NoneBot, event: aiocqhttp.event, unused2: PluginManager):
+    group_id = event.group_id
+    if group_id is not None:
+        if not admin_control.get_data(group_id, 'enabled') \
+        and not get_privilege(event['user_id'], perm.OWNER):
+            raise CanceledException('Group disabled')
+
+
 @nonebot.on_command('来个老婆', aliases=('来张waifu', '来个waifu', '老婆来一个'), only_to_me=False)
 async def sendWaifu(session: nonebot.CommandSession):
     waifuAPI = WaifuFinder.waifuFinder()
     path, message = waifuAPI.getImage()
-    if path == '':
+    if not path:
         await session.send(message)
     else:
         nonebot.logger.warning('Get waifu pic: %s' % path)
@@ -79,7 +82,7 @@ async def sendWaifu(session: nonebot.CommandSession):
 @nonebot.on_command('shadiao', aliases=('沙雕图', '来一张沙雕图', '机器人来张沙雕图'), only_to_me=False)
 async def shadiaoSend(session: nonebot.CommandSession):
     shadiao = Shadiao.ShadiaoAPI()
-    file = shadiao.getPicture()
+    file = shadiao.get_picture()
     await session.send('[CQ:image,file=file:///%s]' % file)
 
 @nonebot.on_command('PCR', only_to_me=False)
@@ -350,12 +353,12 @@ async def avValidator(session: nonebot.CommandSession):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     keyWord = session.get('keyWord', prompt='在？你要让我查什么啊baka')
-    validator = Shadiao.aValidator(text=keyWord)
+    validator = Shadiao.Avalidator(text=keyWord)
     if 'group_id' in ctx:
         sanity_meter.set_usage(ctx['group_id'], tag='yanche')
         sanity_meter.set_user_data(ctx['user_id'], 'yanche')
 
-    await session.finish(validator.getContent())
+    await session.finish(validator.get_content())
 
 @nonebot.on_command('色图', aliases='来张色图', only_to_me=False)
 async def pixivSend(session: nonebot.CommandSession):

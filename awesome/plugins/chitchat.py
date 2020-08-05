@@ -1,6 +1,11 @@
-import nonebot, random, time, os, re
-from awesome.adminControl import shadiaoAdmin, userControl
+import nonebot
+import os
+import random
+import re
+import time
+
 from awesome.adminControl import permission as perm
+from awesome.adminControl import shadiaoAdmin, userControl
 
 
 class Votekick:
@@ -41,26 +46,27 @@ async def nei_gui_response(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
     if rand_num >= 26 and not get_privilege(ctx['user_id'], perm.OWNER):
         qq_num = ctx['user_id']
-        await session.send('哦屑！有内鬼！终止交易！！ \nTA的QQ号是：%d！！！ \nQQ昵称是：%s' % (qq_num, ctx['sender']['nickname']))
+        await session.send(f'哦屑！有内鬼！终止交易！！ \n'
+                           f'TA的QQ号是：{qq_num}！！！ \n'
+                           f'QQ昵称是：{ctx["sender"]["nickname"]}')
 
     else:
         await session.send('一切安全！开始交易！')
 
 @nonebot.on_command('生草', only_to_me=False)
 async def vtuber_audio(session : nonebot.CommandSession):
-    key_word = session.get_optional('key_word')
-    key_word = str(key_word)
-    if re.match(r'.*?鹿乃', key_word):
+    key_word : str = session.get_optional('key_word')
+    if '鹿乃' in key_word:
         file = 'pa0.wav'
-    elif re.match(r'.*?盘子', key_word):
+    elif '盘子' in key_word:
         file = '05-1.mp3'
-    elif re.match(r'.*?恋口上', key_word):
+    elif '恋口上' in key_word:
         file = 'a0616-12.mp3'
-    elif re.match(r'.*?seaside', str(key_word).lower()):
+    elif 'seaside' in key_word.lower():
         file = '34-1.mp3'
-    elif re.match(r'.*?([恩嗯])', key_word):
+    elif '恩' in key_word or '嗯' in key_word:
         file = '71.mp3'
-    elif re.match(r'.*?唱歌', key_word):
+    elif '唱歌' in key_word:
         file = 'a-207.mp3'
     else:
         file = await get_random_file('C:/dl/audio')
@@ -129,8 +135,8 @@ async def otsukare(session : nonebot.CommandSession):
     await session.send(f'[CQ:image,file=file:///{file}]')
 
 async def get_random_file(path: str) -> str:
+    if not os.path.exists(path):
+        raise FileNotFoundError(f'No image found in default location: {path}')
+
     file = os.listdir(path)
-    fileCount = len(file) - 1
-    random.seed(time.time_ns())
-    rand_num = random.randint(0, fileCount)
-    return path + '/' + file[rand_num]
+    return path + '/' + random.choice(file)
