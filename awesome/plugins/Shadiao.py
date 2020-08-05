@@ -176,7 +176,7 @@ async def SetR18(session: nonebot.CommandSession):
         id_num = -1
 
     setting = session.get('stats', prompt='请设置开启或关闭')
-    if re.match('.*?开', setting):
+    if '开' in setting:
         admin_control.set_data(id_num, 'R18', True)
         resp = '开启'
     else:
@@ -365,11 +365,6 @@ async def pixivSend(session: nonebot.CommandSession):
     if not getStatus():
         await session.finish('机器人现在正忙，不接受本指令。')
 
-    sanity = -1
-    monitored = False
-    multiplier = 1
-    doMultiply = False
-
     ctx = session.ctx.copy()
     if get_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
@@ -379,6 +374,11 @@ async def pixivSend(session: nonebot.CommandSession):
     if 'group_id' in ctx and not get_privilege(user_id, perm.OWNER):
         if admin_control.get_data(ctx['group_id'], 'banned'):
             await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
+
+    sanity = -1
+    monitored = False
+    multiplier = 1
+    doMultiply = False
 
     if group_id in sanity_meter.get_sanity_dict():
         sanity = sanity_meter.get_sanity(group_id)
@@ -395,8 +395,6 @@ async def pixivSend(session: nonebot.CommandSession):
             sanity_meter.set_remid_dict(group_id, True)
             await session.finish(
                 '您已经理智丧失了，不能再查了哟~（小提示：指令理智查询可以帮您查看本群还剩多少理智，理智补充算法：快乐时光下：5点/2分钟（上限80）、非快乐时光下：1点/2分钟（上限40））')
-
-        return
 
     if not admin_control.get_if_authed():
         aapi.set_auth(access_token=admin_control.get_access_token(),
@@ -475,49 +473,26 @@ async def pixivSend(session: nonebot.CommandSession):
         await session.send("%s无搜索结果或图片过少……" % keyWord)
         return
 
-    listMax = len(json_result.illusts)
-    startNum = random.randint(0, listMax - 1)
-
-    isR18 = False
-    illust = json_result.illusts[startNum]
-    if illust.sanity_level == 6:
-        isR18 = True
-
-    if illust['meta_single_page']:
-        if 'original_image_url' in illust['meta_single_page']:
-            image_url = illust.meta_single_page['original_image_url']
+    illust = random.choice(json_result.illusts)
+    isR18 = illust.sanity_level == 6
+    if not monitored:
+        if isR18:
+            sanity_meter.drain_sanity(group_id=group_id, sanity=2 if not doMultiply else 2 * multiplier)
         else:
-            image_url = illust.image_urls['medium']
-    else:
-        image_url = illust.image_urls['medium']
+            sanity_meter.drain_sanity(group_id=group_id, sanity=1 if not doMultiply else 1 * multiplier)
 
-    nonebot.logger.info("%s: %s, %s" % (illust.title, image_url, illust.id))
-    image_file_name = image_url.split('/')[-1].replace('_', '')
-    path = 'D:/go-cqhttp/data/images/' + image_file_name
-    nonebot.logger.info("PATH = " + path)
-    bot = nonebot.get_bot()
-    if not os.path.exists(path):
-        try:
-            response = aapi.requests_call('GET', image_url, headers={'Referer': 'https://app-api.pixiv.net/'}, stream=True)
-            with open(path, 'wb') as out_file:
-                shutil.copyfileobj(response.raw, out_file)
-
-        except Exception as err:
-            nonebot.logger.warning(f'Download image error: {err}')
-
+    path = await download_image(illust)
     try:
         nickname = ctx['sender']['nickname']
     except TypeError:
         nickname = 'null'
 
+    bot = nonebot.get_bot()
     if not isR18:
         try:
             await session.send(
                 f'[CQ:at,qq={user_id}]\nPixiv ID: {illust.id}\n' + MessageSegment.image(f'file:///{path}')
             )
-
-            if not monitored:
-                sanity_meter.drain_sanity(group_id=group_id, sanity=1 if not doMultiply else multiplier)
 
             print("sent image on path: " + path)
 
@@ -531,10 +506,9 @@ async def pixivSend(session: nonebot.CommandSession):
             await session.send(MessageSegment.image(f'file:///{path}', destruct=True))
         else:
             await session.send(MessageSegment.image(f'file:///{path}'))
-        if not monitored:
-            sanity_meter.drain_sanity(group_id=group_id, sanity=2 if not doMultiply else 2 * multiplier)
 
         await session.finish('图片我发过了哦~看不到就是TXXXXX的锅~')
+
     else:
         await session.send('我找到色图了！\n但是我发给我主人了_(:зゝ∠)_')
         await bot.send_private_msg(user_id=634915227,
@@ -554,6 +528,30 @@ async def pixivSend(session: nonebot.CommandSession):
                                            f'查询关键词:{keyWord}\n'
                                            f'Pixiv ID: {illust.id}\n'
                                            '关键字在监控中' + f'[CQ:image,file=file:///{path}]')
+
+async def download_image(illust):
+    if illust['meta_single_page']:
+        if 'original_image_url' in illust['meta_single_page']:
+            image_url = illust.meta_single_page['original_image_url']
+        else:
+            image_url = illust.image_urls['medium']
+    else:
+        image_url = illust.image_urls['medium']
+
+    nonebot.logger.info("%s: %s, %s" % (illust.title, image_url, illust.id))
+    image_file_name = image_url.split('/')[-1].replace('_', '')
+    path = 'D:/go-cqhttp/data/images/' + image_file_name
+    nonebot.logger.info("PATH = " + path)
+    if not os.path.exists(path):
+        try:
+            response = aapi.requests_call('GET', image_url, headers={'Referer': 'https://app-api.pixiv.net/'}, stream=True)
+            with open(path, 'wb') as out_file:
+                shutil.copyfileobj(response.raw, out_file)
+
+        except Exception as err:
+            nonebot.logger.warning(f'Download image error: {err}')
+
+    return path
 
 @nonebot.on_command('ghs', only_to_me=False)
 async def get_random_image(session: nonebot.CommandSession):
