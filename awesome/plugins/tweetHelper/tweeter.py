@@ -10,7 +10,7 @@ try:
     api = twitter.Api(consumer_key=config.consumer_key,
                       consumer_secret=config.consumer_secret,
                       access_token_key=config.access_token,
-                      access_token_secret=config.access_secret)
+                      access_token_secret=config.access_secret, tweet_mode='extended')
 
 except Exception as e:
     print("getTweet init failed %s" % e)
@@ -113,7 +113,9 @@ class tweeter:
             if resp_user:
                 try:
                     reply_content = api.GetStatus(status_id=response.in_reply_to_status_id)
-                    resp_text += '\n-----回复内容正文：-----\n' + reply_content.text
+                    resp_text += '\n-----回复内容正文：-----\n' + reply_content.full_text \
+                        if reply_content.full_text is not None else reply_content.text
+
                 except Exception as err:
                     logging.warning('Not authorized reply %s' % err)
 

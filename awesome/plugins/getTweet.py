@@ -32,7 +32,7 @@ async def bulk_get_new_tweet(session : nonebot.CommandSession):
         await session.finish('用法错误！应为：\n'
                              '！推特查询 要查询的内容 要前多少条')
 
-@nonebot.scheduler.scheduled_job('interval', seconds=49)
+@nonebot.scheduler.scheduled_job('interval', seconds=50)
 async def send_tweet():
     diff_dict = await tweet.check_update()
     if diff_dict:
