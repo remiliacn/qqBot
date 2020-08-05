@@ -1,5 +1,7 @@
 import nonebot, random, time, os, re
-from awesome.adminControl import shadiaoAdmin
+from awesome.adminControl import shadiaoAdmin, userControl
+from awesome.adminControl import permission as perm
+
 
 class Votekick:
     def __init__(self):
@@ -16,6 +18,10 @@ class Votekick:
 admin_control = shadiaoAdmin.Shadiaoadmin()
 vote_kick_controller = Votekick()
 
+user_control_module = userControl.UserControl()
+
+get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
+
 @nonebot.on_command('?', aliases='？', only_to_me=False)
 async def change_question_mark(session : nonebot.CommandSession):
     await session.send('¿?¿?')
@@ -23,7 +29,7 @@ async def change_question_mark(session : nonebot.CommandSession):
 @nonebot.on_command('你好', only_to_me=False)
 async def send_hello_world(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if ctx['user_id'] == 634915227:
+    if get_privilege(ctx['user_id'], perm.OWNER):
         await session.send('妈妈好~')
     else:
         await session.send('你好呀~' + ctx['sender']['nickname'])
@@ -33,7 +39,7 @@ async def nei_gui_response(session : nonebot.CommandSession):
     random.seed(time.time_ns())
     rand_num = random.randint(0, 50)
     ctx = session.ctx.copy()
-    if rand_num >= 26 and ctx['user_id'] != 634915227:
+    if rand_num >= 26 and not get_privilege(ctx['user_id'], perm.OWNER):
         qq_num = ctx['user_id']
         await session.send('哦屑！有内鬼！终止交易！！ \nTA的QQ号是：%d！！！ \nQQ昵称是：%s' % (qq_num, ctx['sender']['nickname']))
 
@@ -112,8 +118,9 @@ async def vote_kick_person(session : nonebot.CommandSession):
     message = ctx['raw_message']
     if re.match(r'.*?CQ:at,qq=\d+', str(message)):
         qq_num = re.findall(r'CQ:at,qq=(\d+)', message)[0]
-        if qq_num == "2044450237" or qq_num == "634915227":
+        if get_privilege(ctx['user_id'], perm.OWNER):
             await session.finish('民意说踢………你踢你🐴呢')
+
         await session.finish(f'民意说踢出[CQ:at,qq={qq_num}]的人有{vote_kick_controller.get_vote_kick(qq_num)}个')
 
 @nonebot.on_command('otsukare', aliases=('おつかれ', '辛苦了'), only_to_me=False)

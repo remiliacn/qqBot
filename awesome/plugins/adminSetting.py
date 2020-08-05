@@ -12,7 +12,7 @@ from awesome.adminControl import permission as perm
 from awesome.adminControl import userControl, shadiaoAdmin
 from awesome.plugins.Shadiao import sanity_meter
 
-user_control_module = userControl.Grouplearning()
+user_control_module = userControl.UserControl()
 admin_control = shadiaoAdmin.Shadiaoadmin()
 
 get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)

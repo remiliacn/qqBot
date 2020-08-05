@@ -19,7 +19,7 @@ def _init_data(path: str) -> dict:
     return {}
 
 
-class Grouplearning:
+class UserControl:
     def __init__(self):
         self.WORD_DICT_PATH = 'config/learning.json'
         self.USER_DICT_PATH = 'config/users.json'
@@ -107,10 +107,9 @@ class Grouplearning:
 
     def get_response_info(self, question):
         if question in self.answer_dict:
-            return '关键词%s的加入情况如下：\n' \
-                   '加入者QQ：%d\n' \
-                   '加入人QQ昵称：%s\n' \
-                   '录入回答：%s' % (question, self.answer_dict[question]['from_user'],
-                                self.answer_dict[question]['user_nickname'], self.answer_dict[question]['answer'])
+            return f'关键词{question}的加入情况如下：\n' \
+                   f'加入者QQ：{self.answer_dict[question]["from_user"]}\n' \
+                   f'加入人QQ昵称：{self.answer_dict[question]["user_nickname"]}\n' \
+                   f'录入回答：{self.answer_dict[question]["answer"]}'
 
         return '该关键词我还没有学习过哦~'

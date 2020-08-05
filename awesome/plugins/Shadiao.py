@@ -61,7 +61,7 @@ sanity_meter = setuSanity.SetuSanity()
 aapi = pixivpy3.AppPixivAPI()
 api = ark_nights.ArkHeadhunt(times=10)
 admin_control = shadiaoAdmin.Shadiaoadmin()
-user_control_module = userControl.Grouplearning()
+user_control_module = userControl.UserControl()
 ark_pool_pity = arknightsPity()
 
 

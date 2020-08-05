@@ -7,7 +7,7 @@ from awesome.plugins.Shadiao import sanity_meter
 
 from awesome.adminControl import userControl
 
-answer_api = userControl.Grouplearning()
+answer_api = userControl.UserControl()
 
 HHSHMEANING = 'meaning'
 FURIGANAFUNCTION = 'furigana'
