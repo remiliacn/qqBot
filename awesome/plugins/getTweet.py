@@ -1,12 +1,54 @@
-import nonebot, re
-from awesome.plugins.Shadiao import sanity_meter, pcr_api
+import nonebot
+import re
+
+from awesome.adminControl import permission as perm
+from awesome.adminControl import userControl, shadiaoAdmin
+from awesome.plugins.Shadiao import pcr_api
+from awesome.plugins.Shadiao import sanity_meter
 from awesome.plugins.tweetHelper import tweeter
-from awesome.adminControl import shadiaoAdmin
 from bilibiliService import bilibiliTopic
 
-tweet = tweeter.tweeter()
+user_control_module = userControl.UserControl()
 admin_control = shadiaoAdmin.Shadiaoadmin()
+
+get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
+
+tweet = tweeter.tweeter()
 share_link = 'paryi-my.sharepoint.com/:f:/g/personal/hanayori_paryi_xyz/Em62_uotiDlIohJKvbMWoiQBzutGjbRga1uOXNdmTjEtpA?e=X4hGfT'
+
+@nonebot.on_command('跟推添加', only_to_me=False)
+async def add_new_tweeter_function(session : nonebot.CommandSession):
+    usage = '！跟推添加 中文名 推特ID（@后面的那一部分） 直播间（bilibili） 是否启用（启用输入Y反则N）\n' \
+            '推特ID和直播间id可使用下划线 _ 忽略参数'
+
+    ctx = session.ctx.copy()
+    if not get_privilege(ctx['user_id'], perm.ADMIN):
+        await session.finish('您无权使用本指令')
+
+    if 'group_id' not in ctx:
+        return
+
+    key_word = session.get(
+        'key_word',
+        prompt='输入格式：\n' +
+               usage
+    )
+
+    args = key_word.split()
+    if len(args) != 4:
+        await session.finish(f'指令有误！应为：{usage}')
+
+    if not re.match('[A-Za-z0-9_]+$', args[1]):
+        await session.finish('推特ID有误！')
+
+    if args[2] != '_' and (not args[2].isdigit() and int(args[2]) < 100):
+        await session.finish('bilibili直播间应为数字')
+
+    if not (args[3].upper() == 'Y' or args[3].upper() == 'N'):
+        await session.finish('是否启用应该输入为Y或N')
+
+    await session.finish(tweet.add_to_config(args, ctx['group_id']))
+
 
 @nonebot.on_command('新推', only_to_me=False)
 async def get_new_tweet_by_ch_name(session : nonebot.CommandSession):
@@ -34,6 +76,7 @@ async def bulk_get_new_tweet(session : nonebot.CommandSession):
 
 @nonebot.scheduler.scheduled_job('interval', seconds=50)
 async def send_tweet():
+    # 跟推
     diff_dict = await tweet.check_update()
     if diff_dict:
         bot = nonebot.get_bot()
@@ -54,7 +97,18 @@ async def send_tweet():
                 await bot.send_group_msg(group_id=element,
                                          message=message)
 
-    #YouTube部分
+    # 直播
+    live_stat_dict = tweet.get_live_room_info()
+    if live_stat_dict:
+        bot = nonebot.get_bot()
+        tweet_config = tweet.get_tweet_config()
+        for ch_name in live_stat_dict:
+            group_id_list = tweet_config[ch_name]['group']
+            for element in group_id_list:
+                await bot.send_group_msg(group_id=element,
+                                         message=live_stat_dict[ch_name])
+
+    # YouTube部分
     file = open('config/YouTubeNotify.json')
     fl = file.read()
     import json
@@ -86,7 +140,7 @@ async def send_tweet():
 
         file.close()
 
-    #PCR部分
+    # PCR部分
     if await pcr_api.if_new_releases():
         bot = nonebot.get_bot()
         news = await pcr_api.get_content()
@@ -115,6 +169,7 @@ async def get_bilibili_topic(session : nonebot.CommandSession):
 
 @get_bilibili_topic.args_parser
 @get_new_tweet_by_ch_name.args_parser
+@add_new_tweeter_function.args_parser
 async def _(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:
