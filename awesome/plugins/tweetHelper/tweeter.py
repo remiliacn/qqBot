@@ -1,4 +1,10 @@
-import twitter, config, logging, re, requests, os, time
+import config
+import json
+import logging
+import os
+import re
+import requests
+import twitter
 
 try:
     api = twitter.Api(consumer_key=config.consumer_key,
@@ -12,72 +18,58 @@ except Exception as e:
 class tweeter:
     def __init__(self):
         self.path = 'E:/twitterPic/'
+        self.config = 'config/tweet.json'
 
         self.tweet_list_init = {}
-        self.tweet_new_temp = {}
         self.INFO_NOT_AVAILABLE = '请检查推特用户名， 该输入应该是@后面的那一部分'
-        self.screen_name_dict = {
-           'shiroganenoel' : '白銀',
-           'komori_chiyu' : '古守',
-           'nakiriayame' : '百鬼',
-           'nana_kaguraaa' : '狗妈',
-           'Vtuber_Moe' : '萌惠',
-           'ui_shig' : '时雨妈',
-           'msbsqn' : 'むすぶ',
-           'norioo_' : '犬山哥',
-           'sifiresirer' : '茜菲'
-        }
-        self.ch_name_to_group_id = {
-            '白銀': [794877920, 539199998],
-            '古守': [526238439],
-            '百鬼': [693010774],
-            '狗妈': [463769153, 756540140],
-            '萌惠': [940461555],
-            '时雨妈': [599748718],
-            'むすぶ': [462819337],
-            '犬山哥': [915383361],
-            '茜菲': [101790160]
-        }
 
-        for screen_name in self.screen_name_dict:
-            resp_text = self.get_time_line_from_screen_name(screen_name=screen_name)
-            self.tweet_list_init[self.screen_name_dict[screen_name]] = resp_text
+        self.tweet_config = self._get_tweet_config()
 
-        self.index = 0
+        for ch_name in self.tweet_config:
+            if self.tweet_config[ch_name]['enabled']:
+                resp_text = self.get_time_line_from_screen_name(screen_name=self.tweet_config[ch_name]['screen_name'])
+                self.tweet_list_init[ch_name] = resp_text
 
-    def get_group_id_dict(self):
-        return self.ch_name_to_group_id
+    def get_tweet_config(self) -> dict:
+        return self.tweet_config
 
-    def get_new_tweet_by_index(self, index):
-        return self.tweet_list_init[index]
+    async def check_update(self):
+        temp_dict = {}
+        diff_dict = {}
+        print(f'Original: {self.tweet_list_init}')
+        for ch_name in self.tweet_config:
+            if self.tweet_config[ch_name]['enabled']:
+                try:
+                    resp_text = self.get_time_line_from_screen_name(screen_name=self.tweet_config[ch_name]['screen_name'])
+                except Exception as err:
+                    logging.warning(err)
+                    resp_text = ''
 
-    def get_tweet_list(self):
-        return self.tweet_list_init
+                temp_dict[ch_name] = resp_text
 
-    def get_every_new_tweet_in_list(self):
-        for screen_name in self.screen_name_dict:
-            try:
-                new_tweet = self.get_time_line_from_screen_name(screen_name=screen_name)
-                self.tweet_new_temp[self.screen_name_dict[screen_name]] = new_tweet
+        for element in temp_dict:
+            if self.tweet_list_init[element] != temp_dict[element]:
+                if not (temp_dict[element] == '' or temp_dict[element] == '转发动态'):
+                    diff_dict[element] = temp_dict[element]
 
-            except Exception as err:
-                logging.warning(f'error occurred while getting new tweet for screen_name = {screen_name}\n'
-                                f'{err}')
+        self.tweet_list_init = temp_dict
+        print(f'Changed: {self.tweet_list_init}')
+        return diff_dict
 
-        return self.tweet_new_temp
+    def _get_tweet_config(self) -> dict:
+        if not os.path.exists(self.config):
+            with open(self.config, 'w+') as file:
+                json.dump({}, file, indent=4)
 
-    def set_new_tweet_by_ch_name(self, ch_name, tweet):
-        self.tweet_list_init[ch_name] = tweet
+            return {}
 
-    def get_new_tweet_by_ch_name(self, name):
-        if name in self.screen_name_dict.values():
-            return self.tweet_new_temp[name]
-
-        return ''
+        else:
+            with open(self.config, 'r', encoding='utf8') as file:
+                return json.loads(file.read())
 
     def get_time_line_from_screen_name(self, screen_name, fetch_count=1):
         if re.match('[A-Za-z0-9_]+$', screen_name):
-            return self.matched_screen_name(screen_name, fetch_count)
+            return self.fetch_user_screen_name(screen_name, fetch_count)
 
         else:
             search_term = screen_name
@@ -85,14 +77,14 @@ class tweeter:
             if name_list:
                 screen_name = name_list[0].screen_name
                 tweet = f'{search_term}发推说：\n' + \
-                        self.matched_screen_name(screen_name, fetch_count)
+                        self.fetch_user_screen_name(screen_name, fetch_count)
 
                 return tweet
 
             else:
                 return self.INFO_NOT_AVAILABLE
 
-    def matched_screen_name(self, screen_name, fetch_count):
+    def fetch_user_screen_name(self, screen_name, fetch_count):
         response_main = []
         resp_text = ''
         fetch_count = int(fetch_count)
@@ -146,38 +138,3 @@ class tweeter:
             resp_text += '\n====================\n' if fetch_count != 1 else ''
 
         return resp_text
-
-
-'''
-class bilibliHelper:
-    def __init__(self):
-        self.uidList = {
-            '鹿乃' : 316381099,
-            '野野宫' : 441403698,
-            '花丸' : 441381282,
-            '小东' : 441382432
-        }
-
-        self.dynamicListInit = []
-        self.dynamicList = []
-        for key, elements in self.uidList.items():
-            aapi = bilibiliDynamic.BilibiliDynamic(uuid=elements)
-            self.dynamicListInit.append(aapi.getLastContent())
-
-    def getInitDynamicList(self):
-        return self.dynamicListInit
-
-    def getNewDynamicList(self):
-        index = 0
-        self.dynamicList.clear()
-        for key, elements in self.uidList.items():
-            aapi = bilibiliDynamic.BilibiliDynamic(uuid=elements)
-            newContent = aapi.getLastContent()
-            if newContent == 'emmmm这个uid为%d的人好像没有发布任何动态呢' % elements:
-                self.dynamicList.append(self.dynamicListInit[index])
-            else:
-                self.dynamicList.append(newContent)
-            index += 1
-
-        return self.dynamicList
-'''
