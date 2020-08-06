@@ -519,7 +519,7 @@ async def pixiv_send(session: nonebot.CommandSession):
                 f'[CQ:at,qq={user_id}]\n'
                 f'Pixiv ID: {illust.id}\n'
                 f'查询关键词：{key_word}' +
-                MessageSegment.image(f'file:///{path}')
+                str(MessageSegment.image(f'file:///{path}'))
             )
 
             nonebot.logger.info("sent image on path: " + path)
@@ -548,7 +548,7 @@ async def pixiv_send(session: nonebot.CommandSession):
                                                f"来自群：{group_id}\n"
                                                f"查询关键词：{key_word}\n" +
                                                f'Pixiv ID: {illust.id}\n' +
-                                               MessageSegment.image(f'file:///{path}')
+                                               str(MessageSegment.image(f'file:///{path}'))
             )
 
 
