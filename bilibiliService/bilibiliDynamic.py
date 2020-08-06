@@ -13,7 +13,7 @@ class BilibiliDynamic:
         self.lastContent = self._getLastContent()
         self.dynamicPictures = self._getDynamicPictures()
 
-    def _getDict(self):
+    def _getDict(self) -> dict:
         try:
             page = requests.get(self.baseUrl, headers=headers).content.decode('utf-8')
         except Exception as e:
@@ -89,11 +89,11 @@ class BilibiliDynamic:
 
         return img_path
 
-    def _getOriginDict(self):
+    def _getOriginDict(self) -> dict:
         try:
             return json.loads(self.contentDict['origin'])
         except KeyError:
-            return ''
+            return {}
 
     def getLastContent(self):
         if not self.dynamicPictures:
