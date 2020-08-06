@@ -14,14 +14,14 @@ class GetPCRNews:
             page = requests.get(self.base_url, headers=self.headers, timeout=10)
         except Exception as e:
             print(f"News error {e}")
-            return 300
+            return -1
 
         json_data = page.json()
         return json_data['data'][0]['id']
 
     async def if_new_releases(self) -> bool:
         ID = self._get_update_id()
-        if ID == self.first_update_id:
+        if ID == self.first_update_id or self.first_update_id == -1:
             return False
 
         self.first_update_id = ID
