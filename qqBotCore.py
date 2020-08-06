@@ -1,4 +1,4 @@
-from json import loads, dump
+from json import dump
 from os import path
 from time import sleep
 
@@ -33,12 +33,8 @@ def register_true():
         with open('D:/dl/started.json', 'w+') as f:
             dump({}, f, indent=4)
 
-    with open('D:/dl/started.json', 'r') as file:
-        statusDict = loads(str(file.read()))
-        statusDict['status'] = True
-
-        with open('D:/dl/started.json', 'w+') as f:
-            dump(statusDict, f, indent=4)
+    with open('D:/dl/started.json', 'w+') as f:
+        dump({'status' : True}, f, indent=4)
 
     if not path.exists('config.py'):
         logger.warning('No config file detected. Generating a template...')
@@ -46,8 +42,9 @@ def register_true():
         with open('config.py', 'w+', encoding='utf-8') as file:
             file.write(config_file)
 
-        sleep(3)
         logger.warning('Generation completed... Exiting the program. Please edit it!')
+        sleep(3)
+
         exit(1)
 
 def main():
