@@ -651,7 +651,6 @@ async def _(session: nonebot.CommandSession):
 @nonebot.on_command('嘴臭一个', aliases=('骂我', '你再骂', '小嘴抹蜜', '嘴臭一下', '机器人骂我'), only_to_me=False)
 async def zuiChou(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    message = ctx['raw_message']
 
     if get_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')

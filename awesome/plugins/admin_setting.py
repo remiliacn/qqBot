@@ -114,10 +114,6 @@ async def delete_admin(session: nonebot.CommandSession):
 @nonebot.on_command('我懂了', only_to_me=False)
 async def add_ai_real_response(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
-    trusted = get_privilege(ctx['user_id'], perm.ADMIN) or get_privilege(ctx['user_id'], perm.OWNER)
-    if not trusted:
-        await session.finish('您无权加入信任语句')
-
     question = session.get('question', prompt='请输入回答的问题')
     question = str(question).replace('\n', ' ')
 
@@ -281,7 +277,8 @@ def prefetch(question: str, user_id: int) -> (bool, str):
 
     elif question in user_control_module.get_user_dict():
         user_control_module.last_question = question
-        return True, user_control_module.get_user_response(question)
+        response = user_control_module.get_user_response(question)
+        return response != '$', response if response != '$' else ''
 
     if re.match(r'.*?おやすみ', question):
         return False, ''
