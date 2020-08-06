@@ -433,10 +433,29 @@ async def pixivSend(session: nonebot.CommandSession):
     elif '屑bot' in key_word:
         await session.finish('你屑你🐴呢')
 
-    if '最新' in key_word:
-        json_result = aapi.illust_ranking('week')
-    else:
-        json_result = aapi.search_illust(word=key_word, sort="popular_desc")
+    json_result = {}
+
+    try:
+        if '最新' in key_word:
+            json_result = aapi.illust_ranking('week')
+        else:
+            json_result = aapi.search_illust(word=key_word, sort="popular_desc")
+
+    except pixivpy3.PixivError:
+        await session.finish('pixiv连接出错了！')
+
+    except Exception as err:
+        await session.send(f'发现未知错误！错误信息已发送给bot主人分析！\n'
+                             f'{err}')
+
+        bot = nonebot.get_bot()
+        await bot.send_private_msg(user_id=634915227,
+                                   message=f'Uncaught error while using pixiv search:\n'
+                                           f'Error from {user_id}\n'
+                                           f'Keyword = {key_word}\n'
+                                           f'Exception = {err}')
+
+        return
 
     # 看一下access token是否过期
     if 'error' in json_result:
@@ -491,7 +510,10 @@ async def pixivSend(session: nonebot.CommandSession):
     if not isR18:
         try:
             await session.send(
-                f'[CQ:at,qq={user_id}]\nPixiv ID: {illust.id}\n' + MessageSegment.image(f'file:///{path}')
+                f'[CQ:at,qq={user_id}]\n'
+                f'Pixiv ID: {illust.id}\n'
+                f'查询关键词：{key_word}' +
+                MessageSegment.image(f'file:///{path}')
             )
 
             nonebot.logger.info("sent image on path: " + path)
@@ -513,7 +535,9 @@ async def pixivSend(session: nonebot.CommandSession):
         if not monitored:
             await session.send('我找到色图了！\n但是我发给我主人了_(:зゝ∠)_')
             await bot.send_private_msg(user_id=634915227,
-                                       message=f"图片来自：{nickname}\n" +
+                                       message=f"图片来自：{nickname}\n"
+                                               f"来自群：{group_id}\n"
+                                               f"查询关键词：{key_word}\n" +
                                                f'Pixiv ID: {illust.id}\n' +
                                                MessageSegment.image(f'file:///{path}')
             )

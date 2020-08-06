@@ -74,7 +74,7 @@ class Avalidator:
     def __init__(self, text):
         self.base_url = f'https://www.libredmm.com/movies/{text}'
         self.torrent_url = 'https://idope.se/'
-        self.page_text, = self._get_page_text()
+        self.page_text = self._get_page_text()
         self.product_number = text
 
     def _get_page_text(self) -> str:

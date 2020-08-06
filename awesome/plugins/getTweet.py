@@ -1,6 +1,8 @@
 import nonebot
 import re
 
+from nonebot.log import logger
+
 from awesome.adminControl import permission as perm
 from awesome.adminControl import userControl, shadiaoAdmin
 from awesome.plugins.Shadiao import pcr_api
@@ -93,38 +95,32 @@ async def bulk_get_new_tweet(session : nonebot.CommandSession):
 @nonebot.scheduler.scheduled_job('interval', seconds=50)
 async def send_tweet():
     # 跟推
-    diff_dict = await tweet.check_update()
-    if diff_dict:
-        bot = nonebot.get_bot()
-        for ch_name in diff_dict:
-            group_id_list = tweet.get_tweet_config()[ch_name]['group']
-            message = diff_dict[ch_name]
-            if message[0:2] == 'RT':
-                message = f'=== {ch_name}转发推文说 ===\n' + message
-            elif message[0] == '@':
-                message = f'=== {ch_name}回了一条推 ===\n' + message
-            else:
-                message = f'=== {ch_name}发了一条推 ===\n' + message
-
-            nonebot.logger.warning(f'发现新推！来自{ch_name}:\n'
-                                f'{message}')
-
-            for element in group_id_list:
-                await bot.send_group_msg(group_id=element,
-                                         message=message)
-
+    await do_tweet_update_fetch()
     # 直播
-    live_stat_dict = tweet.get_live_room_info()
-    if live_stat_dict:
-        bot = nonebot.get_bot()
-        tweet_config = tweet.get_tweet_config()
-        for ch_name in live_stat_dict:
-            group_id_list = tweet_config[ch_name]['group']
-            for element in group_id_list:
-                await bot.send_group_msg(group_id=element,
-                                         message=live_stat_dict[ch_name])
-
+    await do_bilibili_live_fetch()
     # YouTube部分
+    await do_youtube_update_fetch()
+    # PCR部分
+    await do_pcr_update_fetch()
+
+    logger.info('Filling sanity...')
+    if sanity_meter.happy_hours:
+        sanity_meter.fill_sanity(sanity=5)
+    else:
+        sanity_meter.fill_sanity(sanity=1)
+
+    sanity_meter.make_a_json('config/stats.json')
+    sanity_meter.make_a_json('config/setu.json')
+
+async def do_pcr_update_fetch():
+    logger.info('Checking for PCR news...')
+    if await pcr_api.if_new_releases():
+        bot = nonebot.get_bot()
+        news = await pcr_api.get_content()
+        await bot.send_group_msg(group_id=1081267415, message=news)
+
+async def do_youtube_update_fetch():
+    logger.info('Checking for video updates...')
     file = open('config/YouTubeNotify.json')
     fl = file.read()
     import json
@@ -135,13 +131,16 @@ async def send_tweet():
             if not youtube_notify_dict[elements]['status']:
                 if youtube_notify_dict[elements]['retcode'] == 0:
                     try:
-                        await bot.send_group_msg(group_id=int(youtube_notify_dict[elements]['group_id']), message='刚才你们让扒的源搞好了~\n视频名称：%s\n如果上传好了的话视频将会出现在\n%s' % (elements, share_link))
+                        await bot.send_group_msg(group_id=int(youtube_notify_dict[elements]['group_id']),
+                                                 message='刚才你们让扒的源搞好了~\n视频名称：%s\n如果上传好了的话视频将会出现在\n%s' % (
+                                                 elements, share_link))
                     except Exception as e:
                         nonebot.logger.warning('Something went wrong %s' % e)
 
                 elif youtube_notify_dict[elements]['retcode'] == 1:
                     try:
-                        await bot.send_group_msg(group_id=int(youtube_notify_dict[elements]['group_id']), message='有新视频了哦~视频名称：%s' % elements)
+                        await bot.send_group_msg(group_id=int(youtube_notify_dict[elements]['group_id']),
+                                                 message='有新视频了哦~视频名称：%s' % elements)
                     except Exception as e:
                         nonebot.logger.warning('Something went wrong %s' % e)
             else:
@@ -156,20 +155,39 @@ async def send_tweet():
 
         file.close()
 
-    # PCR部分
-    if await pcr_api.if_new_releases():
+async def do_tweet_update_fetch():
+    logger.info('Automatically fetching tweet info...')
+    diff_dict = await tweet.check_update()
+    if diff_dict:
         bot = nonebot.get_bot()
-        news = await pcr_api.get_content()
-        await bot.send_group_msg(group_id=1081267415 ,message=news)
-        
+        for ch_name in diff_dict:
+            group_id_list = tweet.get_tweet_config()[ch_name]['group']
+            message = diff_dict[ch_name]
+            if message[0:2] == 'RT':
+                message = f'=== {ch_name}转发推文说 ===\n' + message
+            elif message[0] == '@':
+                message = f'=== {ch_name}回了一条推 ===\n' + message
+            else:
+                message = f'=== {ch_name}发了一条推 ===\n' + message
 
-    if sanity_meter.happy_hours:
-        sanity_meter.fill_sanity(sanity=5)
-    else:
-        sanity_meter.fill_sanity(sanity=1)
+            nonebot.logger.warning(f'发现新推！来自{ch_name}:\n'
+                                   f'{message}')
 
-    sanity_meter.make_a_json('config/stats.json')
-    sanity_meter.make_a_json('config/setu.json')
+            for element in group_id_list:
+                await bot.send_group_msg(group_id=element,
+                                         message=message)
+
+async def do_bilibili_live_fetch():
+    logger.info('Automatically fetching bilibili live info...')
+    live_stat_dict = tweet.get_live_room_info()
+    if live_stat_dict:
+        bot = nonebot.get_bot()
+        tweet_config = tweet.get_tweet_config()
+        for ch_name in live_stat_dict:
+            group_id_list = tweet_config[ch_name]['group']
+            for element in group_id_list:
+                await bot.send_group_msg(group_id=element,
+                                         message=live_stat_dict[ch_name])
 
 @nonebot.on_command('b站话题', aliases={'B站话题', 'btopic'}, only_to_me=False)
 async def get_bilibili_topic(session : nonebot.CommandSession):
