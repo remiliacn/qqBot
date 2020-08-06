@@ -27,8 +27,8 @@ def get_info_in_json(json_result, ch_name: str) -> str:
 class BilibiliLive:
     def __init__(self, live_room_cid, ch_name: str):
         self.api_url = f'https://api.live.bilibili.com/room/v1/Room/get_info?room_id={live_room_cid}'
-        self.status, self.live_stat = self._get_live_info()
         self.ch_name = ch_name
+        self.status, self.live_stat = self._get_live_info()
 
     def _get_live_info(self) -> (bool, dict):
         live_temp_dict = {}

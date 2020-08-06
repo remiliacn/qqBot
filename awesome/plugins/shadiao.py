@@ -357,6 +357,9 @@ async def av_validator(session: nonebot.CommandSession):
     if get_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
+    if not admin_control.get_data(ctx['group_id'], 'R18'):
+        await session.finish('请联系BOT管理员开启本群R18权限')
+
     key_word = session.get('key_word', prompt='在？你要让我查什么啊baka')
     validator = Shadiao.Avalidator(text=key_word)
     if 'group_id' in ctx:
@@ -648,6 +651,8 @@ async def _(session: nonebot.CommandSession):
 @nonebot.on_command('嘴臭一个', aliases=('骂我', '你再骂', '小嘴抹蜜', '嘴臭一下', '机器人骂我'), only_to_me=False)
 async def zuiChou(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
+    message = ctx['raw_message']
+
     if get_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
@@ -655,16 +660,15 @@ async def zuiChou(session: nonebot.CommandSession):
         sanity_meter.set_user_data(ctx['user_id'], 'zc')
 
     random.seed(time.time_ns())
-    rand_num = random.randint(0, 50)
-    if rand_num > 15:
+    rand_num = random.randint(0, 100)
+    if rand_num > 25:
         try:
             req = requests.get('https://nmsl.shadiao.app/api.php?level=min&from=qiyu', timeout=5)
         except requests.exceptions.Timeout:
             await session.send('骂不出来了！')
             return
 
-        response = req.text
-        await session.send(response)
+        text = req.text
 
     elif rand_num > 10:
         try:
@@ -673,13 +677,21 @@ async def zuiChou(session: nonebot.CommandSession):
             await session.send('骂不出来了！')
             return
 
-        response = req.text
-        await session.send(response)
+        text = req.text
 
     else:
         file = os.listdir('C:\dl\zuichou')
         file = random.choice(file)
-        await session.send(f"[CQ:image,file=file:///C:/dl/zuichou/{file}]")
+        text = f"[CQ:image,file=file:///C:/dl/zuichou/{file}]"
+
+    msg = str(ctx['raw_message'])
+
+    if re.match(r'.*?\[CQ:at,qq=.*?\]', msg):
+        qq = re.findall(r'\[CQ:at,qq=(.*?)\]', msg)[0]
+        if qq != "all" and not get_privilege(qq, perm.ADMIN):
+            await session.finish(f"[CQ:at,qq={int(qq)}] {text}")
+
+    await session.send(text)
 
 @nonebot.on_command('彩虹屁', aliases=('拍个马屁', '拍马屁', '舔TA'), only_to_me=False)
 async def cai_hong_pi(session: nonebot.CommandSession):

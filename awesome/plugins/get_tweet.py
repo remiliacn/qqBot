@@ -205,8 +205,9 @@ async def do_bilibili_live_fetch():
         for ch_name in live_stat_dict:
             group_id_list = tweet_config[ch_name]['group']
             for element in group_id_list:
+                message = live_stat_dict[ch_name]
                 await bot.send_group_msg(group_id=element,
-                                         message=live_stat_dict[ch_name])
+                                         message=message)
 
 @nonebot.on_command('b站话题', aliases={'B站话题', 'btopic'}, only_to_me=False)
 async def get_bilibili_topic(session : nonebot.CommandSession):
