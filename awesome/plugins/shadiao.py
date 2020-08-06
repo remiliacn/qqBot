@@ -599,10 +599,12 @@ async def get_random_image(session: nonebot.CommandSession):
     sanity_meter.set_usage(id_num, 'setu')
     sanity_meter.set_user_data(user_id, 'setu')
 
-    message_id = await session.send(await get_random())
-    message_id = message_id['message_id']
-    nonebot.logger.info(f'Adding message_id {message_id} to recall list.')
-    sanity_meter.add_recall(message_id)
+    message, is_nsfw = await get_random()
+    message_id = await session.send(message)
+    if is_nsfw:
+        message_id = message_id['message_id']
+        nonebot.logger.info(f'Adding message_id {message_id} to recall list.')
+        sanity_meter.add_recall(message_id)
 
 async def get_random():
     headers = {
@@ -627,7 +629,7 @@ async def get_random():
         with open(path, 'wb') as f:
             f.write(image_page.content)
 
-    return MessageSegment.image(f'file:///{path}')
+    return MessageSegment.image(f'file:///{path}'), is_nsfw
 
 @pixiv_send.args_parser
 @av_validator.args_parser
