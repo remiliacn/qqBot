@@ -88,6 +88,17 @@ class tweeter:
         self.save_config()
         return '已完成更改！'
 
+    def remove_from_config(self, key):
+        if key in self.tweet_config:
+            del self.tweet_config[key]
+            del self.tweet_list_init[key]
+            if key in self.live_stat:
+                del self.live_stat[key]
+
+            return True
+
+        return False
+
     def save_config(self):
         with open(self.config, 'w+', encoding='utf8') as file:
             json.dump(self.tweet_config, file, indent=4)

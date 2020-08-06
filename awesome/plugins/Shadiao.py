@@ -427,13 +427,13 @@ async def pixivSend(session: nonebot.CommandSession):
 
         await session.finish('我静观天象，发现现在这个时辰不适合发我主人的色图。')
 
-    elif re.match(r'.*?色图', keyWord):
+    elif '色图' in keyWord:
         await session.finish('[CQ:image,file=file:///C:/dl/others/QQ图片20191013212223.jpg]')
 
-    elif re.match(r'.*?屑bot', keyWord):
+    elif '屑bot' in keyWord:
         await session.finish('你屑你🐴呢')
 
-    if re.match('.*?最新', keyWord):
+    if '最新' in keyWord:
         json_result = aapi.illust_ranking('week')
     else:
         json_result = aapi.search_illust(word=keyWord, sort="popular_desc")
@@ -469,7 +469,7 @@ async def pixivSend(session: nonebot.CommandSession):
         json_result = aapi.search_illust(word=keyWord, sort="popular_desc")
 
     if not json_result.illusts or len(json_result.illusts) < 4:
-        nonebot.logger.info("未找到图片")
+        nonebot.logger.warning("未找到图片")
         await session.send("%s无搜索结果或图片过少……" % keyWord)
         return
 
@@ -481,7 +481,7 @@ async def pixivSend(session: nonebot.CommandSession):
         else:
             sanity_meter.drain_sanity(group_id=group_id, sanity=1 if not doMultiply else 1 * multiplier)
 
-    path = await download_image(illust)
+    path = download_image(illust)
     try:
         nickname = ctx['sender']['nickname']
     except TypeError:
@@ -494,7 +494,7 @@ async def pixivSend(session: nonebot.CommandSession):
                 f'[CQ:at,qq={user_id}]\nPixiv ID: {illust.id}\n' + MessageSegment.image(f'file:///{path}')
             )
 
-            print("sent image on path: " + path)
+            nonebot.logger.warning("sent image on path: " + path)
 
         except Exception as e:
             nonebot.logger.warning('Something went wrong %s' % e)
@@ -510,12 +510,13 @@ async def pixivSend(session: nonebot.CommandSession):
         await session.finish('图片我发过了哦~看不到就是TXXXXX的锅~')
 
     else:
-        await session.send('我找到色图了！\n但是我发给我主人了_(:зゝ∠)_')
-        await bot.send_private_msg(user_id=634915227,
-                                   message=f"图片来自：{nickname}\n" +
-                                           f'Pixiv ID: {illust.id}\n' +
-                                           MessageSegment.image(f'file:///{path}')
-        )
+        if not monitored:
+            await session.send('我找到色图了！\n但是我发给我主人了_(:зゝ∠)_')
+            await bot.send_private_msg(user_id=634915227,
+                                       message=f"图片来自：{nickname}\n" +
+                                               f'Pixiv ID: {illust.id}\n' +
+                                               MessageSegment.image(f'file:///{path}')
+            )
 
 
     sanity_meter.set_usage(group_id, 'setu')
@@ -529,7 +530,7 @@ async def pixivSend(session: nonebot.CommandSession):
                                            f'Pixiv ID: {illust.id}\n'
                                            '关键字在监控中' + f'[CQ:image,file=file:///{path}]')
 
-async def download_image(illust):
+def download_image(illust):
     if illust['meta_single_page']:
         if 'original_image_url' in illust['meta_single_page']:
             image_url = illust.meta_single_page['original_image_url']

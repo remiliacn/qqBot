@@ -49,6 +49,22 @@ async def add_new_tweeter_function(session : nonebot.CommandSession):
 
     await session.finish(tweet.add_to_config(args, ctx['group_id']))
 
+@nonebot.on_command('跟推移除', only_to_me=False)
+async def remove_tweet_following(session : nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    if not get_privilege(ctx['user_id'], perm.ADMIN):
+        await session.finish('您无权使用本指令')
+
+    key_word = session.get(
+        'key_word',
+        prompt='请输入需要移除的中文key'
+    )
+
+    if tweet.remove_from_config(key_word):
+        await session.finish('成功！')
+    else:
+        await session.finish(f'未找到key：{key_word}')
+
 
 @nonebot.on_command('新推', only_to_me=False)
 async def get_new_tweet_by_ch_name(session : nonebot.CommandSession):
@@ -170,6 +186,7 @@ async def get_bilibili_topic(session : nonebot.CommandSession):
 @get_bilibili_topic.args_parser
 @get_new_tweet_by_ch_name.args_parser
 @add_new_tweeter_function.args_parser
+@remove_tweet_following.args_parser
 async def _(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:
