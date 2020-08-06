@@ -5,6 +5,7 @@ class SetuSanity:
     def __init__(self):
         self.max_sanity = 30
         self.sanity_dict = {}
+        self.recall_list = []
         self.happy_hours = False
         self.remind_dict = {}
         self.stat_dict = {}
@@ -15,6 +16,15 @@ class SetuSanity:
         self.bad_keyword_file = 'config/setu.json'
         self.bad_keywords = {}
         self._init_bad_word()
+
+    def add_recall(self, info_id):
+        self.recall_list.append(info_id)
+
+    def get_recall(self):
+        return self.recall_list
+
+    def clear_recall(self):
+        self.recall_list.clear()
 
     def get_max_sanity(self) -> int:
         return self.max_sanity

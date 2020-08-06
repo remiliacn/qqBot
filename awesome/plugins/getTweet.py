@@ -109,6 +109,25 @@ async def send_tweet():
     else:
         sanity_meter.fill_sanity(sanity=1)
 
+    retreat_list = sanity_meter.get_retreat()
+    if retreat_list:
+        bot = nonebot.get_bot()
+        for message in retreat_list:
+            logger.info(f'Retreating message by message id: {message}')
+            try:
+                await bot.delete_msg(message_id=message)
+            except Exception as err:
+                logger.info(f'Error recalling message: {err}\n'
+                            f'Message id: {message}')
+
+                await bot.send_private_msg(
+                    user_id=634915227,
+                    message=f'Error recalling message: {err}\n'
+                            f'Message id: {message}'
+                )
+
+        sanity_meter.clear_retreat()
+
     sanity_meter.make_a_json('config/stats.json')
     sanity_meter.make_a_json('config/setu.json')
 
