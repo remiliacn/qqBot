@@ -4,14 +4,14 @@ import re
 from nonebot.log import logger
 
 from awesome.adminControl import permission as perm
-from awesome.adminControl import userControl, shadiaoAdmin
-from awesome.plugins.Shadiao import pcr_api
-from awesome.plugins.Shadiao import sanity_meter
+from awesome.adminControl import user_control, group_admin
+from awesome.plugins.shadiao import pcr_api
+from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.tweetHelper import tweeter
 from bilibiliService import bilibiliTopic
 
-user_control_module = userControl.UserControl()
-admin_control = shadiaoAdmin.Shadiaoadmin()
+user_control_module = user_control.UserControl()
+admin_control = group_admin.Shadiaoadmin()
 
 get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
 
@@ -109,11 +109,11 @@ async def send_tweet():
     else:
         sanity_meter.fill_sanity(sanity=1)
 
-    retreat_list = sanity_meter.get_retreat()
-    if retreat_list:
+    recall_list = sanity_meter.get_recall()
+    if recall_list:
         bot = nonebot.get_bot()
-        for message in retreat_list:
-            logger.info(f'Retreating message by message id: {message}')
+        for message in recall_list:
+            logger.info(f'recalling message by message id: {message}')
             try:
                 await bot.delete_msg(message_id=message)
             except Exception as err:
@@ -126,7 +126,7 @@ async def send_tweet():
                             f'Message id: {message}'
                 )
 
-        sanity_meter.clear_retreat()
+        sanity_meter.clear_recall()
 
     sanity_meter.make_a_json('config/stats.json')
     sanity_meter.make_a_json('config/setu.json')

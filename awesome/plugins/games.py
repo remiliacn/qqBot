@@ -5,9 +5,9 @@ from time import time_ns
 import nonebot
 
 from Shadiao import pokerGame, ruGame
-from awesome.plugins.Shadiao import admin_control, sanity_meter
+from awesome.plugins.shadiao import admin_control, sanity_meter
 from awesome.adminControl import permission as perm
-from awesome.plugins.adminSetting import get_privilege
+from awesome.plugins.admin_setting import get_privilege
 
 class Storer:
     def __init__(self):

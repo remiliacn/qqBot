@@ -3,11 +3,11 @@ from Shadiao import randomServices
 from googletrans import Translator
 from youdaoService import youdao
 from awesome.adminControl import permission as perm
-from awesome.plugins.Shadiao import sanity_meter
+from awesome.plugins.shadiao import sanity_meter
 
-from awesome.adminControl import userControl
+from awesome.adminControl import user_control
 
-answer_api = userControl.UserControl()
+answer_api = user_control.UserControl()
 
 HHSHMEANING = 'meaning'
 FURIGANAFUNCTION = 'furigana'

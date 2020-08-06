@@ -1,7 +1,7 @@
 from json import loads, dump
 from os.path import exists
 
-class SetuSanity:
+class SetuFunction:
     def __init__(self):
         self.max_sanity = 30
         self.sanity_dict = {}

@@ -5,7 +5,7 @@ import json
 import nonebot
 
 from awesome.adminControl import permission as perm
-from awesome.plugins.adminSetting import user_control_module
+from awesome.plugins.admin_setting import user_control_module
 
 get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
 

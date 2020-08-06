@@ -5,7 +5,7 @@ import re
 import time
 
 from awesome.adminControl import permission as perm
-from awesome.adminControl import shadiaoAdmin, userControl
+from awesome.adminControl import group_admin, user_control
 
 
 class Votekick:
@@ -20,10 +20,10 @@ class Votekick:
         self.vote_kick_dict[qq_num] += 1
         return self.vote_kick_dict[qq_num]
 
-admin_control = shadiaoAdmin.Shadiaoadmin()
+admin_control = group_admin.Shadiaoadmin()
 vote_kick_controller = Votekick()
 
-user_control_module = userControl.UserControl()
+user_control_module = user_control.UserControl()
 
 get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
 

@@ -9,11 +9,11 @@ import nonebot
 import requests
 
 from awesome.adminControl import permission as perm
-from awesome.adminControl import userControl, shadiaoAdmin
-from awesome.plugins.Shadiao import sanity_meter
+from awesome.adminControl import user_control, group_admin
+from awesome.plugins.shadiao import sanity_meter
 
-user_control_module = userControl.UserControl()
-admin_control = shadiaoAdmin.Shadiaoadmin()
+user_control_module = user_control.UserControl()
+admin_control = group_admin.Shadiaoadmin()
 
 get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
 
