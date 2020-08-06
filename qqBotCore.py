@@ -1,6 +1,7 @@
 import nonebot
+from nonebot.log import logger
 from os import path
-import logging, config
+import config
 from json import loads, dump
 
 def registerTrue():
@@ -13,12 +14,13 @@ def registerTrue():
 if __name__ == '__main__':
     registerTrue()
     nonebot.init(config)
-    nonebot.log.logger.setLevel('WARNING')
+    nonebot.log.logger.setLevel('INFO')
     nonebot.load_plugins(
         path.join(path.dirname(__file__), 'awesome', 'plugins'),
         'awesome.plugins'
     )
-    logging.warning('Plugins successfully installed.')
+
+    logger.warning('Plugins successfully installed.')
     nonebot.run()
 
 

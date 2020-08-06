@@ -14,7 +14,7 @@ class GetPCRNews:
             page = requests.get(self.base_url, headers=self.headers, timeout=10)
         except Exception as e:
             print(f"News error {e}")
-            return self.first_update_id
+            return 300
 
         json_data = page.json()
         return json_data['data'][0]['id']

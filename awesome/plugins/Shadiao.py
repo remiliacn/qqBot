@@ -75,7 +75,7 @@ async def sendWaifu(session: nonebot.CommandSession):
     if not path:
         await session.send(message)
     else:
-        nonebot.logger.warning('Get waifu pic: %s' % path)
+        nonebot.logger.info('Get waifu pic: %s' % path)
         await session.send('[CQ:image,file=file:///%s]\n%s' % (path, message))
 
 
@@ -352,8 +352,8 @@ async def avValidator(session: nonebot.CommandSession):
     if get_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
-    keyWord = session.get('keyWord', prompt='在？你要让我查什么啊baka')
-    validator = Shadiao.Avalidator(text=keyWord)
+    key_word = session.get('key_word', prompt='在？你要让我查什么啊baka')
+    validator = Shadiao.Avalidator(text=key_word)
     if 'group_id' in ctx:
         sanity_meter.set_usage(ctx['group_id'], tag='yanche')
         sanity_meter.set_user_data(ctx['user_id'], 'yanche')
@@ -403,40 +403,40 @@ async def pixivSend(session: nonebot.CommandSession):
 
     is_exempt = admin_control.get_data(group_id, 'exempt') if group_id != -1 else False
 
-    keyWord = str(session.get('keyWord', prompt='请输入一个关键字进行查询')).lower()
+    key_word = str(session.get('key_word', prompt='请输入一个关键字进行查询')).lower()
 
-    if keyWord in sanity_meter.get_bad_word_dict():
-        multiplier = sanity_meter.get_bad_word_dict()[keyWord]
+    if key_word in sanity_meter.get_bad_word_dict():
+        multiplier = sanity_meter.get_bad_word_dict()[key_word]
         doMultiply = True
         if multiplier > 0:
             await session.send(f'该查询关键词在黑名单中，危机合约模式已开启：本次色图搜索将{multiplier}倍消耗理智')
         else:
             await session.send(f'该查询关键词在白名单中，支援合约已开启：本次色图搜索将{abs(multiplier)}倍补充理智')
 
-    if keyWord in sanity_meter.get_monitored_keywords():
+    if key_word in sanity_meter.get_monitored_keywords():
         await session.send('该关键词在主人的监控下，本次搜索不消耗理智，且会转发主人一份√')
         monitored = True
         if 'group_id' in ctx:
             sanity_meter.set_user_data(user_id, 'hit_xp')
-            sanity_meter.set_xp_data(keyWord)
+            sanity_meter.set_xp_data(key_word)
 
-    if re.match(r'.*?祈.*?雨', keyWord):
-        if re.match(r'(屑|垃.*?圾|辣.*?鸡|笨.*?蛋).*?祈.*?雨', keyWord):
+    if re.match(r'.*?祈.*?雨', key_word):
+        if re.match(r'(屑|垃.*?圾|辣.*?鸡|笨.*?蛋).*?祈.*?雨', key_word):
             user_control_module.set_user_privilege(str(ctx['user_id']), perm.BANNED, True)
             await session.finish('恭喜您被自动加入黑名单啦！')
 
         await session.finish('我静观天象，发现现在这个时辰不适合发我主人的色图。')
 
-    elif '色图' in keyWord:
+    elif '色图' in key_word:
         await session.finish('[CQ:image,file=file:///C:/dl/others/QQ图片20191013212223.jpg]')
 
-    elif '屑bot' in keyWord:
+    elif '屑bot' in key_word:
         await session.finish('你屑你🐴呢')
 
-    if '最新' in keyWord:
+    if '最新' in key_word:
         json_result = aapi.illust_ranking('week')
     else:
-        json_result = aapi.search_illust(word=keyWord, sort="popular_desc")
+        json_result = aapi.search_illust(word=key_word, sort="popular_desc")
 
     # 看一下access token是否过期
     if 'error' in json_result:
@@ -450,27 +450,27 @@ async def pixivSend(session: nonebot.CommandSession):
         except pixivpy3.PixivError:
             return
 
-    if '{user=' in keyWord:
-        keyWord = re.findall(r'{user=(.*?)}', keyWord)
-        if keyWord:
-            keyWord = keyWord[0]
+    if '{user=' in key_word:
+        key_word = re.findall(r'{user=(.*?)}', key_word)
+        if key_word:
+            key_word = key_word[0]
         else:
             await session.finish('未找到该用户。')
 
-        json_user = aapi.search_user(word=keyWord, sort="popular_desc")
+        json_user = aapi.search_user(word=key_word, sort="popular_desc")
         if json_user.user_previews:
             user_id = json_user.user_previews[0].user.id
             json_result = aapi.user_illusts(user_id)
         else:
-            await session.send("%s无搜索结果或图片过少……" % keyWord)
+            await session.send("%s无搜索结果或图片过少……" % key_word)
             return
 
     else:
-        json_result = aapi.search_illust(word=keyWord, sort="popular_desc")
+        json_result = aapi.search_illust(word=key_word, sort="popular_desc")
 
     if not json_result.illusts or len(json_result.illusts) < 4:
-        nonebot.logger.warning("未找到图片")
-        await session.send("%s无搜索结果或图片过少……" % keyWord)
+        nonebot.logger.warning(f"未找到图片, keyword = {key_word}")
+        await session.send("%s无搜索结果或图片过少……" % key_word)
         return
 
     illust = random.choice(json_result.illusts)
@@ -494,10 +494,10 @@ async def pixivSend(session: nonebot.CommandSession):
                 f'[CQ:at,qq={user_id}]\nPixiv ID: {illust.id}\n' + MessageSegment.image(f'file:///{path}')
             )
 
-            nonebot.logger.warning("sent image on path: " + path)
+            nonebot.logger.info("sent image on path: " + path)
 
         except Exception as e:
-            nonebot.logger.warning('Something went wrong %s' % e)
+            nonebot.logger.info('Something went wrong %s' % e)
             await session.send('悲，屑TX不收我图。')
             return
 
@@ -526,7 +526,7 @@ async def pixivSend(session: nonebot.CommandSession):
     if monitored and not get_privilege(user_id, perm.OWNER):
         await bot.send_private_msg(user_id=634915227,
                                    message=f'图片来自：{nickname}\n'
-                                           f'查询关键词:{keyWord}\n'
+                                           f'查询关键词:{key_word}\n'
                                            f'Pixiv ID: {illust.id}\n'
                                            '关键字在监控中' + f'[CQ:image,file=file:///{path}]')
 
@@ -550,7 +550,7 @@ def download_image(illust):
                 shutil.copyfileobj(response.raw, out_file)
 
         except Exception as err:
-            nonebot.logger.warning(f'Download image error: {err}')
+            nonebot.logger.info(f'Download image error: {err}')
 
     return path
 
@@ -598,7 +598,7 @@ async def _(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:
         if stripped_arg:
-            session.state['keyWord'] = stripped_arg
+            session.state['key_word'] = stripped_arg
         return
 
     if not stripped_arg:
