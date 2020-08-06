@@ -6,6 +6,9 @@ import re
 import requests
 import twitter
 
+from bilibiliService import bilibiliLive as live_api
+from nonebot.log import logger
+
 try:
     api = twitter.Api(consumer_key=config.consumer_key,
                       consumer_secret=config.consumer_secret,
@@ -13,28 +16,7 @@ try:
                       access_token_secret=config.access_secret, tweet_mode='extended')
 
 except Exception as e:
-    print("getTweet init failed %s" % e)
-
-
-def get_info_in_json(json_result, ch_name: str) -> str:
-    live_title = json_result['data']['title']
-    live_desc: str = json_result['data']['description']
-    live_desc = re.sub('<.*?>', '', live_desc)
-    live_cover = json_result['data']['user_cover']
-
-    image = requests.get(live_cover, timeout=10)
-    image.raise_for_status()
-
-    file_name = live_cover.split('/')[-1]
-    path = f'E:/bilibiliPic/{file_name}'
-    with open(path, 'wb') as file:
-        file.write(image.content)
-
-    return f'{ch_name}开播啦！\n' \
-           f'直播间标题：{live_title}\n' \
-           f'直播间描述：{live_desc}\n' \
-           f'封面\n' \
-           f'[CQ:image,file=file:///{file_name}]'
+    logger.error("getTweet init failed %s" % e)
 
 
 class tweeter:
@@ -116,29 +98,22 @@ class tweeter:
                 continue
 
             live_room_cid = self.tweet_config[ch_name]['bilibili']
-            api_url = f'https://api.live.bilibili.com/room/v1/Room/get_info?room_id={live_room_cid}'
-            page = requests.get(api_url, timeout=10)
-            if not page.status_code == 200:
-                logging.warning(f'API connection failed to bilibili live room update for {ch_name}')
-                continue
-
-            json_result = page.json()
-            live_stat = json_result['data']['live_status']
-            if live_stat == 1:
-                if ch_name not in self.live_stat:
-                    info = get_info_in_json(json_result, ch_name)
-                    live_temp_dict[ch_name] = info
-                    self.live_stat = live_temp_dict
-            else:
+            live = live_api.BilibiliLive(live_room_cid, ch_name)
+            if not live.get_status():
                 if ch_name in self.live_stat:
                     del self.live_stat[ch_name]
+
+            else:
+                if ch_name not in self.live_stat:
+                    live_temp_dict[ch_name] = live.get_info()
+                    self.live_stat = live_temp_dict
 
         return live_temp_dict
 
     async def check_update(self):
         temp_dict = {}
         diff_dict = {}
-        print(f'Original: {self.tweet_list_init}')
+        logger.info(f'Original: {self.tweet_list_init}')
         for ch_name in self.tweet_config:
             if self.tweet_config[ch_name]['enabled']:
                 if self.tweet_config[ch_name]['screen_name'] == '_':
@@ -146,9 +121,12 @@ class tweeter:
 
                 try:
                     resp_text = self.get_time_line_from_screen_name(screen_name=self.tweet_config[ch_name]['screen_name'])
+                    if resp_text == self.INFO_NOT_AVAILABLE:
+                        continue
+
                 except Exception as err:
                     logging.warning(err)
-                    resp_text = ''
+                    continue
 
                 temp_dict[ch_name] = resp_text
 
@@ -160,7 +138,7 @@ class tweeter:
                     diff_dict[element] = temp_dict[element]
 
         self.tweet_list_init = temp_dict
-        print(f'Changed: {self.tweet_list_init}')
+        logger.info(f'Changed: {self.tweet_list_init}')
         return diff_dict
 
     def _get_tweet_config(self) -> dict:

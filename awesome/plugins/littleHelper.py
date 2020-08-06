@@ -2,7 +2,7 @@ import nonebot, requests, json, time, logging, re
 from Shadiao import randomServices
 from googletrans import Translator
 from youdaoService import youdao
-from Shadiao import Shadiao
+from awesome.adminControl import permission as perm
 from awesome.plugins.Shadiao import sanity_meter
 
 from awesome.adminControl import userControl
@@ -128,7 +128,7 @@ async def send_help(session: nonebot.CommandSession):
 async def translate(session : nonebot.CommandSession):
     trans = translation()
     ctx = session.ctx.copy()
-    if answer_api.get_if_user_banned(ctx['user_id']):
+    if answer_api.get_user_privilege(ctx['user_id'], perm.BANNED):
         await session.send('略略略，我主人把你拉黑了。哈↑哈↑哈')
         return
 
@@ -158,9 +158,8 @@ async def _(session: nonebot.CommandSession):
 @nonebot.on_command('日语词典', only_to_me=False)
 async def getYouDaoService(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if answer_api.get_if_user_banned(ctx['user_id']):
-        await session.send('略略略，我主人把你拉黑了。哈↑哈↑哈')
-        return
+    if answer_api.get_user_privilege(ctx['user_id'], perm.BANNED):
+        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     key_word = session.get('key_word', prompt='词呢！词呢！！KORA！！！')
     if key_word != '':
@@ -173,9 +172,8 @@ async def getYouDaoService(session : nonebot.CommandSession):
 @nonebot.on_command('最新地震', only_to_me=False)
 async def send_earth_quake_info(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if answer_api.get_if_user_banned(ctx['user_id']):
-        await session.send('略略略，我主人把你拉黑了。哈↑哈↑哈')
-        return
+    if answer_api.get_user_privilege(ctx['user_id'], perm.BANNED):
+        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     earth_quake_api_new = randomServices.Earthquakeinfo()
     new_earthquake_info = earth_quake_api_new.get_newest_info()
@@ -184,9 +182,8 @@ async def send_earth_quake_info(session : nonebot.CommandSession):
 @nonebot.on_command('日日释义', only_to_me=False)
 async def jpToJpDict(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if answer_api.get_if_user_banned(ctx['user_id']):
-        await session.send('略略略，我主人把你拉黑了。哈↑哈↑哈')
-        return
+    if answer_api.get_user_privilege(ctx['user_id'], perm.BANNED):
+        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     key_word = session.get('key_word', prompt='请输入一个关键字！')
     goo_api = None
@@ -218,26 +215,14 @@ async def jpToJpDict(session : nonebot.CommandSession):
 @nonebot.on_command('释义nico', only_to_me=False)
 async def nico_send(session : nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if answer_api.get_if_user_banned(ctx['user_id']):
-        await session.send('略略略，我主人把你拉黑了。哈↑哈↑哈')
-        return
+    if answer_api.get_user_privilege(ctx['user_id'], perm.BANNED):
+        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     keyWord = session.get('keyWord', prompt='歪？我的关键字呢？')
     api = youdao.Nicowiki(keyWord=keyWord)
     await session.send(api.__str__())
     if 'group_id' in ctx:
         sanity_meter.set_user_data(ctx['user_id'], 'nico')
-
-@nonebot.on_command('周公解梦', only_to_me=False)
-async def zhou_interprets(session : nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    if answer_api.get_if_user_banned(ctx['user_id']):
-        await session.send('略略略，我主人把你拉黑了。哈↑哈↑哈')
-        return
-
-    keyWord = session.get('keyWord', prompt='请输入您要解密的梦境')
-    apii = Shadiao.ZhouInterprets(keyWord=keyWord)
-    await session.send(apii.get_content())
 
 @nonebot.on_command('反码', only_to_me=False)
 async def reverseCode(session : nonebot.CommandSession):
@@ -281,7 +266,6 @@ async def can_you_be_fucking_normal(session : nonebot.CommandSession):
 @getYouDaoService.args_parser
 @jpToJpDict.args_parser
 @nico_send.args_parser
-@zhou_interprets.args_parser
 async def _youDaoServiceArgs(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:
