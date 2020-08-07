@@ -113,7 +113,15 @@ async def send_tweet():
     )
 
     logger.info('Auto fetch all done!')
-    logger.info(f'Scheduled job in get_tweet.py used {(time.time() - start_time):.2f}s')
+    use_time = time.time() - start_time
+    logger.info(f'Scheduled job in get_tweet.py used {use_time:.2f}s')
+    if use_time > 5.0:
+        bot = nonebot.get_bot()
+        await bot.send_private_msg(
+            user_id=634915227,
+            message=f'Scheduled job in get_tweet.py took longer than expected:\n'
+                    f'Used: {use_time:.2f}s'
+        )
 
 
 async def save_stats():
