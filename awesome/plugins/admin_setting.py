@@ -15,10 +15,11 @@ from awesome.plugins.shadiao import sanity_meter
 user_control_module = user_control.UserControl()
 admin_control = group_admin.Shadiaoadmin()
 
-get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
+get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
+
 
 @nonebot.on_command('添加监控词', only_to_me=False)
-async def add_monitor_word(session : nonebot.CommandSession):
+async def add_monitor_word(session: nonebot.CommandSession):
     keyWord = session.get('keyWord', prompt='要加什么进来呢？')
     ctx = session.ctx.copy()
     if not get_privilege(ctx['user_id'], perm.OWNER):
@@ -27,8 +28,9 @@ async def add_monitor_word(session : nonebot.CommandSession):
     sanity_meter.set_new_xp(keyWord)
     await session.finish('Done!')
 
+
 @nonebot.on_command('添加拉黑词', only_to_me=False)
-async def add_blacklist_word(session : nonebot.CommandSession):
+async def add_blacklist_word(session: nonebot.CommandSession):
     key_word = session.get('key_word', prompt='要加什么进来呢？')
     ctx = session.ctx.copy()
     if not get_privilege(ctx['user_id'], perm.OWNER):
@@ -42,57 +44,67 @@ async def add_blacklist_word(session : nonebot.CommandSession):
     except ValueError:
         await session.finish('第二输入非数字。')
 
+
 @nonebot.on_command('添加信任', only_to_me=False)
-async def add_whitelist(session : nonebot.CommandSession):
+async def add_whitelist(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     bot = nonebot.get_bot()
     if not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish('您无权使用该功能')
 
-    id_num = session.get('user_id', prompt='请输入要添加的qq号')
+    user_id = session.get('user_id', prompt='请输入要添加的qq号')
     try:
-        id_num = int(id_num)
+        user_id = int(user_id)
     except ValueError:
         await session.send('主人啊，这是数字么？')
         return
 
-    user_control_module.set_user_privilege(id_num, perm.WHITELIST, True)
-    await bot.send_private_msg(user_id=id_num, message='您已被机器人的主人添加信任')
+    user_control_module.set_user_privilege(user_id, perm.WHITELIST, True)
+    await bot.send_private_msg(
+        user_id=user_id,
+        message='您已被机器人的主人添加信任'
+    )
     await session.send('添加成功！')
 
+
 @nonebot.on_command('移除信任', aliases={'删除信任', '解除信任'}, only_to_me=False)
-async def delete_trust(session : nonebot.CommandSession):
+async def delete_whitelist(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish('您无权使用该功能')
 
-    id_num = session.get('user_id', prompt='请输入要添加的qq号')
+    user_id = session.get('user_id', prompt='请输入要添加的qq号')
     try:
-        id_num = int(id_num)
+        user_id = int(user_id)
     except ValueError:
         await session.finish('主人啊，这是数字么？')
 
-    user_control_module.set_user_privilege(id_num, perm.WHITELIST, False)
+    user_control_module.set_user_privilege(user_id, perm.WHITELIST, False)
     await session.send('移除成功！')
 
+
 @nonebot.on_command('添加管理', only_to_me=False)
-async def add_admin(session : nonebot.CommandSession):
+async def add_admin(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     bot = nonebot.get_bot()
     if not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish('您无权使用该功能')
 
-    id_num = session.get('user_id', prompt='请输入要添加的qq号')
+    user_id = session.get('user_id', prompt='请输入要添加的qq号')
     try:
-        id_num = int(id_num)
+        user_id = int(user_id)
     except ValueError:
         await session.send('主人啊，这是数字么？')
         return
 
-    user_control_module.set_user_privilege(id_num, 'ADMIN', True)
-    user_control_module.set_user_privilege(id_num, 'WHITELIST', True)
-    await bot.send_private_msg(user_id=id_num, message='您已被机器人的主人给予机器人管理权限')
+    user_control_module.set_user_privilege(user_id, 'ADMIN', True)
+    user_control_module.set_user_privilege(user_id, 'WHITELIST', True)
+    await bot.send_private_msg(
+        user_id=user_id,
+        message='您已被机器人的主人给予机器人管理权限'
+    )
     await session.send('添加完成')
+
 
 @nonebot.on_command('删除管理', only_to_me=False)
 async def delete_admin(session: nonebot.CommandSession):
@@ -100,19 +112,20 @@ async def delete_admin(session: nonebot.CommandSession):
     if not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish('您无权使用该功能')
 
-    id_num = session.get('user_id', prompt='请输入要添加的qq号')
+    user_id = session.get('user_id', prompt='请输入要添加的qq号')
     try:
-        id_num = int(id_num)
+        user_id = int(user_id)
     except ValueError:
         await session.send('主人啊，这是数字么？')
         return
 
-    user_control_module.set_user_privilege(id_num, 'ADMIN', False)
-    user_control_module.set_user_privilege(id_num, 'WHITELIST', False)
+    user_control_module.set_user_privilege(user_id, 'ADMIN', False)
+    user_control_module.set_user_privilege(user_id, 'WHITELIST', False)
     await session.send('移除完成')
 
+
 @nonebot.on_command('我懂了', only_to_me=False)
-async def add_ai_real_response(session : nonebot.CommandSession):
+async def add_ai_real_response(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     question = session.get('question', prompt='请输入回答的问题')
     question = str(question).replace('\n', ' ')
@@ -140,8 +153,9 @@ async def add_ai_real_response(session : nonebot.CommandSession):
     user_control_module.add_response(question, answer_dict)
     await session.send('回答已添加！')
 
+
 @nonebot.on_command('问题', only_to_me=False)
-async def sendAnswer(session : nonebot.CommandSession):
+async def sendAnswer(session: nonebot.CommandSession):
     start_time = time.time()
     question = session.get('question', prompt='啊？你要问我什么？')
     question = str(question).lower()
@@ -152,32 +166,43 @@ async def sendAnswer(session : nonebot.CommandSession):
     sanity_meter.set_user_data(ctx['user_id'], 'question')
 
     if re.match('.*?你.*?(名字|叫什么|是谁|什么东西)', question):
-        await session.send(f'我叫{ctx["sender"]["nickname"]}\n'
-                           f'回答用时：{(time.time() - start_time):.2f}s')
-        return
+        await session.finish(
+            f'我叫{ctx["sender"]["nickname"]}\n'
+            f'回答用时：{(time.time() - start_time):.2f}s'
+        )
 
-    #pre-processing
+    # pre-processing
     has_answer, response = prefetch(question, ctx['user_id'])
     if has_answer:
-        await session.send(response + '\n'
-                                      f'回答用时：{(time.time() - start_time):.2f}s')
+        await session.send(
+            response + '\n'
+                       f'回答用时：{(time.time() - start_time):.2f}s'
+        )
     else:
-        #math processing
+        # math processing
         is_math_question, response = _math_fetch(response, ctx['user_id'])
         if is_math_question:
-            await session.send(response + '\n'
-                                          f'回答用时：{(time.time() - start_time):.2f}s')
+            await session.send(
+                response + '\n'
+                           f'回答用时：{(time.time() - start_time):.2f}s'
+            )
+
         else:
             nonebot.logger.info(msg="It is not a normal question.")
             ai_process = _simple_ai_process(question)
             if question == ai_process:
                 response = _request_api_response(question)
-                await session.send(response + '\n'
-                                              f'回答用时：{(time.time() - start_time):.2f}s')
+                await session.send(
+                    response + '\n'
+                               f'回答用时：{(time.time() - start_time):.2f}s'
+                )
 
             else:
-                await session.send(ai_process + '\n'
-                                               f'回答用时：{(time.time() - start_time):.2f}s')
+                await session.send(
+                    ai_process + '\n'
+                                 f'回答用时：{(time.time() - start_time):.2f}s'
+                )
+
 
 @sendAnswer.args_parser
 async def _send_answer(session: nonebot.CommandSession):
@@ -191,6 +216,7 @@ async def _send_answer(session: nonebot.CommandSession):
         session.pause('啊？你要问我什么？')
 
     session.state[session.current_key] = stripped_arg
+
 
 def _simple_ai_process(question: str) -> str:
     syntax = re.compile(r'[么嘛吗马][？?]')
@@ -227,6 +253,7 @@ def _simple_ai_process(question: str) -> str:
 
     return response
 
+
 def _math_fetch(question: str, user_id: int) -> (bool, str):
     if re.match(r'.*?name__', question) and not get_privilege(user_id, perm.OWNER):
         return True, '检测到危险指令。拒绝执行'
@@ -253,7 +280,8 @@ def _math_fetch(question: str, user_id: int) -> (bool, str):
 
     try:
         answer = eval('%s' % question, {"__builtins__": None},
-                      {'gcd': gcd, 'sqrt': sqrt, 'pow': pow, 'floor': floor, 'factorial': factorial, 'sin': sin, 'cos': cos,
+                      {'gcd': gcd, 'sqrt': sqrt, 'pow': pow, 'floor': floor, 'factorial': factorial, 'sin': sin,
+                       'cos': cos,
                        'tan': tan, 'asin': asin, 'acos': acos, 'pi': pi, 'atan': atan})
 
     except Exception as err:
@@ -261,6 +289,7 @@ def _math_fetch(question: str, user_id: int) -> (bool, str):
         return False, ''
 
     return True, f'运算结果是：{answer}\n我算的对吧~'
+
 
 def prefetch(question: str, user_id: int) -> (bool, str):
     if question == user_control_module.last_question:
@@ -280,10 +309,10 @@ def prefetch(question: str, user_id: int) -> (bool, str):
         response = user_control_module.get_user_response(question)
         return response != '$', response if response != '$' else ''
 
-    if re.match(r'.*?おやすみ', question):
+    if 'おやすみ' in question:
         return False, ''
 
-    if re.match(r'.*?屑bot', question):
+    if '屑bot' in question:
         return True, '你屑你🐴呢'
 
     if re.match('.*?(祈|衤|qi).*?(雨|yu)', question):
@@ -306,10 +335,11 @@ def prefetch(question: str, user_id: int) -> (bool, str):
     if re.match(r'.*?(爱不爱|喜不喜欢).*?妈妈', question):
         return True, '答案肯定是肯定的啦~'
 
-    if re.match(r'.*?妈妈', question):
+    if '妈妈' in question:
         return True, '请问你有妈妈么？:)'
 
     return False, question
+
 
 def _request_api_response(question: str) -> str:
     if '鸡汤' in question:
@@ -341,8 +371,9 @@ def _request_api_response(question: str) -> str:
 
     return response
 
+
 @nonebot.on_command('移除语料', only_to_me=False)
-async def delete_ai_response(session : nonebot.CommandSession):
+async def delete_ai_response(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if get_privilege(ctx['user_id'], perm.WHITELIST):
         key_word = session.get('key_word', prompt='请输入要移除的语料')
@@ -352,6 +383,7 @@ async def delete_ai_response(session : nonebot.CommandSession):
             await session.send('语料删除失败，关键词未找到。')
     else:
         await session.send('您无权删除语料。')
+
 
 @delete_ai_response.args_parser
 @add_monitor_word.args_parser
@@ -369,14 +401,15 @@ async def _deleteAIResponse(session: nonebot.CommandSession):
 
 
 @nonebot.on_command('语料查询', only_to_me=False)
-async def getAnswerInfo(session : nonebot.CommandSession):
+async def getAnswerInfo(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if get_privilege(ctx['user_id'], perm.WHITELIST):
         keyWord = session.get('keyWord', prompt='请输入需要查询的预料关键词')
         await session.send(user_control_module.get_response_info(keyWord))
 
+
 @nonebot.on_natural_language(only_to_me=False, only_short_message=True)
-async def send_answer(session : nonebot.NLPSession):
+async def send_answer(session: nonebot.NLPSession):
     random.seed(time.time_ns())
     rand_num = random.randint(0, 100000)
     ctx = session.ctx.copy()
@@ -395,7 +428,8 @@ async def send_answer(session : nonebot.NLPSession):
             if rand_num < 70000 and message in user_control_module.get_user_dict():
                 group_id = str(ctx['group_id'])
                 try:
-                    if group_id not in user_control_module.last_question or user_control_module.last_question[group_id] != message:
+                    if group_id not in user_control_module.last_question or user_control_module.last_question[
+                        group_id] != message:
                         user_control_module.last_question[group_id] = message
                         await session.send(user_control_module.get_user_response(message))
 
@@ -406,7 +440,7 @@ async def send_answer(session : nonebot.NLPSession):
                 return
 
             if ctx['group_id'] not in admin_control.repeat_dict:
-                admin_control.repeat_dict[ctx['group_id']] = {message : 1}
+                admin_control.repeat_dict[ctx['group_id']] = {message: 1}
             else:
                 if message in admin_control.repeat_dict[ctx['group_id']]:
                     admin_control.repeat_dict[ctx['group_id']][message] += 1
@@ -416,10 +450,11 @@ async def send_answer(session : nonebot.NLPSession):
 
                 else:
                     admin_control.repeat_dict[ctx['group_id']] = {}
-                    admin_control.repeat_dict[ctx['group_id']] = {message : 1}
+                    admin_control.repeat_dict[ctx['group_id']] = {message: 1}
+
 
 @nonebot.on_command('ban', only_to_me=False)
-async def ban_someone(session : nonebot.CommandSession):
+async def ban_someone(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if get_privilege(ctx['user_id'], perm.ADMIN):
         try:
@@ -435,8 +470,9 @@ async def ban_someone(session : nonebot.CommandSession):
         await session.send('您无权进行该操作')
         return
 
+
 @nonebot.on_command('unban', only_to_me=False)
-async def unban_someone(session : nonebot.CommandSession):
+async def unban_someone(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if get_privilege(ctx['user_id'], perm.ADMIN):
         try:
@@ -451,8 +487,13 @@ async def unban_someone(session : nonebot.CommandSession):
     else:
         await session.send('您无权进行该操作')
 
+
 @ban_someone.args_parser
 @unban_someone.args_parser
+@add_whitelist.args_parser
+@add_admin.args_parser
+@delete_admin.args_parser
+@delete_whitelist.args_parser
 async def _ban_args(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:
@@ -464,5 +505,3 @@ async def _ban_args(session: nonebot.CommandSession):
         session.pause('qq号不得为空哦¿')
 
     session.state[session.current_key] = stripped_arg
-
-

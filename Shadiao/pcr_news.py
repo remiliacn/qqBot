@@ -1,5 +1,6 @@
 import requests, os
 from lxml import etree
+from nonebot.log import logger
 class GetPCRNews:
     def __init__(self):
         self.base_url = 'https://api.biligame.com/news/list?gameExtensionId=267&positionId=2&typeId=4&pageNum=1&pageSize=5'
@@ -13,7 +14,7 @@ class GetPCRNews:
         try:
             page = requests.get(self.base_url, headers=self.headers, timeout=10)
         except Exception as e:
-            print(f"News error {e}")
+            logger.warning(f"News error {e}")
             return -1
 
         json_data = page.json()
@@ -31,7 +32,7 @@ class GetPCRNews:
         try:
             page = requests.get(f'https://api.biligame.com/news/{self.first_update_id}', headers=self.headers, timeout=10)
         except Exception as e:
-            print(e)
+            logger.warning(f'An error occurred while fetching PCR news: {e}')
             return '获取详细内容失败！'
 
         page.encoding = 'utf-8'
@@ -60,7 +61,7 @@ class GetPCRNews:
                     downloaded = True
                     
             except Exception as e:
-                print("Error occurred when downloading: " + str(e))
+                logger.warning("Error occurred when downloading: " + str(e))
 
         result = re.sub(syntax, '', result).replace('\r\n', '\n').replace('&nbsp;', ' ').replace('\t', '')
         result = re.sub(r'\n+', '\n', result)

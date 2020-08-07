@@ -1,13 +1,14 @@
-import config
+import asyncio
 import json
-import logging
 import os
 import re
+
 import requests
 import twitter
-
-from bilibiliService import bilibiliLive as live_api
 from nonebot.log import logger
+
+import config
+from bilibiliService import bilibiliLive as live_api
 
 try:
     api = twitter.Api(consumer_key=config.consumer_key,
@@ -42,7 +43,7 @@ class tweeter:
     def get_tweet_config(self) -> dict:
         return self.tweet_config
 
-    def add_to_config(self, args : list, group_id) -> str:
+    def add_to_config(self, args: list, group_id) -> str:
         ch_name = args[0]
         screen_name = args[1]
         bilibili = args[2]
@@ -50,10 +51,10 @@ class tweeter:
 
         if ch_name not in self.tweet_config:
             self.tweet_config[ch_name] = {
-                'screen_name' : screen_name,
-                'group' : [group_id],
-                'enabled' : True,
-                'bilibili' : bilibili
+                'screen_name': screen_name,
+                'group': [group_id],
+                'enabled': True,
+                'bilibili': bilibili
             }
 
         else:
@@ -77,6 +78,7 @@ class tweeter:
             if key in self.live_stat:
                 del self.live_stat[key]
 
+            self.save_config()
             return True
 
         return False
@@ -114,25 +116,20 @@ class tweeter:
         temp_dict = {}
         diff_dict = {}
         logger.info(f'Original: {self.tweet_list_init}')
+        tasks = []
         for ch_name in self.tweet_config:
-            if self.tweet_config[ch_name]['enabled']:
-                if self.tweet_config[ch_name]['screen_name'] == '_':
-                    continue
+            tasks.append(self._check_update_helper(ch_name))
 
-                try:
-                    resp_text = self.get_time_line_from_screen_name(screen_name=self.tweet_config[ch_name]['screen_name'])
-                    if resp_text == self.INFO_NOT_AVAILABLE:
-                        continue
+        results = await asyncio.gather(
+            *tasks
+        )
 
-                except Exception as err:
-                    logging.warning(err)
-                    continue
-
-                temp_dict[ch_name] = resp_text
+        for element in results:
+            temp_dict.update(element)
 
         for element in temp_dict:
             if element not in self.tweet_list_init or \
-            (self.tweet_list_init[element] != temp_dict[element]):
+                    (self.tweet_list_init[element] != temp_dict[element]):
 
                 if not (temp_dict[element] == '' or temp_dict[element] == '转发动态'):
                     diff_dict[element] = temp_dict[element]
@@ -140,6 +137,29 @@ class tweeter:
         self.tweet_list_init = temp_dict
         logger.info(f'Changed: {self.tweet_list_init}')
         return diff_dict
+
+    async def _check_update_helper(self, ch_name) -> dict:
+        temp_dict = {}
+        if self.tweet_config[ch_name]['enabled']:
+            if self.tweet_config[ch_name]['screen_name'] == '_':
+                temp_dict[ch_name] = ''
+                return temp_dict
+
+            try:
+                resp_text = self.get_time_line_from_screen_name(
+                    screen_name=self.tweet_config[ch_name]['screen_name'])
+                if resp_text == self.INFO_NOT_AVAILABLE:
+                    temp_dict[ch_name] = ''
+                    return temp_dict
+
+            except Exception as err:
+                logger.warning(err)
+                temp_dict[ch_name] = ''
+                return temp_dict
+
+            temp_dict[ch_name] = resp_text
+
+        return temp_dict
 
     def _get_tweet_config(self) -> dict:
         if not os.path.exists(self.config):
@@ -176,7 +196,7 @@ class tweeter:
         try:
             response_main = api.GetUserTimeline(screen_name=screen_name)
         except Exception as err:
-            logging.warning('连接出错！%s' % err)
+            logger.warning('连接出错！%s' % err)
             resp_text += self.INFO_NOT_AVAILABLE
 
         if fetch_count >= len(response_main):
@@ -202,7 +222,7 @@ class tweeter:
                         if reply_content.full_text is not None else reply_content.text
 
                 except Exception as err:
-                    logging.warning('Not authorized reply %s' % err)
+                    logger.warning('Not authorized reply %s' % err)
 
             if response.media is not None:
                 media = response.media
@@ -218,7 +238,7 @@ class tweeter:
                                     f.write(resp.content)
 
                             except Exception as err:
-                                logging.warning('Something went wrong when getting twitter picture. %s' % err)
+                                logger.warning('Something went wrong when getting twitter picture. %s' % err)
 
                         resp_text += '\n[CQ:image,file=file:///%s]' % file_name
 

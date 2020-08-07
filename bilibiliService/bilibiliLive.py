@@ -1,6 +1,7 @@
-import logging
+from nonebot.log import logger as logging
 import re
 import requests
+from urllib3 import HTTPSConnectionPool
 
 
 def get_info_in_json(json_result, ch_name: str) -> str:
@@ -32,7 +33,12 @@ class BilibiliLive:
 
     def _get_live_info(self) -> (bool, dict):
         live_temp_dict = {}
-        page = requests.get(self.api_url, timeout=10)
+        try:
+            page = requests.get(self.api_url, timeout=5)
+        except HTTPSConnectionPool as err:
+            logging.warning(f'Uncaught error while fetching bilibili live for {self.ch_name}: {err}')
+            return False, {}
+
         if not page.status_code == 200:
             logging.warning(f'API connection failed to bilibili live room update for {self.ch_name}')
             return False, {}

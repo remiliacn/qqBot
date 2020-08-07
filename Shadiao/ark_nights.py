@@ -33,6 +33,30 @@ AGENT_DICT = {
     6 : AGENT6
 }
 
+class Arknightspity:
+    def __init__(self):
+        self.sanityPollDict = {}
+
+    def recordPoll(self, group_id):
+        if group_id not in self.sanityPollDict:
+            self.sanityPollDict[group_id] = 10
+        else:
+            self.sanityPollDict[group_id] += 10
+
+    def getOffsetSetting(self, group_id) -> int:
+        if group_id not in self.sanityPollDict:
+            self.recordPoll(group_id)
+            return 0
+        else:
+            pollCount = self.sanityPollDict[group_id]
+            if pollCount <= 50:
+                return 0
+            else:
+                return (pollCount - 50) * 2
+
+    def resetOffset(self, group_id):
+        self.sanityPollDict[group_id] = 0
+
 class ArkHeadhunt:
     """
     Init data for arknights headhunt simulator.

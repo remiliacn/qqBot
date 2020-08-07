@@ -1,4 +1,5 @@
-import requests, re, logging
+import requests, re
+from nonebot.log import logger
 from lxml import etree
 
 headers = {
@@ -25,11 +26,11 @@ class Youdaodict:
     def getExplainations(self):
         e = etree.HTML(self.Page)
         self.explainList = re.findall(r'<p class="sense-title">(.*?)</p>', self.Page)
-        if len(self.explainList) == 0:
+        if self.explainList:
             self.getWebExplain(e)
         else:
             self.explainList.append('----网络释义----')
-            self.explainList = re.findall(r'[^\\t\s\\n\'\[\],]+', str(self.explainList))
+            self.explainList = re.findall(r'[^\\t\s\n\'\[\],]+', str(self.explainList))
             self.getWebExplain(e)
 
         return self.explainList
@@ -78,7 +79,7 @@ class Goodict:
         try:
             titleList = e.xpath('//*[@id="NR-main"]/section/div/section/div/ul/li/a/dl/dt/text()')
         except Exception as e:
-            logging.warning('Something went horribly wrong!')
+            logger.warning(f'Something went horribly wrong! {e}')
             return []
         syntax = re.compile(r'[\n\t\s]+')
         for idx, elements in enumerate(titleList):
@@ -117,7 +118,7 @@ class Goodict:
             else:
                 page = self.Page
         except Exception as e:
-            logging.warning('%s' % e)
+            logger.warning('%s' % e)
             return ['悲！服务器驳回了我的此次请求']
 
         e = etree.HTML(page)
@@ -125,7 +126,7 @@ class Goodict:
         if len(explain1) == 0:
             explain1 = e.xpath('//*[@id="NR-main-in"]/section/div/div[2]/div/div[1]/text()')
 			
-		#测试了好多情况大概就是这些吧……
+        #测试了好多情况大概就是这些吧……
 
         explain2 = e.xpath('//*[@id="NR-main"]/section/div/div[2]/div/div[2]/div/ol/li//text()')
         if len(explain2) == 0:
@@ -187,7 +188,7 @@ class Nicowiki:
         try:
             page = requests.get(self.baseUrl, headers=headers, timeout=10)
         except Exception as e:
-            logging.warning('出问题啦！%s' % e)
+            logger.warning('出问题啦！%s' % e)
             return ''
         return page.text
 
@@ -196,7 +197,7 @@ class Nicowiki:
         try:
             contentList = e.xpath('//*[@id="article"]/p//text()')
         except Exception as e:
-            logging.warning('getContentList wrong %s' % e)
+            logger.warning('getContentList wrong %s' % e)
             return []
         return contentList
 

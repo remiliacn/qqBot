@@ -19,52 +19,26 @@ from awesome.adminControl import group_admin, setu
 from awesome.adminControl import permission as perm
 from awesome.adminControl import user_control
 
-
-class Arknightspity:
-    def __init__(self):
-        self.sanityPollDict = {}
-
-    def recordPoll(self, group_id):
-        if group_id not in self.sanityPollDict:
-            self.sanityPollDict[group_id] = 10
-        else:
-            self.sanityPollDict[group_id] += 10
-
-    def getOffsetSetting(self, group_id) -> int:
-        if group_id not in self.sanityPollDict:
-            self.recordPoll(group_id)
-            return 0
-        else:
-            pollCount = self.sanityPollDict[group_id]
-            if pollCount <= 50:
-                return 0
-            else:
-                return (pollCount - 50) * 2
-
-    def resetOffset(self, group_id):
-        self.sanityPollDict[group_id] = 0
-
-
 pcr_api = pcr_news.GetPCRNews()
 sanity_meter = setu.SetuFunction()
 pixiv_api = pixivpy3.AppPixivAPI()
 arknights_api = ark_nights.ArkHeadhunt(times=10)
 admin_control = group_admin.Shadiaoadmin()
 user_control_module = user_control.UserControl()
-ark_pool_pity = Arknightspity()
+ark_pool_pity = ark_nights.Arknightspity()
 
-
-get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
+get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
 if not os.path.exists("E:/pixivPic/"):
     os.makedirs("E:/pixivPic/")
+
 
 @nonebot.message_preprocessor
 async def message_preprocessing(unused1: nonebot.NoneBot, event: aiocqhttp.event, unused2: PluginManager):
     group_id = event.group_id
     if group_id is not None:
         if not admin_control.get_data(group_id, 'enabled') \
-        and not get_privilege(event['user_id'], perm.OWNER):
+                and not get_privilege(event['user_id'], perm.OWNER):
             raise CanceledException('Group disabled')
 
 
@@ -85,8 +59,9 @@ async def shadiao_send(session: nonebot.CommandSession):
     file = shadiao.get_picture()
     await session.send(f'[CQ:image,file=file:///{file}]')
 
+
 @nonebot.on_command('PCR', only_to_me=False)
-async def pcr_news_send(session : nonebot.CommandSession):
+async def pcr_news_send(session: nonebot.CommandSession):
     try:
         await session.send(await pcr_api.get_content())
     except Exception as e:
@@ -95,24 +70,26 @@ async def pcr_news_send(session : nonebot.CommandSession):
             f'Error fetching data: {e}'
         )
 
+
 @nonebot.on_command('你群有多色', only_to_me=False)
-async def get_setu_stat(session : nonebot.CommandSession):
+async def get_setu_stat(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if 'group_id' not in ctx:
         await session.finish('本功能是群组功能')
 
     times, rank, yanche, delta, ark_stat, ark_pull = sanity_meter.get_usage(ctx['group_id'])
     setu_notice = f'自统计功能实装以来，你组查了{times}次色图！' \
-                 f'{"位居色图查询排行榜的第" + str(rank) + "！" if rank != -1 else ""}\n' \
-                 f'距离第{2 if rank == 1 else rank - 1}位相差{delta}次搜索！\n'
+                  f'{"位居色图查询排行榜的第" + str(rank) + "！" if rank != -1 else ""}\n' \
+                  f'距离第{2 if rank == 1 else rank - 1}位相差{delta}次搜索！\n'
 
     yanche_notice = ('并且验车了' + str(yanche) + "次！\n") if yanche > 0 else ''
     ark_data = ''
     if ark_stat:
         ark_data += f'十连充卡共{ark_pull}次，理论消耗合成玉{ark_pull * 6000}。抽到了：\n' \
-                   f"3星{ark_stat['3']}个，4星{ark_stat['4']}个，5星{ark_stat['5']}个，6星{ark_stat['6']}个"
+                    f"3星{ark_stat['3']}个，4星{ark_stat['4']}个，5星{ark_stat['5']}个，6星{ark_stat['6']}个"
 
     await session.send(setu_notice + yanche_notice + ark_data)
+
 
 @nonebot.on_command('理智查询', only_to_me=False)
 async def sanity_checker(session: nonebot.CommandSession):
@@ -129,6 +106,7 @@ async def sanity_checker(session: nonebot.CommandSession):
         sanity_meter.set_sanity(id_num, sanity_meter.get_max_sanity())
 
     await session.send(f'您的剩余理智为：{sanity}')
+
 
 @nonebot.on_command('理智补充', only_to_me=False)
 async def sanity_refill(session: nonebot.CommandSession):
@@ -151,6 +129,7 @@ async def sanity_refill(session: nonebot.CommandSession):
 
     await session.finish('补充理智成功！')
 
+
 @nonebot.on_command('happy', aliases={'快乐时光'}, only_to_me=False)
 async def start_happy_hours(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -165,6 +144,7 @@ async def start_happy_hours(session: nonebot.CommandSession):
 
     else:
         await session.finish('您无权使用本指令')
+
 
 @nonebot.on_command('设置R18', only_to_me=False)
 async def set_r18(session: nonebot.CommandSession):
@@ -188,14 +168,16 @@ async def set_r18(session: nonebot.CommandSession):
 
     await session.finish('Done! 已设置%s' % resp)
 
+
 @nonebot.on_command('掉落查询', only_to_me=False)
-async def check_pcr_drop(session : nonebot.CommandSession):
+async def check_pcr_drop(session: nonebot.CommandSession):
     query = session.get('group_id', prompt='请输入要查询的道具名称')
     response = await pcr_api.pcr_check(query=query)
     await session.finish(response)
 
+
 @nonebot.on_command('方舟十连', only_to_me=False)
-async def ten_polls(session : nonebot.CommandSession):
+async def ten_polls(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if 'group_id' not in ctx:
         await session.send('这是群组功能')
@@ -215,10 +197,10 @@ async def ten_polls(session : nonebot.CommandSession):
         five_star_count = class_list.count(5)
 
         data = {
-            "6" : six_star_count,
-            "5" : five_star_count,
-            "4" : class_list.count(4),
-            "3" : class_list.count(3)
+            "6": six_star_count,
+            "5": five_star_count,
+            "4": class_list.count(4),
+            "3": class_list.count(3)
         }
 
         if six_star_count == 0 and five_star_count == 0:
@@ -230,12 +212,13 @@ async def ten_polls(session : nonebot.CommandSession):
 
     qq_num = ctx['user_id']
     await session.send(
-        f'[CQ:at,qq={qq_num}]\n{arknights_api.__str__()})'
+        f'[CQ:at,qq={qq_num}]\n{arknights_api.__str__()}'
     )
+
 
 @nonebot.on_command('统计', only_to_me=False)
 async def stat_player(session: nonebot.CommandSession):
-    get_stat = lambda key, lis : lis[key] if key in lis else 0
+    get_stat = lambda key, lis: lis[key] if key in lis else 0
     ctx = session.ctx.copy()
     user_id = ctx['user_id']
     statDict = sanity_meter.get_user_data(user_id)
@@ -254,29 +237,31 @@ async def stat_player(session: nonebot.CommandSession):
         roulette = get_stat('roulette', statDict)
         horse_race = get_stat('horse_race', statDict)
 
-        await session.send(     f'用户[CQ:at,qq={user_id}]：\n' +
-                               (f'比大小赢得{poker_win}次\n' if poker_win != 0 else '') +
-                               (f'方舟抽卡共抽到{six_star_pull}个六星干员\n' if six_star_pull != 0 else '') +
-                               (f'紫气东来{unlucky}次\n' if unlucky != 0 else '') +
-                               (f'验车{yanche}次\n' if yanche != 0 else '') +
-                               (f'查了{setu_stat}次的色图！\n' if setu_stat != 0 else '') +
-                               (f'问了{question}次问题\n' if question != 0 else '') +
-                               (f'和bot主人 臭 味 相 投{same}次\n' if same != 0 else '') +
-                               (f'嘴臭{zc}次\n' if zc != 0 else '') +
-                               (f'彩虹屁{chp}次\n' if chp != 0 else '') +
-                               (f'轮盘赌被处死{roulette}次\n' if roulette != 0 else '') +
-                               (f'赛马获胜{horse_race}次\n' if horse_race != 0 else '')
+        await session.send(f'用户[CQ:at,qq={user_id}]：\n' +
+                           (f'比大小赢得{poker_win}次\n' if poker_win != 0 else '') +
+                           (f'方舟抽卡共抽到{six_star_pull}个六星干员\n' if six_star_pull != 0 else '') +
+                           (f'紫气东来{unlucky}次\n' if unlucky != 0 else '') +
+                           (f'验车{yanche}次\n' if yanche != 0 else '') +
+                           (f'查了{setu_stat}次的色图！\n' if setu_stat != 0 else '') +
+                           (f'问了{question}次问题\n' if question != 0 else '') +
+                           (f'和bot主人 臭 味 相 投{same}次\n' if same != 0 else '') +
+                           (f'嘴臭{zc}次\n' if zc != 0 else '') +
+                           (f'彩虹屁{chp}次\n' if chp != 0 else '') +
+                           (f'轮盘赌被处死{roulette}次\n' if roulette != 0 else '') +
+                           (f'赛马获胜{horse_race}次\n' if horse_race != 0 else '')
 
                            )
 
+
 @nonebot.on_command('统计xp', only_to_me=False)
-async def get_xp_stat_data(session : nonebot.CommandSession):
+async def get_xp_stat_data(session: nonebot.CommandSession):
     xp_stat = sanity_meter.get_xp_data()
     response = ''
     for item, keys in xp_stat.items():
         response += f'关键词：{item} --> Hit: {keys}\n'
 
     await session.finish(response)
+
 
 @nonebot.on_command('娱乐开关', only_to_me=False)
 async def entertain_switch(session: nonebot.CommandSession):
@@ -296,6 +281,7 @@ async def entertain_switch(session: nonebot.CommandSession):
         admin_control.set_data(group_id, 'enabled', True)
         await session.finish('已开启娱乐功能！')
 
+
 @nonebot.on_command('设置色图禁用', only_to_me=False)
 async def set_black_list_group(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -308,6 +294,7 @@ async def set_black_list_group(session: nonebot.CommandSession):
 
         await session.finish('你群%s没色图了' % group_id)
 
+
 @nonebot.on_command('删除色图禁用', only_to_me=False)
 async def deleteBlackListGroup(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -319,6 +306,7 @@ async def deleteBlackListGroup(session: nonebot.CommandSession):
             await session.finish('emmm没找到哦~')
 
         await session.finish('你群%s又有色图了' % group_id)
+
 
 @set_black_list_group.args_parser
 @deleteBlackListGroup.args_parser
@@ -336,8 +324,9 @@ async def _setGroupProperty(session: nonebot.CommandSession):
 
     session.state[session.current_key] = stripped_arg
 
+
 @nonebot.on_command('闪照设置', only_to_me=False)
-async def set_exempt(session : nonebot.CommandSession):
+async def set_exempt(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if not get_privilege(ctx['user_id'], perm.ADMIN) or 'group_id' not in ctx:
         return
@@ -350,6 +339,7 @@ async def set_exempt(session : nonebot.CommandSession):
     else:
         admin_control.set_data(group_id, 'exempt', True)
         await session.finish('本群R18图将不再已闪照形式发布')
+
 
 @nonebot.on_command('验车', only_to_me=False)
 async def av_validator(session: nonebot.CommandSession):
@@ -368,6 +358,7 @@ async def av_validator(session: nonebot.CommandSession):
 
     await session.finish(validator.get_content())
 
+
 @nonebot.on_command('色图', aliases='来张色图', only_to_me=False)
 async def pixiv_send(session: nonebot.CommandSession):
     if not get_status():
@@ -375,7 +366,7 @@ async def pixiv_send(session: nonebot.CommandSession):
 
     ctx = session.ctx.copy()
     if get_privilege(ctx['user_id'], perm.BANNED):
-        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
+        return
 
     group_id = ctx['group_id'] if 'group_id' in ctx else -1
     user_id = ctx['user_id']
@@ -418,9 +409,13 @@ async def pixiv_send(session: nonebot.CommandSession):
         multiplier = sanity_meter.get_bad_word_dict()[key_word]
         doMultiply = True
         if multiplier > 0:
-            await session.send(f'该查询关键词在黑名单中，危机合约模式已开启：本次色图搜索将{multiplier}倍消耗理智')
+            await session.send(
+                f'该查询关键词在黑名单中，危机合约模式已开启：本次色图搜索将{multiplier}倍消耗理智'
+            )
         else:
-            await session.send(f'该查询关键词在白名单中，支援合约已开启：本次色图搜索将{abs(multiplier)}倍补充理智')
+            await session.send(
+                f'该查询关键词在白名单中，支援合约已开启：本次色图搜索将{abs(multiplier)}倍补充理智'
+            )
 
     if key_word in sanity_meter.get_monitored_keywords():
         await session.send('该关键词在主人的监控下，本次搜索不消耗理智，且会转发主人一份√')
@@ -428,13 +423,6 @@ async def pixiv_send(session: nonebot.CommandSession):
         if 'group_id' in ctx:
             sanity_meter.set_user_data(user_id, 'hit_xp')
             sanity_meter.set_xp_data(key_word)
-
-    if re.match(r'.*?祈.*?雨', key_word):
-        if re.match(r'(屑|垃.*?圾|辣.*?鸡|笨.*?蛋).*?祈.*?雨', key_word):
-            user_control_module.set_user_privilege(str(ctx['user_id']), perm.BANNED, True)
-            await session.finish('恭喜您被自动加入黑名单啦！')
-
-        await session.finish('我静观天象，发现现在这个时辰不适合发我主人的色图。')
 
     elif '色图' in key_word:
         await session.finish('[CQ:image,file=file:///C:/dl/others/QQ图片20191013212223.jpg]')
@@ -455,7 +443,7 @@ async def pixiv_send(session: nonebot.CommandSession):
 
     except Exception as err:
         await session.send(f'发现未知错误！错误信息已发送给bot主人分析！\n'
-                             f'{err}')
+                           f'{err}')
 
         bot = nonebot.get_bot()
         await bot.send_private_msg(user_id=634915227,
@@ -552,19 +540,21 @@ async def pixiv_send(session: nonebot.CommandSession):
                                                f"查询关键词：{key_word}\n" +
                                                f'Pixiv ID: {illust.id}\n' +
                                                str(MessageSegment.image(f'file:///{path}'))
-            )
-
+                                       )
 
     sanity_meter.set_usage(group_id, 'setu')
     if 'group_id' in ctx:
         sanity_meter.set_user_data(user_id, 'setu')
 
     if monitored and not get_privilege(user_id, perm.OWNER):
-        await bot.send_private_msg(user_id=634915227,
-                                   message=f'图片来自：{nickname}\n'
-                                           f'查询关键词:{key_word}\n'
-                                           f'Pixiv ID: {illust.id}\n'
-                                           '关键字在监控中' + f'[CQ:image,file=file:///{path}]')
+        await bot.send_private_msg(
+            user_id=634915227,
+            message=f'图片来自：{nickname}\n'
+                    f'查询关键词:{key_word}\n'
+                    f'Pixiv ID: {illust.id}\n'
+                    '关键字在监控中' + f'[CQ:image,file=file:///{path}]'
+        )
+
 
 def download_image(illust):
     if illust['meta_single_page']:
@@ -582,7 +572,8 @@ def download_image(illust):
 
     if not os.path.exists(path):
         try:
-            response = pixiv_api.requests_call('GET', image_url, headers={'Referer': 'https://app-api.pixiv.net/'}, stream=True)
+            response = pixiv_api.requests_call('GET', image_url, headers={'Referer': 'https://app-api.pixiv.net/'},
+                                               stream=True)
             with open(path, 'wb') as out_file:
                 shutil.copyfileobj(response.raw, out_file)
 
@@ -590,6 +581,7 @@ def download_image(illust):
             nonebot.logger.info(f'Download image error: {err}')
 
     return path
+
 
 @nonebot.on_command('ghs', only_to_me=False)
 async def get_random_image(session: nonebot.CommandSession):
@@ -608,6 +600,7 @@ async def get_random_image(session: nonebot.CommandSession):
         message_id = message_id['message_id']
         nonebot.logger.info(f'Adding message_id {message_id} to recall list.')
         sanity_meter.add_recall(message_id)
+
 
 async def get_random():
     headers = {
@@ -634,6 +627,7 @@ async def get_random():
 
     return MessageSegment.image(f'file:///{path}'), is_nsfw
 
+
 @pixiv_send.args_parser
 @av_validator.args_parser
 async def _(session: nonebot.CommandSession):
@@ -647,6 +641,7 @@ async def _(session: nonebot.CommandSession):
         session.pause('要查询的关键词不能为空')
 
     session.state[session.current_key] = stripped_arg
+
 
 @nonebot.on_command('嘴臭一个', aliases=('骂我', '你再骂', '小嘴抹蜜', '嘴臭一下', '机器人骂我'), only_to_me=False)
 async def zuiChou(session: nonebot.CommandSession):
@@ -692,6 +687,7 @@ async def zuiChou(session: nonebot.CommandSession):
 
     await session.send(text)
 
+
 @nonebot.on_command('彩虹屁', aliases=('拍个马屁', '拍马屁', '舔TA'), only_to_me=False)
 async def cai_hong_pi(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -708,7 +704,6 @@ async def cai_hong_pi(session: nonebot.CommandSession):
         await session.send('拍马蹄上了_(:зゝ∠)_')
         return
 
-
     text = req.text
     msg = str(ctx['raw_message'])
 
@@ -719,6 +714,7 @@ async def cai_hong_pi(session: nonebot.CommandSession):
             return
 
     await session.send(text)
+
 
 def get_status():
     file = open('D:/dl/started.json', 'r')

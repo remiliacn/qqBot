@@ -1,3 +1,6 @@
+import asyncio
+import time
+
 import nonebot
 import re
 
@@ -13,13 +16,14 @@ from bilibiliService import bilibiliTopic
 user_control_module = user_control.UserControl()
 admin_control = group_admin.Shadiaoadmin()
 
-get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
+get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
 tweet = tweeter.tweeter()
 share_link = 'paryi-my.sharepoint.com/:f:/g/personal/hanayori_paryi_xyz/Em62_uotiDlIohJKvbMWoiQBzutGjbRga1uOXNdmTjEtpA?e=X4hGfT'
 
+
 @nonebot.on_command('跟推添加', only_to_me=False)
-async def add_new_tweeter_function(session : nonebot.CommandSession):
+async def add_new_tweeter_function(session: nonebot.CommandSession):
     usage = '！跟推添加 中文名 推特ID（@后面的那一部分） 直播间（bilibili） 是否启用（启用输入Y反则N）\n' \
             '推特ID和直播间id可使用下划线 _ 忽略参数'
 
@@ -51,8 +55,9 @@ async def add_new_tweeter_function(session : nonebot.CommandSession):
 
     await session.finish(tweet.add_to_config(args, ctx['group_id']))
 
+
 @nonebot.on_command('跟推移除', only_to_me=False)
-async def remove_tweet_following(session : nonebot.CommandSession):
+async def remove_tweet_following(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if not get_privilege(ctx['user_id'], perm.ADMIN):
         await session.finish('您无权使用本指令')
@@ -69,46 +74,55 @@ async def remove_tweet_following(session : nonebot.CommandSession):
 
 
 @nonebot.on_command('新推', only_to_me=False)
-async def get_new_tweet_by_ch_name(session : nonebot.CommandSession):
+async def get_new_tweet_by_ch_name(session: nonebot.CommandSession):
     key_word = session.get('key_word', prompt='要查谁啊？')
-    the_tweet = tweet.get_time_line_from_screen_name(key_word)
+    the_tweet = await tweet.get_time_line_from_screen_name(key_word)
     if the_tweet:
         await session.finish(the_tweet)
     else:
-        the_tweet = tweet.get_time_line_from_screen_name(key_word)
+        the_tweet = await tweet.get_time_line_from_screen_name(key_word)
         await session.finish(the_tweet)
 
+
 @nonebot.on_command('推特查询', only_to_me=False)
-async def bulk_get_new_tweet(session : nonebot.CommandSession):
+async def bulk_get_new_tweet(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     message = ctx['raw_message']
     args = message.split()
     screen_name = args[1]
     count: str = args[2]
     if count.isdigit():
-        resp = tweet.get_time_line_from_screen_name(screen_name, count)
+        resp = await tweet.get_time_line_from_screen_name(screen_name, count)
         await session.send(resp)
     else:
         await session.finish('用法错误！应为：\n'
                              '！推特查询 要查询的内容 要前多少条')
 
+
 @nonebot.scheduler.scheduled_job('interval', seconds=50)
 async def send_tweet():
-    # 跟推
-    await do_tweet_update_fetch()
-    # 直播
-    await do_bilibili_live_fetch()
-    # YouTube部分
-    await do_youtube_update_fetch()
-    # PCR部分
-    await do_pcr_update_fetch()
+    start_time = time.time()
+    await asyncio.gather(
+        do_tweet_update_fetch(),
+        do_bilibili_live_fetch(),
+        do_youtube_update_fetch(),
+        do_pcr_update_fetch(),
+        fill_sanity(),
+        do_recall(),
+        save_stats()
+    )
 
-    logger.info('Filling sanity...')
-    if sanity_meter.happy_hours:
-        sanity_meter.fill_sanity(sanity=5)
-    else:
-        sanity_meter.fill_sanity(sanity=1)
+    logger.info('Auto fetch all done!')
+    logger.info(f'Scheduled job in get_tweet.py used {(time.time() - start_time):.2f}s')
 
+
+async def save_stats():
+    sanity_meter.make_a_json('config/stats.json')
+    sanity_meter.make_a_json('config/setu.json')
+
+
+async def do_recall():
+    logger.info('Recalling messages...')
     recall_list = sanity_meter.get_recall()
     if recall_list:
         bot = nonebot.get_bot()
@@ -128,8 +142,14 @@ async def send_tweet():
 
         sanity_meter.clear_recall()
 
-    sanity_meter.make_a_json('config/stats.json')
-    sanity_meter.make_a_json('config/setu.json')
+
+async def fill_sanity():
+    logger.info('Filling sanity...')
+    if sanity_meter.happy_hours:
+        sanity_meter.fill_sanity(sanity=5)
+    else:
+        sanity_meter.fill_sanity(sanity=1)
+
 
 async def do_pcr_update_fetch():
     logger.info('Checking for PCR news...')
@@ -137,6 +157,7 @@ async def do_pcr_update_fetch():
         bot = nonebot.get_bot()
         news = await pcr_api.get_content()
         await bot.send_group_msg(group_id=1081267415, message=news)
+
 
 async def do_youtube_update_fetch():
     logger.info('Checking for video updates...')
@@ -152,7 +173,7 @@ async def do_youtube_update_fetch():
                     try:
                         await bot.send_group_msg(group_id=int(youtube_notify_dict[elements]['group_id']),
                                                  message='刚才你们让扒的源搞好了~\n视频名称：%s\n如果上传好了的话视频将会出现在\n%s' % (
-                                                 elements, share_link))
+                                                     elements, share_link))
                     except Exception as e:
                         nonebot.logger.warning('Something went wrong %s' % e)
 
@@ -173,6 +194,7 @@ async def do_youtube_update_fetch():
             json.dump(empty_dict, f, indent=4)
 
         file.close()
+
 
 async def do_tweet_update_fetch():
     logger.info('Automatically fetching tweet info...')
@@ -196,6 +218,7 @@ async def do_tweet_update_fetch():
                 await bot.send_group_msg(group_id=element,
                                          message=message)
 
+
 async def do_bilibili_live_fetch():
     logger.info('Automatically fetching bilibili live info...')
     live_stat_dict = tweet.get_live_room_info()
@@ -209,8 +232,9 @@ async def do_bilibili_live_fetch():
                 await bot.send_group_msg(group_id=element,
                                          message=message)
 
+
 @nonebot.on_command('b站话题', aliases={'B站话题', 'btopic'}, only_to_me=False)
-async def get_bilibili_topic(session : nonebot.CommandSession):
+async def get_bilibili_topic(session: nonebot.CommandSession):
     key_word = session.get('key_word', prompt='要什么的话题呢？')
     await session.send('如果动态内容有图片的话这可能会花费一大段时间。。请稍后……')
     topic = bilibiliTopic.Bilibilitopic(topic=key_word)
@@ -220,6 +244,7 @@ async def get_bilibili_topic(session : nonebot.CommandSession):
         return
 
     await session.send('emmm, 好像没有内容？要不换个话题试试？')
+
 
 @get_bilibili_topic.args_parser
 @get_new_tweet_by_ch_name.args_parser
