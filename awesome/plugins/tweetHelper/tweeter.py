@@ -107,7 +107,7 @@ class tweeter:
 
             else:
                 if ch_name not in self.live_stat:
-                    live_temp_dict[ch_name] = live.get_info()
+                    live_temp_dict.update(live.get_info())
                     self.live_stat = live_temp_dict
 
         return live_temp_dict

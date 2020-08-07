@@ -136,7 +136,7 @@ async def add_ai_real_response(session: nonebot.CommandSession):
     if question in user_control_module.get_user_dict():
         user_control_module.delete_response(question)
 
-    answer = session.get('answer', prompt='已删除该回答的原始回答，请加入信用回答')
+    answer = session.get('answer', prompt='已删除该回答的原始回答，请加入新的回答')
     answer = str(answer).replace('\n', ' ')
 
     if re.match(r'\$', answer) and not get_privilege(ctx['user_id'], perm.OWNER):

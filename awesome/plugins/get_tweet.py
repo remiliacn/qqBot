@@ -76,7 +76,7 @@ async def remove_tweet_following(session: nonebot.CommandSession):
 @nonebot.on_command('新推', only_to_me=False)
 async def get_new_tweet_by_ch_name(session: nonebot.CommandSession):
     key_word = session.get('key_word', prompt='要查谁啊？')
-    the_tweet = await tweet.get_time_line_from_screen_name(key_word)
+    the_tweet = tweet.get_time_line_from_screen_name(key_word)
     if the_tweet:
         await session.finish(the_tweet)
     else:
@@ -92,7 +92,7 @@ async def bulk_get_new_tweet(session: nonebot.CommandSession):
     screen_name = args[1]
     count: str = args[2]
     if count.isdigit():
-        resp = await tweet.get_time_line_from_screen_name(screen_name, count)
+        resp = tweet.get_time_line_from_screen_name(screen_name, count)
         await session.send(resp)
     else:
         await session.finish('用法错误！应为：\n'
@@ -115,7 +115,7 @@ async def send_tweet():
     logger.info('Auto fetch all done!')
     use_time = time.time() - start_time
     logger.info(f'Scheduled job in get_tweet.py used {use_time:.2f}s')
-    if use_time > 5.0:
+    if use_time > 10.0:
         bot = nonebot.get_bot()
         await bot.send_private_msg(
             user_id=634915227,

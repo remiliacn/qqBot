@@ -395,6 +395,7 @@ async def pixiv_send(session: nonebot.CommandSession):
             await session.finish(
                 '您已经理智丧失了，不能再查了哟~（小提示：指令理智查询可以帮您查看本群还剩多少理智）'
             )
+            return
 
     if not admin_control.get_if_authed():
         pixiv_api.set_auth(access_token=admin_control.get_access_token(),

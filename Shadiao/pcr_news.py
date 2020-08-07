@@ -12,7 +12,7 @@ class GetPCRNews:
 
     def _get_update_id(self) -> int:
         try:
-            page = requests.get(self.base_url, headers=self.headers, timeout=10)
+            page = requests.get(self.base_url, headers=self.headers, timeout=5.)
         except Exception as e:
             logger.warning(f"News error {e}")
             return -1
