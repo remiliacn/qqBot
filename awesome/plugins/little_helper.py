@@ -4,7 +4,7 @@ import nonebot
 import requests
 from nonebot.log import logger
 
-from Shadiao import randomServices
+from Shadiao import random_services
 from awesome.adminControl import permission as perm
 from awesome.adminControl import user_control
 from awesome.plugins.shadiao import sanity_meter
@@ -67,7 +67,7 @@ async def send_earth_quake_info(session: nonebot.CommandSession):
     if answer_api.get_user_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
-    earth_quake_api_new = randomServices.Earthquakeinfo()
+    earth_quake_api_new = random_services.Earthquakeinfo()
     new_earthquake_info = earth_quake_api_new.get_newest_info()
     await session.send(new_earthquake_info)
 

@@ -193,14 +193,16 @@ async def sendAnswer(session: nonebot.CommandSession):
             if question == ai_process:
                 response = _request_api_response(question)
                 await session.send(
-                    response + '\n'
-                               f'回答用时：{(time.time() - start_time):.2f}s'
+                    response +
+                    f'\n'
+                    f'回答用时：{(time.time() - start_time):.2f}s'
                 )
 
             else:
                 await session.send(
-                    ai_process + '\n'
-                                 f'回答用时：{(time.time() - start_time):.2f}s'
+                    ai_process +
+                    f'\n'
+                    f'回答用时：{(time.time() - start_time):.2f}s'
                 )
 
 

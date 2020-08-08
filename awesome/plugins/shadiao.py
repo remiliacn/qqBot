@@ -16,7 +16,7 @@ from nonebot.message import CanceledException
 from nonebot.plugin import PluginManager
 
 import config
-from Shadiao import WaifuFinder, ark_nights, Shadiao, pcr_news
+from Shadiao import waifu_finder, ark_nights, shadiao, pcr_news
 from awesome.adminControl import group_admin, setu
 from awesome.adminControl import permission as perm
 from awesome.adminControl import user_control
@@ -46,7 +46,7 @@ async def message_preprocessing(unused1: nonebot.NoneBot, event: aiocqhttp.event
 
 @nonebot.on_command('来个老婆', aliases=('来张waifu', '来个waifu', '老婆来一个'), only_to_me=False)
 async def send_waifu(session: nonebot.CommandSession):
-    waifu_api = WaifuFinder.waifuFinder()
+    waifu_api = waifu_finder.waifuFinder()
     path, message = waifu_api.getImage()
     if not path:
         await session.send(message)
@@ -57,8 +57,8 @@ async def send_waifu(session: nonebot.CommandSession):
 
 @nonebot.on_command('shadiao', aliases=('沙雕图', '来一张沙雕图', '机器人来张沙雕图'), only_to_me=False)
 async def shadiao_send(session: nonebot.CommandSession):
-    shadiao = Shadiao.ShadiaoAPI()
-    file = shadiao.get_picture()
+    shadiao_api = shadiao.ShadiaoAPI()
+    file = shadiao_api.get_picture()
     await session.send(f'[CQ:image,file=file:///{file}]')
 
 
@@ -353,7 +353,7 @@ async def av_validator(session: nonebot.CommandSession):
         await session.finish('请联系BOT管理员开启本群R18权限')
 
     key_word = session.get('key_word', prompt='在？你要让我查什么啊baka')
-    validator = Shadiao.Avalidator(text=key_word)
+    validator = shadiao.Avalidator(text=key_word)
     if 'group_id' in ctx:
         sanity_meter.set_usage(ctx['group_id'], tag='yanche')
         sanity_meter.set_user_data(ctx['user_id'], 'yanche')
@@ -512,7 +512,8 @@ async def pixiv_send(session: nonebot.CommandSession):
             await session.send(
                 f'[CQ:at,qq={user_id}]\n'
                 f'Pixiv ID: {illust.id}\n'
-                f'查询关键词：{key_word}' +
+                f'查询关键词：{key_word}\n'
+                f'画师：{illust["user"]["name"]}\n' +
                 str(MessageSegment.image(f'file:///{path}'))
             )
 
@@ -524,15 +525,19 @@ async def pixiv_send(session: nonebot.CommandSession):
             return
 
     elif is_r18 and (group_id == -1 or admin_control.get_data(group_id, 'R18')):
+        message_id = await session.send(
+            f'[CQ:at,qq={user_id}]\n'
+            f'芜湖~好图来了ww\n'
+            f'Pixiv ID: {illust.id}\n'
+            f'关键词：{key_word}\n'
+            f'画师：{illust["user"]["name"]}\n'
+            f'{MessageSegment.image(f"file:///{path}")}'
+        )
+
         if not is_exempt:
-            message_id = await session.send(MessageSegment.image(f'file:///{path}'))
             message_id = message_id['message_id']
             sanity_meter.add_recall(message_id)
             nonebot.logger.info(f'Added message_id {message_id} to recall list.')
-        else:
-            await session.send(MessageSegment.image(f'file:///{path}'))
-
-        await session.finish('图片我发过了哦~看不到就是TXXXXX的锅~')
 
     else:
         if not monitored:

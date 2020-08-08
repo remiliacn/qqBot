@@ -56,7 +56,9 @@ async def nei_gui_response(session : nonebot.CommandSession):
 @nonebot.on_command('生草', only_to_me=False)
 async def vtuber_audio(session : nonebot.CommandSession):
     key_word : str = session.get_optional('key_word')
-    if '鹿乃' in key_word:
+    if key_word is None:
+        file = await get_random_file('C:/dl/audio')
+    elif '鹿乃' in key_word:
         file = 'pa0.wav'
     elif '盘子' in key_word:
         file = '05-1.mp3'

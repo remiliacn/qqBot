@@ -12,7 +12,7 @@ from awesome.adminControl import user_control, group_admin
 from awesome.plugins.shadiao import pcr_api
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.tweetHelper import tweeter
-from bilibiliService import bilibiliTopic
+from bilibiliService import bilibili_topic
 
 user_control_module = user_control.UserControl()
 admin_control = group_admin.Shadiaoadmin()
@@ -79,7 +79,11 @@ async def get_new_tweet_by_ch_name(session: nonebot.CommandSession):
     key_word = session.get('key_word', prompt='要查谁啊？')
     the_tweet = tweet.get_time_line_from_screen_name(key_word)
     if the_tweet:
-        await session.finish(the_tweet)
+        await session.finish(
+            f'--- {key_word}最新动态 ---\n'
+            f'{the_tweet}'
+        )
+
     else:
         the_tweet = await tweet.get_time_line_from_screen_name(key_word)
         await session.finish(the_tweet)
@@ -96,8 +100,10 @@ async def bulk_get_new_tweet(session: nonebot.CommandSession):
         resp = tweet.get_time_line_from_screen_name(screen_name, count)
         await session.send(resp)
     else:
-        await session.finish('用法错误！应为：\n'
-                             '！推特查询 要查询的内容 要前多少条')
+        await session.finish(
+            '用法错误！应为：\n'
+            '！推特查询 要查询的内容 要前多少条'
+        )
 
 
 @nonebot.scheduler.scheduled_job('interval', seconds=50)
@@ -140,8 +146,10 @@ async def do_recall():
             try:
                 await bot.delete_msg(message_id=message)
             except Exception as err:
-                logger.info(f'Error recalling message: {err}\n'
-                            f'Message id: {message}')
+                logger.info(
+                    f'Error recalling message: {err}\n'
+                    f'Message id: {message}'
+                )
 
                 await bot.send_private_msg(
                     user_id=SUPER_USER,
@@ -183,15 +191,27 @@ async def do_youtube_update_fetch():
                         await bot.send_group_msg(group_id=int(youtube_notify_dict[elements]['group_id']),
                                                  message='刚才你们让扒的源搞好了~\n视频名称：%s\n如果上传好了的话视频将会出现在\n%s' % (
                                                      elements, share_link))
-                    except Exception as e:
-                        nonebot.logger.warning('Something went wrong %s' % e)
+                    except Exception as err:
+                        await bot.send_private_msg(
+                            user_id=SUPER_USER,
+                            message=f'发送扒源信息到组失败{err}\n'
+                                    f'组号：{youtube_notify_dict[elements]["group_id"]}'
+                        )
 
                 elif youtube_notify_dict[elements]['retcode'] == 1:
                     try:
-                        await bot.send_group_msg(group_id=int(youtube_notify_dict[elements]['group_id']),
-                                                 message='有新视频了哦~视频名称：%s' % elements)
-                    except Exception as e:
-                        nonebot.logger.warning('Something went wrong %s' % e)
+                        await bot.send_group_msg(
+                            group_id=int(youtube_notify_dict[elements]['group_id']),
+                            message='有新视频了哦~视频名称：%s' % elements
+                        )
+
+                    except Exception as err:
+                        await bot.send_private_msg(
+                            user_id=SUPER_USER,
+                            message=f'发送扒源信息到组失败{err}\n'
+                                    f'组号：{youtube_notify_dict[elements]["group_id"]}'
+                        )
+
             else:
                 try:
                     await bot.send_private_msg(user_id=SUPER_USER, message=f'源下载失败{elements}')
@@ -246,7 +266,7 @@ async def do_bilibili_live_fetch():
 async def get_bilibili_topic(session: nonebot.CommandSession):
     key_word = session.get('key_word', prompt='要什么的话题呢？')
     await session.send('如果动态内容有图片的话这可能会花费一大段时间。。请稍后……')
-    topic = bilibiliTopic.Bilibilitopic(topic=key_word)
+    topic = bilibili_topic.Bilibilitopic(topic=key_word)
     response = topic.get_content()
     if response != '':
         await session.send(response)

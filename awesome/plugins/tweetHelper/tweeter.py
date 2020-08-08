@@ -8,7 +8,7 @@ import twitter
 from nonebot.log import logger
 
 import config
-from bilibiliService import bilibiliLive as live_api
+from bilibiliService import bilibili_live as live_api
 
 try:
     api = twitter.Api(consumer_key=config.consumer_key,

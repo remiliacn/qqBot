@@ -4,7 +4,7 @@ from time import time_ns
 
 import nonebot
 
-from Shadiao import pokerGame, ruGame
+from Shadiao import poker_game, ru_game
 from awesome.plugins.shadiao import admin_control, sanity_meter
 from awesome.adminControl import permission as perm
 from awesome.plugins.admin_setting import get_privilege
@@ -21,9 +21,9 @@ class Storer:
         self.stored_result[group_id] = ''
         return temp
 
-poker = pokerGame.Pokergame()
+poker = poker_game.Pokergame()
 GLOBAL_STORE = Storer()
-game = ruGame.Russianroulette()
+game = ru_game.Russianroulette()
 
 
 import random
