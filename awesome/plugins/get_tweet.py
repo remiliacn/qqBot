@@ -128,7 +128,7 @@ async def send_tweet():
         bot = nonebot.get_bot()
         await bot.send_private_msg(
             user_id=SUPER_USER,
-            message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}]'
+            message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
                     f'Scheduled job in get_tweet.py took longer than expected:\n'
                     f'Used: {use_time:.2f}s'
         )
@@ -140,15 +140,19 @@ async def send_tweet():
         }
 
         alarm_api.set_alarm(alarm_info)
-        if alarm_api.get_alarm():
-            await bot.send_private_msg(
-                user_id=SUPER_USER,
-                message=f'Alarm raised!!!: \n'
-                        f'BEE WOO BEE WOO!!!\n'
-                        f'{alarm_api.get_info()}'
-            )
+
     else:
         alarm_api.suppress_alarm()
+
+    if alarm_api.get_alarm():
+        bot = nonebot.get_bot()
+        await bot.send_private_msg(
+            user_id=SUPER_USER,
+            message=f'Alarm raised!!!: \n'
+                    f'BEE WOO BEE WOO!!!\n'
+                    f'{alarm_api.get_info()}'
+        )
+
 
 async def save_stats():
     sanity_meter.make_a_json('config/stats.json')

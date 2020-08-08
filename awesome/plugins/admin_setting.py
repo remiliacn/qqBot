@@ -48,6 +48,9 @@ async def add_blacklist_word(session: nonebot.CommandSession):
 
     keyWords = key_word.split()
 
+    if len(keyWords) != 2:
+        await session.finish('参数有误。应为！添加拉黑词 关键词 理智消耗倍数')
+
     try:
         sanity_meter.add_bad_word_dict(keyWords[0], int(keyWords[1]))
         await session.finish('Done!')

@@ -24,7 +24,6 @@ class Alarm:
             self.trigger += 1
             if self.trigger == 3:
                 self.global_alarm = alarm
-                self.trigger = 0
                 self.update_alarm_stat()
 
     def get_alarm(self) -> dict:
