@@ -5,6 +5,7 @@ import nonebot
 import re
 
 from nonebot.log import logger
+from config import SUPER_USER
 
 from awesome.adminControl import permission as perm
 from awesome.adminControl import user_control, group_admin
@@ -118,7 +119,7 @@ async def send_tweet():
     if use_time > 10.0:
         bot = nonebot.get_bot()
         await bot.send_private_msg(
-            user_id=634915227,
+            user_id=SUPER_USER,
             message=f'Scheduled job in get_tweet.py took longer than expected:\n'
                     f'Used: {use_time:.2f}s'
         )
@@ -143,7 +144,7 @@ async def do_recall():
                             f'Message id: {message}')
 
                 await bot.send_private_msg(
-                    user_id=634915227,
+                    user_id=SUPER_USER,
                     message=f'Error recalling message: {err}\n'
                             f'Message id: {message}'
                 )
@@ -193,7 +194,7 @@ async def do_youtube_update_fetch():
                         nonebot.logger.warning('Something went wrong %s' % e)
             else:
                 try:
-                    await bot.send_private_msg(user_id=634915227, message=f'源下载失败{elements}')
+                    await bot.send_private_msg(user_id=SUPER_USER, message=f'源下载失败{elements}')
                 except Exception as e:
                     nonebot.logger.warning('Something went wrong %s' % e)
 

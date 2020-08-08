@@ -5,6 +5,8 @@ import re
 import shutil
 import time
 
+from config import SUPER_USER
+
 import aiocqhttp.event
 import nonebot
 import pixivpy3
@@ -447,7 +449,7 @@ async def pixiv_send(session: nonebot.CommandSession):
                            f'{err}')
 
         bot = nonebot.get_bot()
-        await bot.send_private_msg(user_id=634915227,
+        await bot.send_private_msg(user_id=SUPER_USER,
                                    message=f'Uncaught error while using pixiv search:\n'
                                            f'Error from {user_id}\n'
                                            f'Keyword = {key_word}\n'
@@ -535,7 +537,7 @@ async def pixiv_send(session: nonebot.CommandSession):
     else:
         if not monitored:
             await session.send('我找到色图了！\n但是我发给我主人了_(:зゝ∠)_')
-            await bot.send_private_msg(user_id=634915227,
+            await bot.send_private_msg(user_id=SUPER_USER,
                                        message=f"图片来自：{nickname}\n"
                                                f"来自群：{group_id}\n"
                                                f"查询关键词：{key_word}\n" +
@@ -549,7 +551,7 @@ async def pixiv_send(session: nonebot.CommandSession):
 
     if monitored and not get_privilege(user_id, perm.OWNER):
         await bot.send_private_msg(
-            user_id=634915227,
+            user_id=SUPER_USER,
             message=f'图片来自：{nickname}\n'
                     f'查询关键词:{key_word}\n'
                     f'Pixiv ID: {illust.id}\n'
@@ -683,8 +685,11 @@ async def zuiChou(session: nonebot.CommandSession):
 
     if re.match(r'.*?\[CQ:at,qq=.*?\]', msg):
         qq = re.findall(r'\[CQ:at,qq=(.*?)\]', msg)[0]
-        if qq != "all" and not get_privilege(qq, perm.ADMIN):
-            await session.finish(f"[CQ:at,qq={int(qq)}] {text}")
+        if qq != "all":
+            if not get_privilege(qq, perm.ADMIN):
+                await session.finish(f"[CQ:at,qq={int(qq)}] {text}")
+            else:
+                await session.finish(f"[CQ:at,qq={ctx['user_id']}] {text}")
 
     await session.send(text)
 
