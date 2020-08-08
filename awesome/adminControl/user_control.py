@@ -47,7 +47,7 @@ class UserControl:
         if user_id not in self.user_privilege:
             return False
 
-        if tag not in self.user_privilege:
+        if tag not in self.user_privilege[user_id]:
             return False
 
         return self.user_privilege[user_id][tag]

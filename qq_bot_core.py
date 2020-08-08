@@ -6,6 +6,7 @@ import nonebot
 from nonebot.log import logger
 
 import config
+from awesome.adminControl import alarm
 
 config_file = \
 """
@@ -29,6 +30,8 @@ SESSION_EXPIRE_TIMEOUT = timedelta(minutes=1)
 HOST = '127.0.0.1'
 PORT = 5700
 """
+
+alarm_api = alarm.Alarm()
 
 def register_true():
     if not path.exists('D:/dl/started.json'):

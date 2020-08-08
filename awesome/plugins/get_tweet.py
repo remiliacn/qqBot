@@ -1,11 +1,10 @@
 import asyncio
+import re
 import time
+from datetime import datetime
 
 import nonebot
-import re
-
 from nonebot.log import logger
-from config import SUPER_USER
 
 from awesome.adminControl import permission as perm
 from awesome.adminControl import user_control, group_admin
@@ -13,11 +12,14 @@ from awesome.plugins.shadiao import pcr_api
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.tweetHelper import tweeter
 from bilibiliService import bilibili_topic
+from config import SUPER_USER
+from qq_bot_core import alarm_api
 
 user_control_module = user_control.UserControl()
 admin_control = group_admin.Shadiaoadmin()
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
+
 
 tweet = tweeter.tweeter()
 share_link = 'paryi-my.sharepoint.com/:f:/g/personal/hanayori_paryi_xyz/Em62_uotiDlIohJKvbMWoiQBzutGjbRga1uOXNdmTjEtpA?e=X4hGfT'
@@ -126,10 +128,27 @@ async def send_tweet():
         bot = nonebot.get_bot()
         await bot.send_private_msg(
             user_id=SUPER_USER,
-            message=f'Scheduled job in get_tweet.py took longer than expected:\n'
+            message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}]'
+                    f'Scheduled job in get_tweet.py took longer than expected:\n'
                     f'Used: {use_time:.2f}s'
         )
 
+        alarm_info = {
+            'sev' : 2,
+            'message' : '网络连接出现巨大延迟！',
+            'time' : datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+
+        alarm_api.set_alarm(alarm_info)
+        if alarm_api.get_alarm():
+            await bot.send_private_msg(
+                user_id=SUPER_USER,
+                message=f'Alarm raised!!!: \n'
+                        f'BEE WOO BEE WOO!!!\n'
+                        f'{alarm_api.get_info()}'
+            )
+    else:
+        alarm_api.suppress_alarm()
 
 async def save_stats():
     sanity_meter.make_a_json('config/stats.json')

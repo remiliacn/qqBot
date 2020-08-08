@@ -11,11 +11,21 @@ import requests
 from awesome.adminControl import permission as perm
 from awesome.adminControl import user_control, group_admin
 from awesome.plugins.shadiao import sanity_meter
+from qq_bot_core import alarm_api
 
 user_control_module = user_control.UserControl()
 admin_control = group_admin.Shadiaoadmin()
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
+
+@nonebot.on_command('警报解除', only_to_me=False)
+async def lower_alarm(session : nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    if not get_privilege(ctx['user_id'], perm.OWNER):
+        await session.finish()
+
+    alarm_api.clear_alarm()
+    await session.send('Done!')
 
 
 @nonebot.on_command('添加监控词', only_to_me=False)

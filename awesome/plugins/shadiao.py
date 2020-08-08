@@ -20,6 +20,7 @@ from Shadiao import waifu_finder, ark_nights, shadiao, pcr_news
 from awesome.adminControl import group_admin, setu
 from awesome.adminControl import permission as perm
 from awesome.adminControl import user_control
+from qq_bot_core import alarm_api
 
 pcr_api = pcr_news.GetPCRNews()
 sanity_meter = setu.SetuFunction()
@@ -365,6 +366,12 @@ async def av_validator(session: nonebot.CommandSession):
 async def pixiv_send(session: nonebot.CommandSession):
     if not get_status():
         await session.finish('机器人现在正忙，不接受本指令。')
+
+    if alarm_api.get_alarm():
+        await session.finish(
+            '警报已升起！请等待解除！\n'
+            f'{alarm_api.get_info()}'
+        )
 
     ctx = session.ctx.copy()
     if get_privilege(ctx['user_id'], perm.BANNED):
