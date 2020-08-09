@@ -564,6 +564,7 @@ async def pixiv_send(session: nonebot.CommandSession):
         else:
             sanity_meter.drain_sanity(group_id=group_id, sanity=1 if not doMultiply else 1 * multiplier)
 
+    start_time = time.time()
     path = download_image(illust)
     try:
         nickname = ctx['sender']['nickname']
@@ -578,7 +579,8 @@ async def pixiv_send(session: nonebot.CommandSession):
                 f'Pixiv ID: {illust.id}\n'
                 f'查询关键词：{key_word}\n'
                 f'画师：{illust["user"]["name"]}\n' +
-                str(MessageSegment.image(f'file:///{path}'))
+                f'{MessageSegment.image(f"file:///{path}")}' +
+                f'Download Time: {(time.time() - start_time):.2f}s'
             )
 
             nonebot.logger.info("sent image on path: " + path)
@@ -595,7 +597,8 @@ async def pixiv_send(session: nonebot.CommandSession):
             f'Pixiv ID: {illust.id}\n'
             f'关键词：{key_word}\n'
             f'画师：{illust["user"]["name"]}\n'
-            f'{MessageSegment.image(f"file:///{path}")}'
+            f'{MessageSegment.image(f"file:///{path}")}' +
+            f'Download Time: {(time.time() - start_time):.2f}s'
         )
 
         if not is_exempt:
@@ -611,7 +614,8 @@ async def pixiv_send(session: nonebot.CommandSession):
                                                f"来自群：{group_id}\n"
                                                f"查询关键词：{key_word}\n" +
                                                f'Pixiv ID: {illust.id}\n' +
-                                               str(MessageSegment.image(f'file:///{path}'))
+                                               f'{MessageSegment.image(f"file:///{path}")}' +
+                                               f'Download Time: {(time.time() - start_time):.2f}s'
                                        )
 
     sanity_meter.set_usage(group_id, 'setu')
@@ -639,15 +643,21 @@ def download_image(illust):
 
     nonebot.logger.info(f"{illust.title}: {image_url}, {illust.id}")
     image_file_name = image_url.split('/')[-1].replace('_', '')
-    path = 'D:/go-cqhttp/data/images/' + image_file_name
+    path = 'E:/pixivPic/' + image_file_name
     nonebot.logger.info("PATH = " + path)
 
     if not os.path.exists(path):
         try:
-            response = pixiv_api.requests_call('GET', image_url, headers={'Referer': 'https://app-api.pixiv.net/'},
-                                               stream=True)
+            response = pixiv_api.requests_call(
+                'GET',
+                image_url,
+                headers={'Referer': 'https://app-api.pixiv.net/'},
+                stream=True
+            )
+
             with open(path, 'wb') as out_file:
-                shutil.copyfileobj(response.raw, out_file)
+                for chunk in response.iter_content(chunk_size=1024):
+                    out_file.write(chunk)
 
         except Exception as err:
             nonebot.logger.info(f'Download image error: {err}')
@@ -691,11 +701,16 @@ async def get_random():
 
     filename = page['file'].split('/')[-1]
 
-    image_page = requests.get(page['file'])
+    image_page = requests.get(
+        page['file'],
+        stream=True
+    )
+
     path = f'D:/CQP/QPro/data/image/{filename}'
     if not os.path.exists(path):
         with open(path, 'wb') as f:
-            f.write(image_page.content)
+            for chunk in image_page.iter_content(chunk_size=1024):
+                f.write(chunk)
 
     return MessageSegment.image(f'file:///{path}'), is_nsfw
 

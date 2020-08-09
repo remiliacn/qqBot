@@ -18,8 +18,9 @@ admin_control = group_admin.Shadiaoadmin()
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
+
 @nonebot.on_command('警报解除', only_to_me=False)
-async def lower_alarm(session : nonebot.CommandSession):
+async def lower_alarm(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish()
@@ -142,9 +143,6 @@ async def add_ai_real_response(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     question = session.get('question', prompt='请输入回答的问题')
     question = str(question).replace('\n', ' ')
-
-    if re.match(r'\[CQ:image', question):
-        await session.finish('我主人说如果有人加图片应答就要这么回答。\n你加nm呢？')
 
     if question in user_control_module.get_user_dict():
         user_control_module.delete_response(question)
@@ -426,7 +424,7 @@ async def getAnswerInfo(session: nonebot.CommandSession):
 @nonebot.on_natural_language(only_to_me=False, only_short_message=True)
 async def send_answer(session: nonebot.NLPSession):
     random.seed(time.time_ns())
-    rand_num = random.randint(0, 100000)
+    rand_num = random.randint(0, 10)
     ctx = session.ctx.copy()
     if 'group_id' not in ctx:
         return
@@ -440,7 +438,7 @@ async def send_answer(session: nonebot.NLPSession):
             return
 
         if 'group_id' in ctx:
-            if rand_num < 70000 and message in user_control_module.get_user_dict():
+            if rand_num < 5 and message in user_control_module.get_user_dict():
                 group_id = str(ctx['group_id'])
                 try:
                     if group_id not in user_control_module.last_question or user_control_module.last_question[
