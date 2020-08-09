@@ -5,8 +5,6 @@ import re
 import shutil
 import time
 
-from config import SUPER_USER
-
 import aiocqhttp.event
 import nonebot
 import pixivpy3
@@ -20,6 +18,7 @@ from Shadiao import waifu_finder, ark_nights, shadiao, pcr_news
 from awesome.adminControl import group_admin, setu
 from awesome.adminControl import permission as perm
 from awesome.adminControl import user_control
+from config import SUPER_USER
 from qq_bot_core import alarm_api
 
 pcr_api = pcr_news.GetPCRNews()
@@ -28,12 +27,22 @@ pixiv_api = pixivpy3.AppPixivAPI()
 arknights_api = ark_nights.ArkHeadhunt(times=10)
 admin_control = group_admin.Shadiaoadmin()
 user_control_module = user_control.UserControl()
-ark_pool_pity = ark_nights.Arknightspity()
+ark_pool_pity = ark_nights.ArknightsPity()
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
 if not os.path.exists("E:/pixivPic/"):
     os.makedirs("E:/pixivPic/")
+
+
+def ark_helper(args: list) -> str:
+    if len(args) != 2:
+        return '用法有误\n' + '使用方法：！命令 干员名 星级（数字）'
+
+    if not args[1].isdigit():
+        return '使用方法有误，第二参数应为数字'
+
+    return ''
 
 
 @nonebot.message_preprocessor
@@ -190,12 +199,12 @@ async def ten_polls(session: nonebot.CommandSession):
         arknights_api.get_randomized_results(98)
 
     else:
-        offset = ark_pool_pity.getOffsetSetting(ctx['group_id'])
+        offset = ark_pool_pity.get_offset_setting(ctx['group_id'])
         arknights_api.get_randomized_results(offset)
         class_list = arknights_api.random_class
         six_star_count = class_list.count(6)
         if 6 in class_list:
-            ark_pool_pity.resetOffset(ctx['group_id'])
+            ark_pool_pity.reset_offset(ctx['group_id'])
 
         five_star_count = class_list.count(5)
 
@@ -217,6 +226,54 @@ async def ten_polls(session: nonebot.CommandSession):
     await session.send(
         f'[CQ:at,qq={qq_num}]\n{arknights_api.__str__()}'
     )
+
+
+@nonebot.on_command('方舟up', aliases='方舟UP', only_to_me=False)
+async def up_ten_polls(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    if not get_privilege(ctx['user_id'], perm.OWNER):
+        await session.finish('您无权使用本功能')
+
+    key_word: str = session.get(
+        'key_word',
+        prompt='使用方法：！方舟up 干员名 星级（数字）'
+    )
+
+    args = key_word.split()
+    validation = ark_helper(args)
+    if validation:
+        await session.finish(validation)
+
+    await session.finish(arknights_api.set_up(args[0], args[1]))
+
+
+@nonebot.on_command('方舟up重置', aliases='方舟UP重置', only_to_me=False)
+async def reset_ark_up(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    if not get_privilege(ctx['user_id'], perm.OWNER):
+        await session.finish('您无权使用本功能')
+
+    arknights_api.clear_ups()
+    await session.finish('Done!')
+
+
+@nonebot.on_command('添加干员', aliases='', only_to_me=False)
+async def add_ark_op(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    if not get_privilege(ctx['user_id'], perm.OWNER):
+        await session.finish('您无权使用本功能')
+
+    key_word: str = session.get(
+        'key_word',
+        prompt='使用方法：！方舟up 干员名 星级（数字）'
+    )
+
+    args = key_word.split()
+    validation = ark_helper(args)
+    if validation:
+        await session.finish(validation)
+
+    await session.finish(arknights_api.add_op(args[0], args[1]))
 
 
 @nonebot.on_command('统计', only_to_me=False)
@@ -644,6 +701,8 @@ async def get_random():
 
 
 @pixiv_send.args_parser
+@add_ark_op.args_parser
+@up_ten_polls.args_parser
 @av_validator.args_parser
 async def _(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text

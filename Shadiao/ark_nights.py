@@ -4,58 +4,34 @@ Arknights headhunt recruitment simulator.
 
 import random
 import time
+from json import loads, dump
+from os.path import exists
+from typing import Union
 
-AGENT6 = ['能天使', '推进之王', '伊芙利特', '艾雅法拉', '安洁莉娜',
-          '闪灵', '夜莺', '星熊', '塞雷娅', '银灰', '斯卡蒂', '风笛',
-          '早露', '赫拉格', '傀影', '煌', '阿', '陈', '麦哲伦', '莫斯提马', '黑',
-          '温蒂', 'W', '铃兰']
 
-AGENT5 = ['白面鸮', '凛冬', '德克萨斯', '芙兰卡', '拉普兰德', '幽灵鲨', '蓝毒',
-          '白金', '陨星', '天火', '梅尔', '赫默', '华法琳', '临光',
-          '红', '雷蛇', '可颂', '普罗旺斯', '守林人', '崖心', '初雪',
-          '真理', '空', '狮蝎', '食铁兽', '夜魔', '惊蛰', '哞', '巫恋',
-          '极境', '月禾', '莱恩哈特', '布洛卡', '灰喉', '石棉', '苇草',
-          '送葬人', '星极', '诗怀雅', '格劳克斯', '槐琥', '慑砂']
-
-AGENT4 = ['夜烟', '远山', '杰西卡', '流星', '白雪', '清道夫', '红豆',
-          '杜宾', '缠丸', '霜叶', '慕斯', '砾', '暗锁', '末药',
-          '调香师', '角峰', '蛇屠箱', '古米', '深海色', '地灵', '阿消',
-          '猎蜂', '格雷伊', '苏苏洛', '桃金娘', '红云', '梅', '安比尔',
-          '宴', '刻刀', '波登可']
-
-AGENT3 = ['芬', '香草', '翎羽', '玫兰莎', '卡缇', '米格鲁', '克洛丝',
-          '炎熔', '芙蓉', '安塞尔', '史都华德', '梓兰', '月见夜', '空爆', '斑点', '泡普卡']
-
-AGENT_DICT = {
-    3 : AGENT3,
-    4 : AGENT4,
-    5 : AGENT5,
-    6 : AGENT6
-}
-
-class Arknightspity:
+class ArknightsPity:
     def __init__(self):
-        self.sanityPollDict = {}
+        self.sanity_poll_dict = {}
 
-    def recordPoll(self, group_id):
-        if group_id not in self.sanityPollDict:
-            self.sanityPollDict[group_id] = 10
+    def record_poll(self, group_id):
+        if group_id not in self.sanity_poll_dict:
+            self.sanity_poll_dict[group_id] = 10
         else:
-            self.sanityPollDict[group_id] += 10
+            self.sanity_poll_dict[group_id] += 10
 
-    def getOffsetSetting(self, group_id) -> int:
-        if group_id not in self.sanityPollDict:
-            self.recordPoll(group_id)
+    def get_offset_setting(self, group_id) -> int:
+        if group_id not in self.sanity_poll_dict:
+            self.record_poll(group_id)
             return 0
         else:
-            pollCount = self.sanityPollDict[group_id]
+            pollCount = self.sanity_poll_dict[group_id]
             if pollCount <= 50:
                 return 0
             else:
                 return (pollCount - 50) * 2
 
-    def resetOffset(self, group_id):
-        self.sanityPollDict[group_id] = 0
+    def reset_offset(self, group_id):
+        self.sanity_poll_dict[group_id] = 0
 
 class ArkHeadhunt:
     """
@@ -65,10 +41,22 @@ class ArkHeadhunt:
         self.times = times
         self.count = 0
         self.offset = 0
+        self.agent_dict = self._get_agent_dict()
         self.random_agent = []
         self.random_class = []
 
-    def get_randomized_results(self, offset_setting: int):
+    @staticmethod
+    def _get_agent_dict() -> dict:
+        if not exists('Shadiao/util/agent.json'):
+            with open('./util/agent.json', 'w+', encoding='utf8') as file:
+                dump({}, file, indent=4)
+
+        with open('Shadiao/util/agent.json', 'r', encoding='utf8') as file:
+            agent_dict = loads(file.read())
+
+        return agent_dict
+
+    def get_randomized_results(self, offset_setting=0):
         """
         Get randomized list for agent star numbers.
         :param offset_setting: Offset that can set for rigging the result.
@@ -77,8 +65,6 @@ class ArkHeadhunt:
         if self.times < 0:
             raise ValueError("Pulling value cannot be less than 0")
 
-        self.random_agent.clear()
-        self.random_class.clear()
         random.seed(time.time_ns())
         random_class = []
         self.count += 1
@@ -107,11 +93,50 @@ class ArkHeadhunt:
         random_agent = []
         random.seed(time.time_ns())
         for elements in self.random_class:
-            agent_list = AGENT_DICT[elements]
-            agent_idx = random.randint(0, len(agent_list) - 1)
-            random_agent.append(agent_list[agent_idx])
+            random_int = random.randint(0, 100)
+            if random_int > 70 and self.agent_dict[f'UP{elements}']:
+                random_agent.append(random.choice(self.agent_dict[f'UP{elements}']))
+            else:
+                random_agent.append(random.choice(self.agent_dict[str(elements)]))
 
         return random_agent
+
+    def set_up(self, agent : str, star : Union[int, str]):
+        if isinstance(star, int):
+            star = str(star)
+
+        if agent in self.agent_dict[star]:
+            if agent not in self.agent_dict[f'UP{star}']:
+                self.agent_dict[f'UP{star}'].append(agent)
+                self.update_content()
+                return 'Done'
+
+            return f'干员{agent}已被UP'
+
+        return f'干员{agent}不是{star}星或不在游戏内。'
+
+    def update_content(self):
+        with open('Shadiao/util/agent.json', 'w+', encoding='utf8') as file:
+            dump(self.agent_dict, file, indent=4)
+
+    def clear_ups(self):
+        self.agent_dict['UP3'] = []
+        self.agent_dict['UP4'] = []
+        self.agent_dict['UP5'] = []
+        self.agent_dict['UP6'] = []
+
+        self.update_content()
+
+    def add_op(self, agent: str, star: Union[int, str]):
+        if isinstance(star, int):
+            star = str(star)
+
+        if agent not in self.agent_dict[star]:
+            self.agent_dict[star].append(agent)
+            self.update_content()
+            return f'成功将{agent}加入{star}星干员组'
+
+        return f'{agent}已存在与{star}星干员组'
 
     def __str__(self):
         """
@@ -142,3 +167,14 @@ class ArkHeadhunt:
 
         response += '本次寻访获得了%d个六星干员，%s' % (six_star, congrats)
         return response
+
+# Test
+if __name__ == '__main__':
+    api = ArkHeadhunt(times=10)
+    print(api.set_up('W', 6))
+    api.get_randomized_results(offset_setting=98)
+    print(api.__str__())
+    api.clear_ups()
+    print(api.add_op('泡普卡', 3))
+    api.get_randomized_results()
+    print(api.__str__())
