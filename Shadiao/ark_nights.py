@@ -69,13 +69,13 @@ class ArkHeadhunt:
         random_class = []
         self.count += 1
         for _ in range(0, self.times):
-            rand_num = random.randint(1, 101) + offset_setting
-            if rand_num > 98:
+            rand_num = random.randint(0, 100) + offset_setting
+            if rand_num >= 98:
                 random_class.append(6)
                 self.count = 0
-            elif rand_num > 90:
+            elif rand_num >= 90:
                 random_class.append(5)
-            elif rand_num > 40:
+            elif rand_num >= 40:
                 random_class.append(4)
             else:
                 random_class.append(3)
@@ -94,7 +94,7 @@ class ArkHeadhunt:
         random.seed(time.time_ns())
         for elements in self.random_class:
             random_int = random.randint(0, 100)
-            if random_int > 70 and self.agent_dict[f'UP{elements}']:
+            if random_int >= 70 and self.agent_dict[f'UP{elements}']:
                 random_agent.append(random.choice(self.agent_dict[f'UP{elements}']))
             else:
                 random_agent.append(random.choice(self.agent_dict[str(elements)]))
