@@ -48,7 +48,7 @@ class ArkHeadhunt:
     @staticmethod
     def _get_agent_dict() -> dict:
         if not exists('Shadiao/util/agent.json'):
-            with open('./util/agent.json', 'w+', encoding='utf8') as file:
+            with open('Shadiao/util/agent.json', 'w+', encoding='utf8') as file:
                 dump({}, file, indent=4)
 
         with open('Shadiao/util/agent.json', 'r', encoding='utf8') as file:
@@ -138,13 +138,30 @@ class ArkHeadhunt:
 
         return f'{agent}已存在与{star}星干员组'
 
+    def get_up(self) -> str:
+        result = ''
+        five_up = self.agent_dict['UP5']
+        six_up = self.agent_dict['UP6']
+        if five_up:
+            result += '五星：'
+            result += '，'.join(map(str, five_up))
+            result += '\n'
+
+        if six_up:
+            result += '六星：'
+            result += '，'.join(map(str, six_up))
+            result += '\n'
+
+        return result if result else '无'
+
     def __str__(self):
         """
         Generating the result of the headhunt.
         :return: str, the result of the headhunt in Chinese.
         """
         response = ''
-        response += '您抽到的东西有~蹡蹡！\n'
+
+        response += f'本次卡池UP：\n{self.get_up()}'
         six_star = 0
         for idx, elements in enumerate(self.random_class):
             if elements == 6:
@@ -173,8 +190,4 @@ if __name__ == '__main__':
     api = ArkHeadhunt(times=10)
     print(api.set_up('W', 6))
     api.get_randomized_results(offset_setting=98)
-    print(api.__str__())
-    api.clear_ups()
-    print(api.add_op('泡普卡', 3))
-    api.get_randomized_results()
     print(api.__str__())
