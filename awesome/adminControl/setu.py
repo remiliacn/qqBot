@@ -79,7 +79,13 @@ class SetuFunction:
     def get_xp_data(self) -> dict:
         return self.stat_dict['xp']
 
-    def set_user_data(self, user_id, tag: str, hit_marks=1):
+    def set_user_data(
+            self,
+            user_id,
+            tag: str,
+            hit_marks=1,
+            is_global=False
+    ):
         if isinstance(user_id, int):
             user_id = str(user_id)
 
@@ -88,11 +94,21 @@ class SetuFunction:
                 tag: 0
             }
 
-        user_dict = self.stat_dict['users'][user_id]
-        if tag not in user_dict:
-            self.stat_dict['users'][user_id][tag] = hit_marks
+        if is_global:
+            if 'global' not in self.stat_dict:
+                self.stat_dict['global'] = {}
+
+            if tag not in self.stat_dict['global']:
+                self.stat_dict['global'][tag] = 0
+
+            self.stat_dict['global'][tag] += 1
+
         else:
-            self.stat_dict['users'][user_id][tag] += hit_marks
+            user_dict = self.stat_dict['users'][user_id]
+            if tag not in user_dict:
+                self.stat_dict['users'][user_id][tag] = hit_marks
+            else:
+                self.stat_dict['users'][user_id][tag] += hit_marks
 
     def get_user_data_by_tag(self, user_id, tag: str):
         if isinstance(user_id, int):

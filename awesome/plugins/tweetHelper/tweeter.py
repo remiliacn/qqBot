@@ -235,7 +235,8 @@ class tweeter:
                             try:
                                 resp = requests.get(img_src, timeout=10)
                                 with open(file_name, 'wb') as f:
-                                    f.write(resp.content)
+                                    for chunk in resp.iter_content(chunk_size=1024):
+                                        f.write(chunk)
 
                             except Exception as err:
                                 logger.warning('Something went wrong when getting twitter picture. %s' % err)

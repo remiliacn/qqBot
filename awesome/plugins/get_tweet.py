@@ -267,8 +267,15 @@ async def do_tweet_update_fetch():
                                    f'{message}')
 
             for element in group_id_list:
+                sanity_meter.set_user_data(0, 'tweet', 1, True)
                 await bot.send_group_msg(group_id=element,
                                          message=message)
+                await bot.send_private_msg(
+                    user_id=SUPER_USER,
+                    message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
+                            f'A message was sent to group: {element}\n'
+                            f'The group belongs to: {ch_name}'
+                )
 
 
 async def do_bilibili_live_fetch():

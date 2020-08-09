@@ -2,7 +2,6 @@ import json
 import os
 import random
 import re
-import shutil
 import time
 
 import aiocqhttp.event
@@ -44,6 +43,28 @@ def ark_helper(args: list) -> str:
 
     return ''
 
+@nonebot.on_command('你群语录', aliases=('你组语录', '语录'), only_to_me=False)
+async def get_group_quotes(session : nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    if 'group_id' not in ctx:
+        await session.finish()
+
+    await session.finish(admin_control.get_group_quote(ctx['group_id']))
+
+
+@nonebot.on_command('添加语录', only_to_me=False)
+async def add_group_quotes(session : nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    if 'group_id' not in ctx:
+        await session.finish()
+
+    key_word = re.sub(r'.*?添加语录[\s\r\n]*', '', ctx['raw_message']).strip()
+    if '屑bot' in key_word.lower():
+        await session.finish('爬')
+
+    if key_word:
+        admin_control.add_quote(ctx['group_id'], key_word)
+        await session.finish('已添加！')
 
 @nonebot.message_preprocessor
 async def message_preprocessing(unused1: nonebot.NoneBot, event: aiocqhttp.event, unused2: PluginManager):
