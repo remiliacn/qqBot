@@ -1,3 +1,5 @@
+from aiocqhttp import MessageSegment
+
 import config
 import json
 import random
@@ -153,6 +155,22 @@ async def add_ai_real_response(session: nonebot.CommandSession):
     if re.match(r'\$', answer) and not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish('您无权封印此语料')
 
+    has_image = re.findall(r'.*?file=(.*?\.image)', answer)
+    bot = nonebot.get_bot()
+    if has_image:
+        response = await bot.get_image(file=has_image[0])
+        url = response['url']
+        image_response = requests.get(
+            url,
+            stream=True
+        )
+        image_response.raise_for_status()
+        path = f'E:/bot/response/{response["filename"]}'
+        with open(path, 'wb') as file:
+            file.write(image_response.content)
+
+        answer = str(MessageSegment.image(f'file:///{path}'))
+
     answer_dict = {
         'answer': answer,
         'from_group': ctx['group_id'] if 'group_id' in ctx else -1,
@@ -183,16 +201,16 @@ async def sendAnswer(session: nonebot.CommandSession):
         )
 
     # pre-processing
-    has_answer, response = prefetch(question, ctx['user_id'])
-    if has_answer:
+    response = _prefetch(question, ctx['user_id'])
+    if response:
         await session.send(
             response + '\n'
                        f'回答用时：{(time.time() - start_time):.2f}s'
         )
     else:
         # math processing
-        is_math_question, response = _math_fetch(response, ctx['user_id'])
-        if is_math_question:
+        response = _math_fetch(response, ctx['user_id'])
+        if response:
             await session.send(
                 response + '\n'
                            f'回答用时：{(time.time() - start_time):.2f}s'
@@ -267,29 +285,29 @@ def _simple_ai_process(question: str) -> str:
     return response
 
 
-def _math_fetch(question: str, user_id: int) -> (bool, str):
+def _math_fetch(question: str, user_id: int) -> str:
     if re.match(r'.*?name__', question) and not get_privilege(user_id, perm.OWNER):
-        return True, '检测到危险指令。拒绝执行'
+        return '检测到危险指令。拒绝执行'
 
     if re.match(r'.*?(sudo|ls|rm|curl|chmod|usermod|newgrp|vim|objdump|aux|lambda)', question):
-        return False, ''
+        return ''
 
     if re.match(r'.*?\*\*', question):
         if len(question) > 10:
-            return True, '检测到可能的DDoS攻击。计算停止'
+            return '检测到可能的DDoS攻击。计算停止'
 
         if int(re.findall(r'.*?\*\*(\d+)', question)[0]) > 99:
-            return True, '检测到可能的DDoS攻击。计算停止'
+            return '检测到可能的DDoS攻击。计算停止'
 
     if re.match(r'.*?pow\(\d+,\d+\)', question):
         if len(question) > 10:
-            return True, '检测到可能的DDoS攻击。计算停止'
+            return '检测到可能的DDoS攻击。计算停止'
 
         if int(re.findall(r'.*?pow\(\d+,(\d+)\)', question)[0]) > 99:
-            return True, '检测到可能的DDoS攻击。计算停止'
+            return '检测到可能的DDoS攻击。计算停止'
 
     if re.match(r'.*?\\u\d+', question) or re.match(r'.*?\\\w{3}', question):
-        return True, '你说你马呢（'
+        return '你说你马呢（'
 
     try:
         answer = eval('%s' % question, {"__builtins__": None},
@@ -299,37 +317,37 @@ def _math_fetch(question: str, user_id: int) -> (bool, str):
 
     except Exception as err:
         nonebot.logger.warning(f'This is not a math question.{str(err)}')
-        return False, ''
+        return ''
 
-    return True, f'运算结果是：{answer}\n我算的对吧~'
+    return f'运算结果是：{answer}\n我算的对吧~'
 
 
-def prefetch(question: str, user_id: int) -> (bool, str):
+def _prefetch(question: str, user_id: int) -> str:
     if question == user_control_module.last_question:
         repeat_count = user_control_module.get_user_repeat_question(user_id)
         if repeat_count == 6:
             user_control_module.set_user_privilege(str(user_id), perm.BANNED, True)
-            return False, ''
+            return ''
 
         if repeat_count > 3:
-            return False, ''
+            return ''
 
         user_control_module.set_user_repeat_question(user_id)
-        return True, '你怎么又问一遍？'
+        return '你怎么又问一遍？'
 
     elif question in user_control_module.get_user_dict():
         user_control_module.last_question = question
         response = user_control_module.get_user_response(question)
-        return response != '$', response if response != '$' else ''
+        return response if response != '$' else ''
 
     if 'おやすみ' in question:
-        return False, ''
+        return ''
 
     if '屑bot' in question:
-        return True, '你屑你🐴呢'
+        return '你屑你🐴呢'
 
     if re.match('.*?(祈|衤|qi).*?(雨|yu)', question):
-        return True, '不敢答，不敢答……溜了溜了w'
+        return '不敢答，不敢答……溜了溜了w'
 
     if re.match('.*?你(几|多少?)(岁|大|年龄)', question):
         random.seed(time.time_ns())
@@ -343,15 +361,15 @@ def prefetch(question: str, user_id: int) -> (bool, str):
         else:
             resp = '我今年114514岁了'
 
-        return True, resp
+        return resp
 
     if re.match(r'.*?(爱不爱|喜不喜欢).*?妈妈', question):
-        return True, '答案肯定是肯定的啦~'
+        return '答案肯定是肯定的啦~'
 
     if '妈妈' in question:
-        return True, '请问你有妈妈么？:)'
+        return '请问你有妈妈么？:)'
 
-    return False, question
+    return ''
 
 
 def _request_api_response(question: str) -> str:
@@ -441,8 +459,9 @@ async def send_answer(session: nonebot.NLPSession):
             if rand_num < 5 and message in user_control_module.get_user_dict():
                 group_id = str(ctx['group_id'])
                 try:
-                    if group_id not in user_control_module.last_question or user_control_module.last_question[
-                        group_id] != message:
+                    if group_id not in user_control_module.last_question or \
+                            user_control_module.last_question[group_id] != message:
+
                         user_control_module.last_question[group_id] = message
                         await session.send(user_control_module.get_user_response(message))
 

@@ -51,6 +51,17 @@ async def get_group_quotes(session : nonebot.CommandSession):
 
     await session.finish(admin_control.get_group_quote(ctx['group_id']))
 
+@nonebot.on_command('色图数据', only_to_me=False)
+async def get_setu_stat(session : nonebot.CommandSession):
+    setu_stat = sanity_meter.get_keyword_track()
+    response = ''
+    if not setu_stat:
+        await session.finish('暂时还无色图数据！')
+    for element in setu_stat:
+        response += f'关键词：{element[0]} -> hit = {element[1]}\n'
+
+    await session.finish(response)
+
 
 @nonebot.on_command('添加语录', only_to_me=False)
 async def add_group_quotes(session : nonebot.CommandSession):
@@ -61,6 +72,22 @@ async def add_group_quotes(session : nonebot.CommandSession):
     key_word = re.sub(r'.*?添加语录[\s\r\n]*', '', ctx['raw_message']).strip()
     if '屑bot' in key_word.lower():
         await session.finish('爬')
+
+    bot = nonebot.get_bot()
+    has_image = re.findall(r'.*?\[CQ:image,file=(.*?\.image)]', key_word)
+    if has_image:
+        response = await bot.get_image(file=has_image[0])
+        url = response['url']
+        image_response = requests.get(
+            url,
+            stream=True
+        )
+        image_response.raise_for_status()
+        path = f'E:/lol/{response["filename"]}'
+        with open(path, 'wb') as file:
+            file.write(image_response.content)
+
+        key_word = str(MessageSegment.image(f'file:///{path}'))
 
     if key_word:
         admin_control.add_quote(ctx['group_id'], key_word)
@@ -485,8 +512,10 @@ async def pixiv_send(session: nonebot.CommandSession):
             return
 
     if not admin_control.get_if_authed():
-        pixiv_api.set_auth(access_token=admin_control.get_access_token(),
-                           refresh_token='iL51azZw7BWWJmGysAurE3qfOsOhGW-xOZP41FPhG-s')
+        pixiv_api.set_auth(
+            access_token=admin_control.get_access_token(),
+            refresh_token='iL51azZw7BWWJmGysAurE3qfOsOhGW-xOZP41FPhG-s'
+        )
         admin_control.set_if_authed(True)
 
     is_exempt = admin_control.get_data(group_id, 'exempt') if group_id != -1 else False
@@ -513,7 +542,7 @@ async def pixiv_send(session: nonebot.CommandSession):
             sanity_meter.set_xp_data(key_word)
 
     elif '色图' in key_word:
-        await session.finish('[CQ:image,file=file:///C:/dl/others/QQ图片20191013212223.jpg]')
+        await session.finish(MessageSegment.image('file:///C:/dl/others/QQ图片20191013212223.jpg'))
 
     elif '屑bot' in key_word:
         await session.finish('你屑你🐴呢')
@@ -524,7 +553,10 @@ async def pixiv_send(session: nonebot.CommandSession):
         if '最新' in key_word:
             json_result = pixiv_api.illust_ranking('week')
         else:
-            json_result = pixiv_api.search_illust(word=key_word, sort="popular_desc")
+            json_result = pixiv_api.search_illust(
+                word=key_word,
+                sort="popular_desc"
+            )
 
     except pixivpy3.PixivError:
         await session.finish('pixiv连接出错了！')
@@ -534,11 +566,12 @@ async def pixiv_send(session: nonebot.CommandSession):
                            f'{err}')
 
         bot = nonebot.get_bot()
-        await bot.send_private_msg(user_id=SUPER_USER,
-                                   message=f'Uncaught error while using pixiv search:\n'
-                                           f'Error from {user_id}\n'
-                                           f'Keyword = {key_word}\n'
-                                           f'Exception = {err}')
+        await bot.send_private_msg(
+            user_id=SUPER_USER,
+            message=f'Uncaught error while using pixiv search:\n'
+                    f'Error from {user_id}\n'
+                    f'Keyword = {key_word}\n'
+                    f'Exception = {err}')
 
         return
 
@@ -547,19 +580,25 @@ async def pixiv_send(session: nonebot.CommandSession):
         admin_control.set_if_authed(False)
         try:
             admin_control.set_access_token(
-                access_token=pixiv_api.auth(username=config.user_name, password=config.password).response.access_token)
+                access_token=pixiv_api.auth(
+                    username=config.user_name,
+                    password=config.password).response.access_token
+            )
+
             await session.send('新的P站匿名访问链接已建立……')
             admin_control.set_if_authed(True)
 
         except pixivpy3.PixivError:
             return
 
-    if '{user=' in key_word:
+    """
+        if '{user=' in key_word:
         key_word = re.findall(r'{user=(.*?)}', key_word)
         if key_word:
             key_word = key_word[0]
         else:
-            await session.finish('未找到该用户。')
+            await session.send('未找到该用户。')
+            return
 
         json_user = pixiv_api.search_user(word=key_word, sort="popular_desc")
         if json_user.user_previews:
@@ -570,20 +609,29 @@ async def pixiv_send(session: nonebot.CommandSession):
             return
 
     else:
-        json_result = pixiv_api.search_illust(word=key_word, sort="popular_desc")
+    """
+    json_result = pixiv_api.search_illust(word=key_word, sort="popular_desc")
+
 
     if not json_result.illusts or len(json_result.illusts) < 4:
         nonebot.logger.warning(f"未找到图片, keyword = {key_word}")
         await session.send(f"{key_word}无搜索结果或图片过少……")
         return
 
+    sanity_meter.track_keyword(key_word)
     illust = random.choice(json_result.illusts)
     is_r18 = illust.sanity_level == 6
     if not monitored:
         if is_r18:
-            sanity_meter.drain_sanity(group_id=group_id, sanity=2 if not doMultiply else 2 * multiplier)
+            sanity_meter.drain_sanity(
+                group_id=group_id,
+                sanity=2 if not doMultiply else 2 * multiplier
+            )
         else:
-            sanity_meter.drain_sanity(group_id=group_id, sanity=1 if not doMultiply else 1 * multiplier)
+            sanity_meter.drain_sanity(
+                group_id=group_id,
+                sanity=1 if not doMultiply else 1 * multiplier
+            )
 
     start_time = time.time()
     path = download_image(illust)
@@ -665,7 +713,6 @@ def download_image(illust):
     nonebot.logger.info(f"{illust.title}: {image_url}, {illust.id}")
     image_file_name = image_url.split('/')[-1].replace('_', '')
     path = 'E:/pixivPic/' + image_file_name
-    nonebot.logger.info("PATH = " + path)
 
     if not os.path.exists(path):
         try:
@@ -683,6 +730,7 @@ def download_image(illust):
         except Exception as err:
             nonebot.logger.info(f'Download image error: {err}')
 
+    nonebot.logger.info("PATH = " + path)
     return path
 
 
@@ -727,7 +775,7 @@ async def get_random():
         stream=True
     )
 
-    path = f'D:/CQP/QPro/data/image/{filename}'
+    path = f'E:/pixivPic/{filename}'
     if not os.path.exists(path):
         with open(path, 'wb') as f:
             for chunk in image_page.iter_content(chunk_size=1024):

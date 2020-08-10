@@ -124,7 +124,7 @@ async def send_tweet():
     logger.info('Auto fetch all done!')
     use_time = time.time() - start_time
     logger.info(f'Scheduled job in get_tweet.py used {use_time:.2f}s')
-    if use_time > 10.0:
+    if use_time > 15.0:
         bot = nonebot.get_bot()
         await bot.send_private_msg(
             user_id=SUPER_USER,

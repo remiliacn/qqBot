@@ -13,9 +13,33 @@ class SetuFunction:
         self.updated = False
         self.config_file = 'config/stats.json'
         self._get_user_data()
-        self.bad_keyword_file = 'config/setu.json'
-        self.bad_keywords = {}
+        self.setu_config_path = 'config/setu.json'
+        self.setu_config = {}
         self._init_bad_word()
+
+    def track_keyword(self, key_word):
+        if 'keyword' not in self.setu_config:
+            self.setu_config['keyword'] = {}
+
+        if key_word not in self.setu_config['keyword']:
+            self.setu_config['keyword'][key_word] = 0
+
+        self.setu_config['keyword'][key_word] += 1
+        self.make_a_json(self.setu_config_path)
+
+    def get_keyword_track(self) -> list:
+        if 'keyword' not in self.setu_config:
+            return []
+
+        if not self.setu_config['keyword']:
+            return []
+
+        sort_orders = sorted(
+            self.setu_config['keyword'].items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        return sort_orders
 
     def add_recall(self, info_id):
         self.recall_list.append(info_id)
@@ -30,22 +54,22 @@ class SetuFunction:
         return self.max_sanity
 
     def get_bad_word_dict(self) -> dict:
-        return self.bad_keywords['bad_words']
+        return self.setu_config['bad_words']
 
     def add_bad_word_dict(self, keyWord, multiplier):
-        self.bad_keywords['bad_words'][keyWord] = multiplier
+        self.setu_config['bad_words'][keyWord] = multiplier
 
     def _init_bad_word(self):
-        if exists(self.bad_keyword_file):
-            with open(self.bad_keyword_file, 'r', encoding='utf-8') as file:
+        if exists(self.setu_config_path):
+            with open(self.setu_config_path, 'r', encoding='utf-8') as file:
                 fl = file.read()
-                self.bad_keywords = loads(str(fl))
-                if 'bad_words' not in self.bad_keywords:
-                    self.bad_keywords['bad_words'] = {}
-                    self.make_a_json(self.bad_keyword_file)
+                self.setu_config = loads(str(fl))
+                if 'bad_words' not in self.setu_config:
+                    self.setu_config['bad_words'] = {}
+                    self.make_a_json(self.setu_config_path)
 
         else:
-            with open(self.bad_keyword_file, 'w+') as f:
+            with open(self.setu_config_path, 'w+') as f:
                 dump({'bad_words': {}}, f, indent=4)
 
 
@@ -234,4 +258,4 @@ class SetuFunction:
                 dump(self.stat_dict, f, indent=4)
         elif file_name == 'config/setu.json':
             with open(file_name, 'w+', encoding='utf-8') as f:
-                dump(self.bad_keywords, f, indent=4)
+                dump(self.setu_config, f, indent=4)
