@@ -209,7 +209,7 @@ async def sendAnswer(session: nonebot.CommandSession):
         )
     else:
         # math processing
-        response = _math_fetch(response, ctx['user_id'])
+        response = _math_fetch(question, ctx['user_id'])
         if response:
             await session.send(
                 response + '\n'
@@ -310,17 +310,27 @@ def _math_fetch(question: str, user_id: int) -> str:
         return '你说你马呢（'
 
     try:
-        answer = eval('%s' % question, {"__builtins__": None},
-                      {'gcd': gcd, 'sqrt': sqrt, 'pow': pow, 'floor': floor, 'factorial': factorial, 'sin': sin,
-                       'cos': cos,
-                       'tan': tan, 'asin': asin, 'acos': acos, 'pi': pi, 'atan': atan})
+        answer = eval(
+            question, {"__builtins__": None},
+            {'gcd': gcd, 'sqrt': sqrt, 'pow': pow, 'floor': floor, 'factorial': factorial, 'sin': sin,
+               'cos': cos,
+               'tan': tan, 'asin': asin, 'acos': acos, 'pi': pi, 'atan': atan
+            }
+        )
 
     except Exception as err:
         nonebot.logger.warning(f'This is not a math question.{str(err)}')
         return ''
 
-    return f'运算结果是：{answer}\n我算的对吧~'
+    return f'运算结果是：{f"{answer:.2f}" if _is_float(answer) else answer}' + '\n我算的对吧~'
 
+def _is_float(content: str) -> bool:
+    try:
+        float(content)
+        return True
+
+    except ValueError:
+        return False
 
 def _prefetch(question: str, user_id: int) -> str:
     if question == user_control_module.last_question:

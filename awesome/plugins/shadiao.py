@@ -43,16 +43,18 @@ def ark_helper(args: list) -> str:
 
     return ''
 
+
 @nonebot.on_command('你群语录', aliases=('你组语录', '语录'), only_to_me=False)
-async def get_group_quotes(session : nonebot.CommandSession):
+async def get_group_quotes(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if 'group_id' not in ctx:
         await session.finish()
 
     await session.finish(admin_control.get_group_quote(ctx['group_id']))
 
+
 @nonebot.on_command('色图数据', only_to_me=False)
-async def get_setu_stat(session : nonebot.CommandSession):
+async def get_setu_stat(session: nonebot.CommandSession):
     setu_stat = sanity_meter.get_keyword_track()
     response = ''
     if not setu_stat:
@@ -64,7 +66,7 @@ async def get_setu_stat(session : nonebot.CommandSession):
 
 
 @nonebot.on_command('添加语录', only_to_me=False)
-async def add_group_quotes(session : nonebot.CommandSession):
+async def add_group_quotes(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if 'group_id' not in ctx:
         await session.finish()
@@ -92,6 +94,7 @@ async def add_group_quotes(session : nonebot.CommandSession):
     if key_word:
         admin_control.add_quote(ctx['group_id'], key_word)
         await session.finish('已添加！')
+
 
 @nonebot.message_preprocessor
 async def message_preprocessing(unused1: nonebot.NoneBot, event: aiocqhttp.event, unused2: PluginManager):
@@ -611,7 +614,6 @@ async def pixiv_send(session: nonebot.CommandSession):
     else:
     """
     json_result = pixiv_api.search_illust(word=key_word, sort="popular_desc")
-
 
     if not json_result.illusts or len(json_result.illusts) < 4:
         nonebot.logger.warning(f"未找到图片, keyword = {key_word}")

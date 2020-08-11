@@ -22,7 +22,7 @@ def get_info_in_json(json_result, ch_name: str) -> str:
            f'直播间标题：{live_title}\n' \
            f'直播间描述：{live_desc}\n' \
            f'封面\n' \
-           f'[CQ:image,file=file:///{file_name}]'
+           f'[CQ:image,file=file:///{path}]'
 
 
 class BilibiliLive:

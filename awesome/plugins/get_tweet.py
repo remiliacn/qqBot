@@ -108,7 +108,7 @@ async def bulk_get_new_tweet(session: nonebot.CommandSession):
         )
 
 
-@nonebot.scheduler.scheduled_job('interval', seconds=50)
+@nonebot.scheduler.scheduled_job('interval', seconds=50, misfire_grace_time=5)
 async def send_tweet():
     start_time = time.time()
     await asyncio.gather(

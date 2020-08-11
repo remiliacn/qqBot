@@ -41,7 +41,7 @@ async def checkNow(session : nonebot.CommandSession):
     if get_privilege(ctx['user_id'], perm.OWNER):
         Popen('py D:/forDownload.py bulk', stdin=None, stdout=None, stderr=None, close_fds=True, shell=True)
 
-@nonebot.scheduler.scheduled_job('interval', seconds=1200)
+@nonebot.scheduler.scheduled_job('interval', seconds=1201, misfire_grace_time=15)
 async def downloadVideo():
     Popen('py D:/forDownload.py bulk', stdin=None, stdout=None, stderr=None, close_fds=True)
 
