@@ -1,5 +1,6 @@
 # 关于	
 一个功能很杂的人工智障机器人
+
 说明文档在[这里](https://github.com/remiliacn/Lingye-Bot)
 
 # Config
