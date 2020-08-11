@@ -16,6 +16,8 @@ access_secret = '' # twitter API access secret
 user_name = '' # Pixiv login username
 password = '' # Pixiv login password
 
+SUPER_USER = 0
+
 itpk_key = '' # 茉莉机器人API key
 itpk_secret = '' # 茉莉机器人API secret
 
