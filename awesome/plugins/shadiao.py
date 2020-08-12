@@ -16,16 +16,15 @@ import config
 from Shadiao import waifu_finder, ark_nights, shadiao, pcr_news
 from awesome.adminControl import group_admin, setu
 from awesome.adminControl import permission as perm
-from awesome.adminControl import user_control
 from config import SUPER_USER
 from qq_bot_core import alarm_api
+from qq_bot_core import user_control_module
 
 pcr_api = pcr_news.GetPCRNews()
 sanity_meter = setu.SetuFunction()
 pixiv_api = pixivpy3.AppPixivAPI()
 arknights_api = ark_nights.ArkHeadhunt(times=10)
 admin_control = group_admin.Shadiaoadmin()
-user_control_module = user_control.UserControl()
 ark_pool_pity = ark_nights.ArknightsPity()
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
@@ -55,7 +54,7 @@ async def get_group_quotes(session: nonebot.CommandSession):
 
 @nonebot.on_command('色图数据', only_to_me=False)
 async def get_setu_stat(session: nonebot.CommandSession):
-    setu_stat = sanity_meter.get_keyword_track()
+    setu_stat = sanity_meter.get_keyword_track()[0:10]
     response = ''
     if not setu_stat:
         await session.finish('暂时还无色图数据！')
@@ -168,7 +167,7 @@ async def sanity_checker(session: nonebot.CommandSession):
         sanity = sanity_meter.get_max_sanity()
         sanity_meter.set_sanity(id_num, sanity_meter.get_max_sanity())
 
-    await session.send(f'您的剩余理智为：{sanity}')
+    await session.send(f'本群剩余理智为：{sanity}')
 
 
 @nonebot.on_command('理智补充', only_to_me=False)
@@ -512,7 +511,8 @@ async def pixiv_send(session: nonebot.CommandSession):
             await session.finish(
                 '您已经理智丧失了，不能再查了哟~（小提示：指令理智查询可以帮您查看本群还剩多少理智）'
             )
-            return
+            
+        return
 
     if not admin_control.get_if_authed():
         pixiv_api.set_auth(
@@ -726,7 +726,7 @@ def download_image(illust):
             )
 
             with open(path, 'wb') as out_file:
-                for chunk in response.iter_content(chunk_size=1024):
+                for chunk in response.iter_content(chunk_size=1024 ** 3):
                     out_file.write(chunk)
 
         except Exception as err:

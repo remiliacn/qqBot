@@ -6,12 +6,11 @@ from nonebot.log import logger
 
 from Shadiao import random_services
 from awesome.adminControl import permission as perm
-from awesome.adminControl import user_control
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.util import helper_util
+from qq_bot_core import user_control_module
 from youdaoService import youdao
 
-answer_api = user_control.UserControl()
 cache = helper_util.HhshCache()
 
 HHSHMEANING = 'meaning'
@@ -31,7 +30,7 @@ async def send_help(session: nonebot.CommandSession):
 async def translate(session: nonebot.CommandSession):
     trans = helper_util.translation()
     ctx = session.ctx.copy()
-    if answer_api.get_user_privilege(ctx['user_id'], perm.BANNED):
+    if user_control_module.get_user_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     key_word = session.get('key_word', prompt='翻译的内容呢？')
@@ -49,7 +48,7 @@ async def translate(session: nonebot.CommandSession):
 @nonebot.on_command('日语词典', only_to_me=False)
 async def get_you_dao_service(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if answer_api.get_user_privilege(ctx['user_id'], perm.BANNED):
+    if user_control_module.get_user_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     key_word = session.get('key_word', prompt='词呢！词呢！！KORA！！！')
@@ -64,7 +63,7 @@ async def get_you_dao_service(session: nonebot.CommandSession):
 @nonebot.on_command('最新地震', only_to_me=False)
 async def send_earth_quake_info(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if answer_api.get_user_privilege(ctx['user_id'], perm.BANNED):
+    if user_control_module.get_user_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     earth_quake_api_new = random_services.Earthquakeinfo()
@@ -75,7 +74,7 @@ async def send_earth_quake_info(session: nonebot.CommandSession):
 @nonebot.on_command('日日释义', only_to_me=False)
 async def jp_to_jp_dict(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if answer_api.get_user_privilege(ctx['user_id'], perm.BANNED):
+    if user_control_module.get_user_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     key_word = session.get('key_word', prompt='请输入一个关键字！')
@@ -109,7 +108,7 @@ async def jp_to_jp_dict(session: nonebot.CommandSession):
 @nonebot.on_command('释义nico', only_to_me=False)
 async def nico_send(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if answer_api.get_user_privilege(ctx['user_id'], perm.BANNED):
+    if user_control_module.get_user_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     keyWord = session.get('keyWord', prompt='歪？我的关键字呢？')

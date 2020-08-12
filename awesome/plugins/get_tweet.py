@@ -7,15 +7,15 @@ import nonebot
 from nonebot.log import logger
 
 from awesome.adminControl import permission as perm
-from awesome.adminControl import user_control, group_admin
+from awesome.adminControl import group_admin
 from awesome.plugins.shadiao import pcr_api
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.tweetHelper import tweeter
 from bilibiliService import bilibili_topic
 from config import SUPER_USER
 from qq_bot_core import alarm_api
+from qq_bot_core import user_control_module
 
-user_control_module = user_control.UserControl()
 admin_control = group_admin.Shadiaoadmin()
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)

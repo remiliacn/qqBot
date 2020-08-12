@@ -206,6 +206,7 @@ async def shuffle_gun(session : nonebot.CommandSession):
     if 'group_id' not in ctx:
         await session.finish('这是群组游戏！')
 
+    game.reset_gun(ctx['group_id'])
     await session.send('%s转动了弹夹！流向改变了！' % ctx['sender']['nickname'])
 
 @nonebot.on_command('比大小', only_to_me=False)
@@ -250,9 +251,6 @@ def encrypt_card(card, time_seed):
     result = ''
     for idx, char in enumerate(card):
         order = (ord(char) ^ ord(time_seed[-idx - 6]))
-        if order > 10000:
-            result += chr(order << 2)
-        else:
-            result += chr(order >> 1)
+        result += chr(order % 32 + 100)
 
     return result

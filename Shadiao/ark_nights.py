@@ -140,8 +140,14 @@ class ArkHeadhunt:
 
     def get_up(self) -> str:
         result = ''
+        four_up = self.agent_dict['UP4']
         five_up = self.agent_dict['UP5']
         six_up = self.agent_dict['UP6']
+        if four_up:
+            result += '四星：'
+            result += '，'.join(map(str, four_up))
+            result += '\n'
+            
         if five_up:
             result += '五星：'
             result += '，'.join(map(str, five_up))

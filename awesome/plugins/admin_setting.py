@@ -1,6 +1,3 @@
-from aiocqhttp import MessageSegment
-
-import config
 import json
 import random
 import re
@@ -9,13 +6,15 @@ from math import *
 
 import nonebot
 import requests
+from aiocqhttp import MessageSegment
 
+import config
+from awesome.adminControl import group_admin
 from awesome.adminControl import permission as perm
-from awesome.adminControl import user_control, group_admin
 from awesome.plugins.shadiao import sanity_meter
 from qq_bot_core import alarm_api
+from qq_bot_core import user_control_module
 
-user_control_module = user_control.UserControl()
 admin_control = group_admin.Shadiaoadmin()
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
@@ -313,9 +312,9 @@ def _math_fetch(question: str, user_id: int) -> str:
         answer = eval(
             question, {"__builtins__": None},
             {'gcd': gcd, 'sqrt': sqrt, 'pow': pow, 'floor': floor, 'factorial': factorial, 'sin': sin,
-               'cos': cos,
-               'tan': tan, 'asin': asin, 'acos': acos, 'pi': pi, 'atan': atan
-            }
+             'cos': cos,
+             'tan': tan, 'asin': asin, 'acos': acos, 'pi': pi, 'atan': atan
+             }
         )
 
     except Exception as err:
@@ -324,6 +323,7 @@ def _math_fetch(question: str, user_id: int) -> str:
 
     return f'运算结果是：{f"{answer:.2f}" if _is_float(answer) else answer}' + '\n我算的对吧~'
 
+
 def _is_float(content: str) -> bool:
     try:
         float(content)
@@ -331,6 +331,7 @@ def _is_float(content: str) -> bool:
 
     except ValueError:
         return False
+
 
 def _prefetch(question: str, user_id: int) -> str:
     if question == user_control_module.last_question:
@@ -471,7 +472,6 @@ async def send_answer(session: nonebot.NLPSession):
                 try:
                     if group_id not in user_control_module.last_question or \
                             user_control_module.last_question[group_id] != message:
-
                         user_control_module.last_question[group_id] = message
                         await session.send(user_control_module.get_user_response(message))
 

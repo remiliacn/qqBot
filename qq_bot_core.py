@@ -6,7 +6,7 @@ import nonebot
 from nonebot.log import logger
 
 import config
-from awesome.adminControl import alarm
+from awesome.adminControl import alarm, user_control
 
 config_file = \
 """
@@ -32,6 +32,7 @@ PORT = 5700
 """
 
 alarm_api = alarm.Alarm()
+user_control_module = user_control.UserControl()
 
 def register_true():
     if not path.exists('D:/dl/started.json'):

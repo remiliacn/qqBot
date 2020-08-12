@@ -37,16 +37,19 @@ class Russianroulette:
     def getRestBullets(self, group_id):
         return self.game_dict[group_id]["theHighestBound"] - self.game_dict[group_id]["theLowerBound"]
 
+    def reset_gun(self, group_id):
+        self.game_dict[group_id]["theLastDeath"] = 1
+        self.game_dict[group_id]["theLowerBound"] = 1
+
     def get_death(self, group_id):
         lastDeath = self.game_dict[group_id]["theLastDeath"]
-        self.game_dict[group_id]["theLastDeath"] = 1
+        self.reset_gun(group_id)
         return lastDeath
 
     def get_result(self, group_id):
         random.seed(time.time_ns())
         draw = random.randint(self.game_dict[group_id]["theLowerBound"], self.game_dict[group_id]["theHighestBound"])
         if draw >= 6:
-            self.game_dict[group_id]["theLowerBound"] = 1
             return True
 
         self.pullTrigger(group_id)
