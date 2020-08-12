@@ -1,5 +1,7 @@
 # 关于	
-代码写入跨度很长，这个项目被我做了整整一年，所以一些早期代码不是很规范（现在也懒得改了╮(￣▽￣")╭ ）。希望各位dalao不要喷ww	
+一个功能很杂的人工智障机器人
+
+说明文档在[这里](https://github.com/remiliacn/Lingye-Bot)
 
 # Config
 建议进行以下设置：
@@ -13,6 +15,8 @@ access_token = '' # twitter API access token
 access_secret = '' # twitter API access secret
 user_name = '' # Pixiv login username
 password = '' # Pixiv login password
+
+SUPER_USER = 0
 
 itpk_key = '' # 茉莉机器人API key
 itpk_secret = '' # 茉莉机器人API secret
