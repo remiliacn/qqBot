@@ -131,7 +131,12 @@ class tweeter:
             if element not in self.tweet_list_init or \
                     (self.tweet_list_init[element] != temp_dict[element]):
 
-                if not (temp_dict[element] == '' or temp_dict[element] == '转发动态'):
+                if not (temp_dict[element] == '' or
+                        temp_dict[element] == '转发动态' or
+                        temp_dict[element] == self.INFO_NOT_AVAILABLE or 
+                        element not in self.tweet_list_init or
+                        self.tweet_list_init[element] == ''):
+
                     diff_dict[element] = temp_dict[element]
 
         self.tweet_list_init = temp_dict
@@ -235,7 +240,7 @@ class tweeter:
                             try:
                                 resp = requests.get(img_src, timeout=10)
                                 with open(file_name, 'wb') as f:
-                                    for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                                    for chunk in resp.iter_content(chunk_size=1024 ** 3):
                                         f.write(chunk)
 
                             except Exception as err:

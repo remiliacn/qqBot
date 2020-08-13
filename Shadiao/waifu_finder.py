@@ -50,7 +50,8 @@ class waifuFinder:
                 img = requests.get(self.baseURL + imageName, timeout=6)
                 img.raise_for_status()
                 with open(fileName, 'wb') as f:
-                    f.write(img.content)
+                    for chunk in img.iter_content(chunk_size=1024 ** 3):
+                        f.write(chunk)
 
         except Exception as e:
             logger.warning('Something went wrong when getting the waifu. Error message: %s' % e)

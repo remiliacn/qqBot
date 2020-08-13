@@ -594,8 +594,7 @@ async def pixiv_send(session: nonebot.CommandSession):
         except pixivpy3.PixivError:
             return
 
-    """
-        if '{user=' in key_word:
+    if '{user=' in key_word:
         key_word = re.findall(r'{user=(.*?)}', key_word)
         if key_word:
             key_word = key_word[0]
@@ -612,8 +611,7 @@ async def pixiv_send(session: nonebot.CommandSession):
             return
 
     else:
-    """
-    json_result = pixiv_api.search_illust(word=key_word, sort="popular_desc")
+        json_result = pixiv_api.search_illust(word=key_word, sort="popular_desc")
 
     if not json_result.illusts or len(json_result.illusts) < 4:
         nonebot.logger.warning(f"未找到图片, keyword = {key_word}")
@@ -780,7 +778,7 @@ async def get_random():
     path = f'E:/pixivPic/{filename}'
     if not os.path.exists(path):
         with open(path, 'wb') as f:
-            for chunk in image_page.iter_content(chunk_size=1024):
+            for chunk in image_page.iter_content(chunk_size=1024 ** 3):
                 f.write(chunk)
 
     return MessageSegment.image(f'file:///{path}'), is_nsfw

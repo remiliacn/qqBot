@@ -53,7 +53,8 @@ class ShadiaoAPI:
                     img = requests.get(image, timeout=6)
                     img.raise_for_status()
                     with open(file_name, 'wb') as f:
-                        f.write(img.content)
+                        for chunk in img.iter_content(chunk_size=1024 ** 2):
+                            f.write(chunk)
 
                 print("Picture got:", file_name)
                 if download_count > 1:

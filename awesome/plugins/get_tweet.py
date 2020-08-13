@@ -256,6 +256,7 @@ async def do_tweet_update_fetch():
         for ch_name in diff_dict:
             group_id_list = tweet.get_tweet_config()[ch_name]['group']
             message = diff_dict[ch_name]
+                
             if message[0:2] == 'RT':
                 message = f'=== {ch_name}转发推文说 ===\n' + message
             elif message[0] == '@':

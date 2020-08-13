@@ -94,7 +94,7 @@ class ArkHeadhunt:
         random.seed(time.time_ns())
         for elements in self.random_class:
             random_int = random.randint(0, 100)
-            if random_int >= 70 and self.agent_dict[f'UP{elements}']:
+            if random_int < 50 and self.agent_dict[f'UP{elements}']:
                 random_agent.append(random.choice(self.agent_dict[f'UP{elements}']))
             else:
                 random_agent.append(random.choice(self.agent_dict[str(elements)]))
