@@ -6,12 +6,13 @@ from math import *
 
 import nonebot
 import requests
-from aiocqhttp import MessageSegment
+import os
 
 import config
 from awesome.adminControl import group_admin
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao import sanity_meter
+from awesome.plugins.util.helper_util import get_downloaded_image_path
 from qq_bot_core import alarm_api
 from qq_bot_core import user_control_module
 
@@ -158,17 +159,14 @@ async def add_ai_real_response(session: nonebot.CommandSession):
     bot = nonebot.get_bot()
     if has_image:
         response = await bot.get_image(file=has_image[0])
-        url = response['url']
-        image_response = requests.get(
-            url,
-            stream=True
+        answer = re.sub(
+            r'.*?file=(.*?\.image)',
+            get_downloaded_image_path(
+                response,
+                f'{os.getcwd()}/data/bot/response/'
+            ),
+            answer
         )
-        image_response.raise_for_status()
-        path = f'E:/bot/response/{response["filename"]}'
-        with open(path, 'wb') as file:
-            file.write(image_response.content)
-
-        answer = str(MessageSegment.image(f'file:///{path}'))
 
     answer_dict = {
         'answer': answer,

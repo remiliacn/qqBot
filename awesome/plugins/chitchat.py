@@ -6,6 +6,7 @@ import time
 
 from awesome.adminControl import permission as perm
 from awesome.adminControl import group_admin, user_control
+from awesome.plugins.util.helper_util import get_downloaded_image_path
 
 
 class Votekick:
@@ -26,6 +27,40 @@ vote_kick_controller = Votekick()
 user_control_module = user_control.UserControl()
 
 get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
+
+@nonebot.on_command('添加图片', only_to_me=False)
+async def add_more_pic(session: nonebot.CommandSession):
+    types = ('恰柠檬', '泪流猫猫头', '迫害', '辛苦了', '不愧是你', '威胁', '社保', '恰桃')
+    prompt_info = f'请输入要加入的类型，类型应该为这其中的一个：{types}\n' \
+                  f'然后添加一个空格再加上需要添加的图'
+
+    key_word = session.get('key_word', prompt=prompt_info)
+    args = key_word.split()
+
+    if args[0] not in types:
+        await session.finish('不是说了必须是其中一个了kora')
+
+    key_dict = {
+        '恰柠檬': f'{os.getcwd()}/data/dl/lemon/',
+        '泪流猫猫头': f'{os.getcwd()}/data/dl/useless/',
+        '迫害': f'{os.getcwd()}/data/dl/pohai/',
+        '辛苦了': f'{os.getcwd()}/data/dl/otsukare/',
+        '不愧是你': f'{os.getcwd()}/data/dl/bukui/',
+        '威胁': f'{os.getcwd()}/data/dl/weixie/',
+        '社保': f'{os.getcwd()}/data/dl/shebao/',
+        '恰桃': f'{os.getcwd()}/data/dl/peach/',
+    }
+
+    path = key_dict[args[0]]
+
+    has_image = re.findall(r'.*?file=(.*?\.image)', args[1])
+    if has_image:
+        bot = nonebot.get_bot()
+        response = await bot.get_image(file=has_image[0])
+        _ = get_downloaded_image_path(response, path)
+        await session.finish('图片已添加！')
+
+    await session.finish('你发的smjb玩意……')
 
 @nonebot.on_command('?', aliases='？', only_to_me=False)
 async def change_question_mark(session : nonebot.CommandSession):

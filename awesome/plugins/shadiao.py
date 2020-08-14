@@ -16,6 +16,7 @@ import config
 from Shadiao import waifu_finder, ark_nights, shadiao, pcr_news
 from awesome.adminControl import group_admin, setu
 from awesome.adminControl import permission as perm
+from awesome.plugins.util.helper_util import get_downloaded_image_path
 from config import SUPER_USER
 from qq_bot_core import alarm_api
 from qq_bot_core import user_control_module
@@ -81,21 +82,13 @@ async def add_group_quotes(session: nonebot.CommandSession):
     has_image = re.findall(r'.*?\[CQ:image,file=(.*?\.image)]', key_word)
     if has_image:
         response = await bot.get_image(file=has_image[0])
-        url = response['url']
-        image_response = requests.get(
-            url,
-            stream=True
-        )
-        image_response.raise_for_status()
-        path = f'{os.getcwd()}/data/lol/{response["filename"]}'
-        with open(path, 'wb') as file:
-            file.write(image_response.content)
+        key_word = get_downloaded_image_path(response, f'{os.getcwd()}/data/lol')
 
-        key_word = str(MessageSegment.image(f'file:///{path}'))
-
-    if key_word:
-        admin_control.add_quote(ctx['group_id'], key_word)
-        await session.finish('已添加！')
+        if key_word:
+            admin_control.add_quote(ctx['group_id'], key_word)
+            await session.finish('已添加！')
+    else:
+        await session.finish('啊这……')
 
 
 @nonebot.message_preprocessor

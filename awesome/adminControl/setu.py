@@ -134,6 +134,9 @@ class SetuFunction:
             else:
                 self.stat_dict['users'][user_id][tag] += hit_marks
 
+    def get_global_stat(self):
+        return self.stat_dict['global']
+
     def get_user_data_by_tag(self, user_id, tag: str):
         if isinstance(user_id, int):
             user_id = str(user_id)

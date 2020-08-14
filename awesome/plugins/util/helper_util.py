@@ -1,11 +1,28 @@
 import re
+import os
 
+import requests
+from aiocqhttp import MessageSegment
 from googletrans import Translator
 from nonebot.log import logger
 
 HHSHMEANING = 'meaning'
 FURIGANAFUNCTION = 'furigana'
 
+def get_downloaded_image_path(response: dict, path: str):
+    url = response['url']
+    image_response = requests.get(
+        url,
+        stream=True
+    )
+    image_response.raise_for_status()
+    path = f'{path}/{response["filename"]}'
+    if not os.path.exists(path):
+        with open(path, 'wb') as file:
+            file.write(image_response.content)
+
+    resp = str(MessageSegment.image(f'file:///{path}'))
+    return resp
 
 class HhshCache:
     def __init__(self):

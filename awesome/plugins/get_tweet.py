@@ -15,7 +15,7 @@ from bilibiliService import bilibili_topic
 from config import SUPER_USER
 from qq_bot_core import alarm_api
 from qq_bot_core import user_control_module
-
+from datetime import datetime
 admin_control = group_admin.Shadiaoadmin()
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
@@ -23,6 +23,13 @@ get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
 tweet = tweeter.tweeter()
 share_link = 'paryi-my.sharepoint.com/:f:/g/personal/hanayori_paryi_xyz/Em62_uotiDlIohJKvbMWoiQBzutGjbRga1uOXNdmTjEtpA?e=X4hGfT'
+
+@nonebot.on_command('推特数据', only_to_me=False)
+async def get_tweet_data(session: nonebot.CommandSession):
+    response = f'截止到{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n' \
+               f'机器人共跟推：{sanity_meter.get_global_stat()["tweet"]}次'
+
+    await session.send(response)
 
 
 @nonebot.on_command('跟推添加', only_to_me=False)
