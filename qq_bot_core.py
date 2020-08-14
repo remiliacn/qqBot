@@ -1,5 +1,5 @@
 from json import dump
-from os import path
+from os import path, getcwd, mkdir
 from time import sleep
 
 import nonebot
@@ -52,6 +52,23 @@ def register_true():
         sleep(3)
 
         exit(1)
+
+    try:
+        if not path.exists(f'{getcwd()}/data/biaoqing'):
+            mkdir(f'{getcwd()}/data/biaoqing')
+
+        if not path.exists(f'{getcwd()}/data/bilibiliPic'):
+            mkdir(f'{getcwd()}/data/bilibiliPic')
+
+        if not path.exists(f'{getcwd()}/data/pixivPic/'):
+            mkdir(f"{getcwd()}/data/pixivPic/")
+
+        if not path.exists(f'{getcwd()}/data/lol/'):
+            mkdir(f"{getcwd()}/data/lol/")
+
+    except IOError:
+        raise IOError('Error occurred while creating directory for biaoqing, and bilibiliPic.')
+
 
 def main():
     nonebot.init(config)

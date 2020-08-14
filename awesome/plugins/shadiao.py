@@ -29,9 +29,6 @@ ark_pool_pity = ark_nights.ArknightsPity()
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
-if not os.path.exists("E:/pixivPic/"):
-    os.makedirs("E:/pixivPic/")
-
 
 def ark_helper(args: list) -> str:
     if len(args) != 2:
@@ -90,7 +87,7 @@ async def add_group_quotes(session: nonebot.CommandSession):
             stream=True
         )
         image_response.raise_for_status()
-        path = f'E:/lol/{response["filename"]}'
+        path = f'{os.getcwd()}/data/lol/{response["filename"]}'
         with open(path, 'wb') as file:
             file.write(image_response.content)
 
@@ -718,7 +715,7 @@ def download_image(illust):
 
     nonebot.logger.info(f"{illust.title}: {image_url}, {illust.id}")
     image_file_name = image_url.split('/')[-1].replace('_', '')
-    path = 'E:/pixivPic/' + image_file_name
+    path = f'{os.getcwd()}/data/pixivPic/' + image_file_name
 
     if not os.path.exists(path):
         try:
@@ -779,7 +776,7 @@ async def get_random():
         stream=True
     )
 
-    path = f'E:/pixivPic/{filename}'
+    path = f'{os.getcwd()}/data/pixivPic/{filename}'
     if not os.path.exists(path):
         with open(path, 'wb') as f:
             for chunk in image_page.iter_content(chunk_size=1024 ** 3):
