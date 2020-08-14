@@ -2,6 +2,7 @@ import os
 import random
 import re
 import time
+from json import dump, loads
 
 import requests
 
@@ -13,9 +14,31 @@ headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36"
 }
 
+class flatter:
+    def __init__(self):
+        self.flatter_path = 'data/flatter.json'
+        self.flatter_dict = self._get_flatter_dict()
+
+    def _get_flatter_dict(self) -> dict:
+        if not os.path.exists(self.flatter_path):
+            with open(self.flatter_path, 'w+') as file:
+                dump({}, file, indent=4)
+
+            return {}
+
+        with open(self.flatter_path, 'r', encoding='utf8') as file:
+            return loads(file.read())
+
+    def get_flatter_result(self, name: int) -> str:
+        flatter_list = self.flatter_dict['data']
+        if flatter_list:
+            return random.choice(flatter_list).replace('${name}', f'[CQ:at,qq={name}]')
+
+        return '暂无数据！'
+
 class ShadiaoAPI:
     def __init__(self):
-        self.base_dir = 'E:/biaoqing/'
+        self.base_dir = f'{os.getcwd()}/data/biaoqing/'
         if not os.path.exists(self.base_dir):
             try:
                 os.makedirs(self.base_dir)

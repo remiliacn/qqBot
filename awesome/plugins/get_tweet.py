@@ -297,7 +297,7 @@ async def do_bilibili_live_fetch():
 async def get_bilibili_topic(session: nonebot.CommandSession):
     key_word = session.get('key_word', prompt='要什么的话题呢？')
     await session.send('如果动态内容有图片的话这可能会花费一大段时间。。请稍后……')
-    topic = bilibili_topic.Bilibilitopic(topic=key_word)
+    topic = bilibili_topic.BilibiliTopic(topic=key_word)
     response = topic.get_content()
     if response != '':
         await session.send(response)

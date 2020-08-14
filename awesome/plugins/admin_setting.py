@@ -143,7 +143,7 @@ async def delete_admin(session: nonebot.CommandSession):
 async def add_ai_real_response(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     question = session.get('question', prompt='请输入回答的问题')
-    question = str(question).replace('\n', ' ')
+    question = str(question).replace('\n', '')
 
     if question in user_control_module.get_user_dict():
         user_control_module.delete_response(question)
@@ -349,6 +349,14 @@ def _prefetch(question: str, user_id: int) -> str:
     elif question in user_control_module.get_user_dict():
         user_control_module.last_question = question
         response = user_control_module.get_user_response(question)
+        if isinstance(response, dict):
+            response = response['answer']
+        elif isinstance(response, list):
+            response = random.choice(response)
+            response = response['answer']
+        else:
+            raise ValueError('Invalid data type for answer.')
+
         return response if response != '$' else ''
 
     if 'おやすみ' in question:

@@ -49,7 +49,7 @@ class GetPCRNews:
                 fileName = re.findall(r'game/(.*?)$', img[0])
 
                 if fileName:
-                    path = 'E:/bilibiliPic/' + fileName[0]
+                    path = f'{os.getcwd()}/data/bilibiliPic/' + fileName[0]
 
                 page.raise_for_status()
                 

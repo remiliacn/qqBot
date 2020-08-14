@@ -35,11 +35,11 @@ alarm_api = alarm.Alarm()
 user_control_module = user_control.UserControl()
 
 def register_true():
-    if not path.exists('D:/dl/started.json'):
-        with open('D:/dl/started.json', 'w+') as f:
+    if not path.exists('data/started.json'):
+        with open('data/started.json', 'w+') as f:
             dump({}, f, indent=4)
 
-    with open('D:/dl/started.json', 'w+') as f:
+    with open('data/started.json', 'w+') as f:
         dump({'status' : True}, f, indent=4)
 
     if not path.exists('config.py'):

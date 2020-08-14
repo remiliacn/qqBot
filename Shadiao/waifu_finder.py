@@ -38,13 +38,13 @@ class waifuFinder:
         return page.text
 
     def getImage(self) -> (str, str):
-        if not os.path.exists("E:/Python/qqBot/Waifu/"):
-            os.makedirs("E:/Python/qqBot/Waifu/")
+        if not os.path.exists(f"{os.getcwd()}/Waifu/"):
+            os.makedirs(f"{os.getcwd()}/Waifu/")
 
         randNum = random.randint(1, 100000)
         imageName = 'example-%d.jpg' % randNum
 
-        fileName = "E:/Python/qqBot/Waifu/" + imageName
+        fileName = f"{os.getcwd()}/Waifu/" + imageName
         try:
             if not os.path.exists(fileName):
                 img = requests.get(self.baseURL + imageName, timeout=6)

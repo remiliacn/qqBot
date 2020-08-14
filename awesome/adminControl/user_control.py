@@ -91,7 +91,7 @@ class UserControl:
         return self.answer_dict
 
     def get_user_response(self, question):
-        return self.answer_dict[question]['answer']
+        return self.answer_dict[question]
 
     def make_a_json(self, path: str):
         import json

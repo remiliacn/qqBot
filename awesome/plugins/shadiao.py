@@ -42,6 +42,12 @@ def ark_helper(args: list) -> str:
 
     return ''
 
+@nonebot.on_command('吹我', only_to_me=False)
+async def do_joke_flatter(session: nonebot.CommandSession):
+    flatter_api = shadiao.flatter()
+    ctx = session.ctx.copy()
+    user_id = ctx['user_id']
+    await session.send(flatter_api.get_flatter_result(user_id))
 
 @nonebot.on_command('你群语录', aliases=('你组语录', '语录'), only_to_me=False)
 async def get_group_quotes(session: nonebot.CommandSession):
@@ -545,7 +551,7 @@ async def pixiv_send(session: nonebot.CommandSession):
             sanity_meter.set_xp_data(key_word)
 
     elif '色图' in key_word:
-        await session.finish(MessageSegment.image('file:///C:/dl/others/QQ图片20191013212223.jpg'))
+        await session.finish(MessageSegment.image(f'file:///{os.getcwd()}/data/dl/others/QQ图片20191013212223.jpg'))
 
     elif '屑bot' in key_word:
         await session.finish('你屑你🐴呢')
@@ -720,12 +726,10 @@ def download_image(illust):
                 'GET',
                 image_url,
                 headers={'Referer': 'https://app-api.pixiv.net/'},
-                stream=True
             )
 
             with open(path, 'wb') as out_file:
-                for chunk in response.iter_content(chunk_size=1024 ** 3):
-                    out_file.write(chunk)
+                out_file.write(response.content)
 
         except Exception as err:
             nonebot.logger.info(f'Download image error: {err}')
@@ -829,12 +833,13 @@ async def zuiChou(session: nonebot.CommandSession):
             await session.send('骂不出来了！')
             return
 
+
         text = req.text
 
     else:
-        file = os.listdir('C:\dl\zuichou')
+        file = os.listdir('data/dl/zuichou')
         file = random.choice(file)
-        text = f"[CQ:image,file=file:///C:/dl/zuichou/{file}]"
+        text = f"[CQ:image,file=file:///{os.getcwd()}/data/dl/zuichou/{file}]"
 
     msg = str(ctx['raw_message'])
 
@@ -878,6 +883,6 @@ async def cai_hong_pi(session: nonebot.CommandSession):
 
 
 def get_status():
-    file = open('D:/dl/started.json', 'r')
+    file = open('data/started.json', 'r')
     status_dict = json.loads(str(file.read()))
     return status_dict['status']

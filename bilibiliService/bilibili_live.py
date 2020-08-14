@@ -1,4 +1,5 @@
 from nonebot.log import logger as logging
+from os import getcwd
 import re
 import requests
 from urllib3 import HTTPSConnectionPool
@@ -14,7 +15,7 @@ def get_info_in_json(json_result, ch_name: str) -> str:
     image.raise_for_status()
 
     file_name = live_cover.split('/')[-1]
-    path = f'E:/bilibiliPic/{file_name}'
+    path = f'{getcwd()}/data/bilibiliPic/{file_name}'
     with open(path, 'wb') as file:
         file.write(image.content)
 
