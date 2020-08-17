@@ -146,6 +146,9 @@ async def add_ai_real_response(session: nonebot.CommandSession):
     question = session.get('question', prompt='请输入回答的问题')
     question = str(question).replace('\n', '')
 
+    if not get_privilege(ctx['user_id'], perm.WHITELIST):
+        await session.finish()
+
     if question in user_control_module.get_user_dict():
         user_control_module.delete_response(question)
 
@@ -487,18 +490,18 @@ async def send_answer(session: nonebot.NLPSession):
 
                 return
 
-            if ctx['group_id'] not in admin_control.repeat_dict:
-                admin_control.repeat_dict[ctx['group_id']] = {message: 1}
-            else:
-                if message in admin_control.repeat_dict[ctx['group_id']]:
-                    admin_control.repeat_dict[ctx['group_id']][message] += 1
-                    if admin_control.repeat_dict[ctx['group_id']][message] == 3:
-                        await session.send(message)
-                        return
-
-                else:
-                    admin_control.repeat_dict[ctx['group_id']] = {}
+                if ctx['group_id'] not in admin_control.repeat_dict:
                     admin_control.repeat_dict[ctx['group_id']] = {message: 1}
+                else:
+                    if message in admin_control.repeat_dict[ctx['group_id']]:
+                        admin_control.repeat_dict[ctx['group_id']][message] += 1
+                        if admin_control.repeat_dict[ctx['group_id']][message] == 3:
+                            await session.send(message)
+                            return
+
+                    else:
+                        admin_control.repeat_dict[ctx['group_id']] = {}
+                        admin_control.repeat_dict[ctx['group_id']] = {message: 1}
 
 
 @nonebot.on_command('ban', only_to_me=False)

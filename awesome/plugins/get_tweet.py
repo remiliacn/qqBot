@@ -1,14 +1,15 @@
 import asyncio
+import json
 import re
 import time
-from datetime import datetime
+import os
 
 import nonebot
 from nonebot.log import logger
 
 from awesome.adminControl import permission as perm
 from awesome.adminControl import group_admin
-from awesome.plugins.shadiao import pcr_api
+from Shadiao.random_services import YouTubeLiveTracker
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.tweetHelper import tweeter
 from bilibiliService import bilibili_topic
@@ -122,10 +123,10 @@ async def send_tweet():
         do_tweet_update_fetch(),
         do_bilibili_live_fetch(),
         do_youtube_update_fetch(),
-        do_pcr_update_fetch(),
         fill_sanity(),
         do_recall(),
-        save_stats()
+        save_stats(),
+        check_youtube_live()
     )
 
     logger.info('Auto fetch all done!')
@@ -189,6 +190,48 @@ async def do_recall():
 
         sanity_meter.clear_recall()
 
+async def check_youtube_live():
+    tasks = []
+    with open(f'config/downloader.json', 'r', encoding='utf-8') as file:
+        json_data = json.loads(file.read())
+        for ch_name in json_data:
+            tasks.append(_async_youtube_live(ch_name, json_data))
+
+    await asyncio.gather(*tasks)
+
+async def _async_youtube_live(ch_name, json_data):
+    logger.info(f'Checking live stat for {ch_name}')
+    api = YouTubeLiveTracker(json_data[ch_name]['channel'], ch_name)
+    await api.get_json_data()
+    if api.get_live_status():
+        if api.update_live_id(True):
+            bot = nonebot.get_bot()
+            await bot.send_group_msg(
+                group_id=json_data[ch_name]['qqGroup'],
+                message=api.get_live_details()
+            )
+
+            await bot.send_private_msg(
+                user_id=SUPER_USER,
+                message=f'{ch_name} is now live:\n'
+                        f'{api.get_live_details()}'
+            )
+
+    if api.get_upcoming_status():
+        if api.update_live_id(False):
+            bot = nonebot.get_bot()
+            await bot.send_group_msg(
+                group_id=json_data[ch_name]['qqGroup'],
+                message=api.get_live_details()
+            )
+
+            await bot.send_private_msg(
+                user_id=SUPER_USER,
+                message=f'{ch_name} is now ready:\n'
+                        f'{api.get_live_details()}'
+            )
+            
+    logger.info(f'Checking live stat for {ch_name} completed.')
 
 async def fill_sanity():
     logger.info('Filling sanity...')
@@ -196,14 +239,6 @@ async def fill_sanity():
         sanity_meter.fill_sanity(sanity=5)
     else:
         sanity_meter.fill_sanity(sanity=1)
-
-
-async def do_pcr_update_fetch():
-    logger.info('Checking for PCR news...')
-    if await pcr_api.if_new_releases():
-        bot = nonebot.get_bot()
-        news = await pcr_api.get_content()
-        await bot.send_group_msg(group_id=1081267415, message=news)
 
 
 async def do_youtube_update_fetch():
@@ -218,9 +253,25 @@ async def do_youtube_update_fetch():
             if not youtube_notify_dict[elements]['status']:
                 if youtube_notify_dict[elements]['retcode'] == 0:
                     try:
-                        await bot.send_group_msg(group_id=int(youtube_notify_dict[elements]['group_id']),
-                                                 message='刚才你们让扒的源搞好了~\n视频名称：%s\n如果上传好了的话视频将会出现在\n%s' % (
-                                                     elements, share_link))
+                        group_id = int(youtube_notify_dict[elements]['group_id'])
+                        sanity_meter.set_user_data(0, 'tweet', 1, True)
+                        await bot.send_group_msg(
+                            group_id=group_id,
+                            message='刚才你们让扒的源搞好了~\n'
+                                    '视频名称：%s\n'
+                                    '如果上传好了的话视频将会出现在\n'
+                                    '%s' % (
+                                elements,
+                                share_link
+                            )
+                        )
+                        await bot.send_private_msg(
+                            user_id=SUPER_USER,
+                            message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}]'
+                                    f'Video is now available for group {group_id}\n'
+                                    f'Video title: {elements}'
+                        )
+
                     except Exception as err:
                         await bot.send_private_msg(
                             user_id=SUPER_USER,

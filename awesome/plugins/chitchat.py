@@ -30,7 +30,7 @@ get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
 
 @nonebot.on_command('添加图片', only_to_me=False)
 async def add_more_pic(session: nonebot.CommandSession):
-    types = ('恰柠檬', '泪流猫猫头', '迫害', '辛苦了', '不愧是你', '威胁', '社保', '恰桃')
+    types = ('恰柠檬', '流泪猫猫头', '迫害', '辛苦了', '不愧是你', '威胁', '社保', '恰桃')
     prompt_info = f'请输入要加入的类型，类型应该为这其中的一个：{types}\n' \
                   f'然后添加一个空格再加上需要添加的图'
 
@@ -42,7 +42,7 @@ async def add_more_pic(session: nonebot.CommandSession):
 
     key_dict = {
         '恰柠檬': f'{os.getcwd()}/data/dl/lemon/',
-        '泪流猫猫头': f'{os.getcwd()}/data/dl/useless/',
+        '流泪猫猫头': f'{os.getcwd()}/data/dl/useless/',
         '迫害': f'{os.getcwd()}/data/dl/pohai/',
         '辛苦了': f'{os.getcwd()}/data/dl/otsukare/',
         '不愧是你': f'{os.getcwd()}/data/dl/bukui/',

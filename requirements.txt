@@ -1,3 +1,4 @@
+aiohttp
 urllib3
 twitter
 lxml

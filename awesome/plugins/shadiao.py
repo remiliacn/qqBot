@@ -86,7 +86,7 @@ async def add_group_quotes(session: nonebot.CommandSession):
 
         if key_word:
             admin_control.add_quote(ctx['group_id'], key_word)
-            await session.finish('已添加！')
+            await session.finish(f'已添加！（当前总语录条数：{admin_control.get_group_quote_count(ctx["group_id"])})')
     else:
         await session.finish('啊这……')
 
@@ -716,10 +716,12 @@ def download_image(illust):
                 'GET',
                 image_url,
                 headers={'Referer': 'https://app-api.pixiv.net/'},
+                stream=True
             )
 
             with open(path, 'wb') as out_file:
-                out_file.write(response.content)
+                for chunk in response.iter_content(chunk_size=1024 ** 3):
+                    out_file.write(chunk)
 
         except Exception as err:
             nonebot.logger.info(f'Download image error: {err}')
