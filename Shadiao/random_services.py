@@ -83,34 +83,38 @@ class YouTubeLiveTracker:
 
         if thumbnail_url:
             thumbnail = live_stat['thumbnail']['thumbnails'][-1]['url']
-            image = requests.get(thumbnail, timeout=10)
-            file_name = f'{os.getcwd()}/data/live/{live_stat["videoId"]}.jpg'
-            if not os.path.exists(file_name):
-                with open(file_name, 'wb') as file:
-                    for chunk in image.iter_content(chunk_size=1024 ** 3):
-                        file.write(chunk)
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.get(thumbnail) as image:
+                    file_name = f'{os.getcwd()}/data/live/{live_stat["videoId"]}.jpg'
+                    if not os.path.exists(file_name):
+                        with open(file_name, 'wb') as file:
+                            while True:
+                                chunk = await image.content.read(1024 ** 2)
+                                if not chunk:
+                                    break
+                                file.write(chunk)
 
             image_data_in_qcode = f'[CQ:image,file=file:///{file_name}]'
 
         head = f'{self.ch_name}创建了新的直播间！\n' if self.get_upcoming_status() else f'{self.ch_name}开播啦！'
 
         result = f'{head}\n' \
-                 f'标题 {title}\n' \
-                 f'=== 描述 ===\n{description}...\n' \
+                 f'标题 {title}\n\n' \
+                 f'=== 描述 ===\n{description}...\n\n' \
                  f'=== 封面 ===\n' \
                  f'{image_data_in_qcode}\n' \
                  f'观看地址：https://www.youtube.com/watch?v={self.new_video_id}'
 
         return result
 
-    def update_live_id(self, liveID: bool):
+    def update_live_id(self, is_checking_live: bool):
         if not os.path.exists(f'config/downloader.json'):
             raise FileNotFoundError()
 
         with open(f'config/downloader.json', 'r', encoding='utf8') as file:
             json_data = json.loads(file.read())
 
-        if liveID:
+        if is_checking_live:
             self.get_live_status()
             if self.new_video_id != json_data[self.ch_name]['liveID']:
                 json_data[self.ch_name]['liveID'] = self.new_video_id

@@ -5,6 +5,7 @@ import re
 import time
 
 import aiocqhttp.event
+import aiohttp
 import nonebot
 import pixivpy3
 import requests
@@ -630,7 +631,7 @@ async def pixiv_send(session: nonebot.CommandSession):
             )
 
     start_time = time.time()
-    path = download_image(illust)
+    path = await download_image(illust)
     try:
         nickname = ctx['sender']['nickname']
     except TypeError:
@@ -697,7 +698,7 @@ async def pixiv_send(session: nonebot.CommandSession):
         )
 
 
-def download_image(illust):
+async def download_image(illust):
     if illust['meta_single_page']:
         if 'original_image_url' in illust['meta_single_page']:
             image_url = illust.meta_single_page['original_image_url']
@@ -712,16 +713,14 @@ def download_image(illust):
 
     if not os.path.exists(path):
         try:
-            response = pixiv_api.requests_call(
-                'GET',
-                image_url,
-                headers={'Referer': 'https://app-api.pixiv.net/'},
-                stream=True
-            )
-
-            with open(path, 'wb') as out_file:
-                for chunk in response.iter_content(chunk_size=1024 ** 3):
-                    out_file.write(chunk)
+            async with aiohttp.ClientSession(headers={'Referer': 'https://app-api.pixiv.net/'}) as session:
+                async with session.get(image_url) as response:
+                    with open(path, 'wb') as out_file:
+                        while True:
+                            chunk = await response.content.read(1024 ** 3)
+                            if not chunk:
+                                break
+                            out_file.write(chunk)
 
         except Exception as err:
             nonebot.logger.info(f'Download image error: {err}')
