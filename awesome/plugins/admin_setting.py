@@ -405,7 +405,7 @@ def _request_api_response(question: str) -> str:
         try:
             page = requests.get(
                 f'http://i.itpk.cn/api.php?question={question}'
-                f'&limit=5'
+                f'&limit=7'
                 f'&api_key={config.itpk_key}'
                 f'&api_secret={config.itpk_secret}',
                 timeout=5)
@@ -462,7 +462,7 @@ async def getAnswerInfo(session: nonebot.CommandSession):
 @nonebot.on_natural_language(only_to_me=False, only_short_message=True)
 async def send_answer(session: nonebot.NLPSession):
     random.seed(time.time_ns())
-    rand_num = random.randint(0, 10)
+    rand_num = random.randint(0, 2)
     ctx = session.ctx.copy()
     if 'group_id' not in ctx:
         return
@@ -470,13 +470,12 @@ async def send_answer(session: nonebot.NLPSession):
     group_id = ctx['group_id']
 
     if admin_control.get_data(group_id, 'enabled'):
-
         message = str(ctx['raw_message'])
         if get_privilege(ctx['user_id'], perm.BANNED):
             return
 
         if 'group_id' in ctx:
-            if rand_num < 5 and message in user_control_module.get_user_dict():
+            if rand_num == 1 and message in user_control_module.get_user_dict():
                 group_id = str(ctx['group_id'])
                 try:
                     if group_id not in user_control_module.last_question or \
@@ -487,8 +486,6 @@ async def send_answer(session: nonebot.NLPSession):
                 except Exception as err:
                     print(f"Something went wrong: {err}")
                     return
-
-                return
 
                 if ctx['group_id'] not in admin_control.repeat_dict:
                     admin_control.repeat_dict[ctx['group_id']] = {message: 1}

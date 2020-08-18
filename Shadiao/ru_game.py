@@ -38,6 +38,9 @@ class Russianroulette:
         return self.game_dict[group_id]["theHighestBound"] - self.game_dict[group_id]["theLowerBound"]
 
     def reset_gun(self, group_id):
+        if group_id not in self.game_dict:
+            self.game_dict[group_id] = {}
+
         self.game_dict[group_id]["theLastDeath"] = 1
         self.game_dict[group_id]["theLowerBound"] = 1
 

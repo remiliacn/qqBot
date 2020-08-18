@@ -2,7 +2,7 @@ import asyncio
 import json
 import re
 import time
-import os
+from subprocess import Popen, DETACHED_PROCESS
 
 import nonebot
 from nonebot.log import logger
@@ -13,7 +13,7 @@ from Shadiao.random_services import YouTubeLiveTracker
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.tweetHelper import tweeter
 from bilibiliService import bilibili_topic
-from config import SUPER_USER
+from config import SUPER_USER, downloader
 from qq_bot_core import alarm_api
 from qq_bot_core import user_control_module
 from datetime import datetime
@@ -160,7 +160,17 @@ async def send_tweet():
                     f'BEE WOO BEE WOO!!!\n'
                     f'{alarm_api.get_info()}'
         )
+    
+    if get_status():
+        logger.info('Doing video fetch...')
+        Popen(['py', downloader, 'bulk'], shell=True,
+             stdin=None, stdout=None, stderr=None, close_fds=True, creationflags=DETACHED_PROCESS)
 
+
+def get_status():
+    file = open('data/started.json', 'r')
+    status_dict = json.loads(str(file.read()))
+    return status_dict['status']
 
 async def save_stats():
     sanity_meter.make_a_json('config/stats.json')
@@ -208,13 +218,13 @@ async def _async_youtube_live(ch_name, json_data):
             bot = nonebot.get_bot()
             await bot.send_group_msg(
                 group_id=json_data[ch_name]['qqGroup'],
-                message=api.get_live_details()
+                message=await api.get_live_details()
             )
 
             await bot.send_private_msg(
                 user_id=SUPER_USER,
                 message=f'{ch_name} is now live:\n'
-                        f'{api.get_live_details()}'
+                        f'{await api.get_live_details()}'
             )
 
     if api.get_upcoming_status():
@@ -222,13 +232,13 @@ async def _async_youtube_live(ch_name, json_data):
             bot = nonebot.get_bot()
             await bot.send_group_msg(
                 group_id=json_data[ch_name]['qqGroup'],
-                message=api.get_live_details()
+                message=await api.get_live_details()
             )
 
             await bot.send_private_msg(
                 user_id=SUPER_USER,
                 message=f'{ch_name} is now ready:\n'
-                        f'{api.get_live_details()}'
+                        f'{await api.get_live_details()}'
             )
             
     logger.info(f'Checking live stat for {ch_name} completed.')

@@ -1,6 +1,9 @@
 import json
 import os
 import re
+from datetime import datetime
+from nonebot.log import logger
+
 import aiohttp
 
 import random
@@ -69,7 +72,7 @@ class YouTubeLiveTracker:
         self.new_video_id = live_stat['videoId']
         return live_stat['isLive']
 
-    def get_live_details(self) -> str:
+    async def get_live_details(self) -> str:
         live_stat = self.json_data['videoDetails']
         get_data = lambda x, y: y[x] if x in y else ''
 
@@ -80,6 +83,15 @@ class YouTubeLiveTracker:
 
         thumbnail_url = live_stat['thumbnail'] if 'thumbnail' in live_stat else {}
         image_data_in_qcode = ''
+        live_time = 'Unknown'
+        try:
+            live_time = self.json_data['playabilityStatus']['liveStreamability']
+            live_time = live_time['liveStreamabilityRenderer']['offlineSlate']
+            live_time = live_time['liveStreamOfflineSlateRenderer']['scheduledStartTime']
+            live_time = datetime.fromtimestamp(int(live_time)).strftime('%Y-%m-%d %H:%M:%S')
+        except KeyError:
+            logger.warning(f'No live_time param for the live for {self.ch_name}')
+            live_time = 'LIVE NOW'
 
         if thumbnail_url:
             thumbnail = live_stat['thumbnail']['thumbnails'][-1]['url']
@@ -103,6 +115,7 @@ class YouTubeLiveTracker:
                  f'=== 描述 ===\n{description}...\n\n' \
                  f'=== 封面 ===\n' \
                  f'{image_data_in_qcode}\n' \
+                 f'开播时间：{live_time}\n' \
                  f'观看地址：https://www.youtube.com/watch?v={self.new_video_id}'
 
         return result
@@ -116,7 +129,7 @@ class YouTubeLiveTracker:
 
         if is_checking_live:
             self.get_live_status()
-            if self.new_video_id != json_data[self.ch_name]['liveID']:
+            if 'liveID' not in json_data[self.ch_name] or self.new_video_id != json_data[self.ch_name]['liveID']:
                 json_data[self.ch_name]['liveID'] = self.new_video_id
                 with open(f'{os.getcwd()}/config/downloader.json', 'w+', encoding='utf8') as file:
                     json.dump(json_data, file, indent=4)
@@ -124,7 +137,7 @@ class YouTubeLiveTracker:
                 return True
         else:
             self.get_upcoming_status()
-            if self.new_video_id != json_data[self.ch_name]['upcomingID']:
+            if 'upcomingID' not in json_data[self.ch_name] or self.new_video_id != json_data[self.ch_name]['upcomingID']:
                 json_data[self.ch_name]['upcomingID'] = self.new_video_id
                 with open(f'{os.getcwd()}/config/downloader.json', 'w+', encoding='utf8') as file:
                     json.dump(json_data, file, indent=4)
