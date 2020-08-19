@@ -92,14 +92,19 @@ class YouTubeLiveTracker:
         except KeyError:
             logger.warning(f'No live_time param for the live for {self.ch_name}')
             live_time = self.json_data['playabilityStatus']['liveStreamability']
-            live_time = live_time['liveStreamabilityRenderer']['offlineSlate']
-            live_time = live_time['liveStreamOfflineSlateRenderer']
-            if 'mainText' in live_time:
-                live_time = live_time['mainText']['runs'][0]['text']
-                if 'offline' in live_time:
-                    live_time = ''
-            else:
+            live_time = live_time['liveStreamabilityRenderer']
+            if 'offlineSlate' not in live_time:
                 live_time = 'LIVE NOW'
+            else:
+                live_time = live_time['offlineSlate']['liveStreamOfflineSlateRenderer']
+                if 'mainText' in live_time:
+                    live_time = live_time['mainText']['runs'][0]['text']
+                    if 'offline' in live_time:
+                        live_time = ''
+                    else:
+                        live_time = 'LIVE NOW'
+                else:
+                    live_time = 'LIVE NOW'
 
         if thumbnail_url:
             thumbnail = live_stat['thumbnail']['thumbnails'][-1]['url']

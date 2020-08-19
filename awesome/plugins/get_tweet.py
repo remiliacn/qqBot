@@ -119,9 +119,20 @@ async def bulk_get_new_tweet(session: nonebot.CommandSession):
 @nonebot.scheduler.scheduled_job('interval', seconds=50, misfire_grace_time=5)
 async def send_tweet():
     start_time = time.time()
+    if get_status():
+        logger.info('Doing video fetch...')
+        Popen(
+          ['py', downloader, 'bulk'],
+          shell=True,
+          stdin=None,
+          stdout=None,
+          stderr=None,
+          close_fds=True
+        )
+        
     await asyncio.gather(
         do_tweet_update_fetch(),
-        do_bilibili_live_fetch(),
+        # do_bilibili_live_fetch(),
         do_youtube_update_fetch(),
         fill_sanity(),
         do_recall(),
@@ -161,17 +172,6 @@ async def send_tweet():
                     f'{alarm_api.get_info()}'
         )
     
-    if get_status():
-        logger.info('Doing video fetch...')
-        Popen(
-          ['py', downloader, 'bulk'],
-          shell=True,
-          stdin=None,
-          stdout=None,
-          stderr=None,
-          close_fds=True
-        )
-
 
 def get_status():
     file = open('data/started.json', 'r')
@@ -231,7 +231,8 @@ async def _async_youtube_live(ch_name, json_data):
 
                 await bot.send_private_msg(
                     user_id=SUPER_USER,
-                    message=f'{ch_name} is now live:\n'
+                    message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] ' 
+                            f'{ch_name} is now live:\n'
                             f'{await api.get_live_details()}'
                 )
 
@@ -247,7 +248,8 @@ async def _async_youtube_live(ch_name, json_data):
 
                 await bot.send_private_msg(
                     user_id=SUPER_USER,
-                    message=f'{ch_name} is now ready:\n'
+                    message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] ' 
+                            f'{ch_name} is now ready:\n'
                             f'{await api.get_live_details()}'
                 )
             

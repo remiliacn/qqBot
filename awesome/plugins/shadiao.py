@@ -468,9 +468,6 @@ async def av_validator(session: nonebot.CommandSession):
 
 @nonebot.on_command('色图', aliases='来张色图', only_to_me=False)
 async def pixiv_send(session: nonebot.CommandSession):
-    if not get_status():
-        await session.finish('机器人现在正忙，不接受本指令。')
-
     if alarm_api.get_alarm():
         await session.finish(
             '警报已升起！请等待解除！\n'
@@ -734,6 +731,9 @@ async def get_random_image(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if 'group_id' not in ctx:
         return
+
+    if admin_control.get_data(ctx['group_id'], 'banned'):
+        await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
 
     id_num = ctx['group_id']
     user_id = ctx['user_id']

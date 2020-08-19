@@ -314,11 +314,13 @@ def _math_fetch(question: str, user_id: int) -> str:
 
     try:
         answer = eval(
-            question, {"__builtins__": None},
-            {'gcd': gcd, 'sqrt': sqrt, 'pow': pow, 'floor': floor, 'factorial': factorial, 'sin': sin,
+            question,
+            {"__builtins__": None},
+            {'gcd': gcd, 'sqrt': sqrt, 'pow': pow,
+             'floor': floor, 'factorial': factorial, 'sin': sin,
              'cos': cos,
              'tan': tan, 'asin': asin, 'acos': acos, 'pi': pi, 'atan': atan
-             }
+            }
         )
 
     except Exception as err:
@@ -360,14 +362,6 @@ def _prefetch(question: str, user_id: int) -> str:
     elif question in user_control_module.get_user_dict():
         user_control_module.last_question = question
         response = user_control_module.get_user_response(question)
-        if isinstance(response, dict):
-            response = response['answer']
-        elif isinstance(response, list):
-            response = random.choice(response)
-            response = response['answer']
-        else:
-            raise ValueError('Invalid data type for answer.')
-
         return response if response != '$' else ''
 
     if 'おやすみ' in question:

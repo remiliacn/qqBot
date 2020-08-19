@@ -10,7 +10,7 @@ APScheduler
 ujson
 msgpack
 aiocache==0.11.1
-aiocqhttp==1.2.5
+aiocqhttp
 aiofiles==0.5.0
 blinker==1.4
 certifi==2020.6.20
@@ -28,7 +28,7 @@ idna==2.10
 itsdangerous==1.1.0
 Jinja2==2.11.2
 MarkupSafe==1.1.1
-nonebot==1.6.0
+nonebot
 priority==1.3.0
 Quart==0.11.5
 rfc3986==1.4.0

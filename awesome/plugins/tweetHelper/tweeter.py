@@ -11,10 +11,13 @@ import config
 from bilibiliService import bilibili_live as live_api
 
 try:
-    api = twitter.Api(consumer_key=config.consumer_key,
-                      consumer_secret=config.consumer_secret,
-                      access_token_key=config.access_token,
-                      access_token_secret=config.access_secret, tweet_mode='extended')
+    api = twitter.Api(
+        consumer_key=config.consumer_key,
+        consumer_secret=config.consumer_secret,
+        access_token_key=config.access_token,
+        access_token_secret=config.access_secret,
+        tweet_mode='extended'
+    )
 
 except Exception as e:
     logger.error("getTweet init failed %s" % e)
@@ -29,8 +32,8 @@ class tweeter:
         self.tweet_list_init = {}
         self.tweet_config = self._get_tweet_config()
 
-        self.live_stat = {}
-        self.live_stat = self.get_live_room_info()
+        # self.live_stat = {}
+        # self.live_stat = self.get_live_room_info()
 
         for ch_name in self.tweet_config:
             if self.tweet_config[ch_name]['enabled']:
@@ -234,7 +237,7 @@ class tweeter:
                 for idx in range(0, len(media)):
                     img_src = media[idx].media_url
                     if img_src:
-                        pic_name = re.findall(r'[A-Za-z0-9\-_]+\.[jpgnif]{3}', img_src)[0]
+                        pic_name = img_src.split('/')[-1]
                         file_name = self.path + pic_name
                         if not os.path.exists(file_name):
                             try:
