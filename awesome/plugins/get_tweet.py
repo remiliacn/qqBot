@@ -163,8 +163,14 @@ async def send_tweet():
     
     if get_status():
         logger.info('Doing video fetch...')
-        Popen(['py', downloader, 'bulk'], shell=True,
-             stdin=None, stdout=None, stderr=None, close_fds=True, creationflags=DETACHED_PROCESS)
+        Popen(
+          ['py', downloader, 'bulk'],
+          shell=True,
+          stdin=None,
+          stdout=None,
+          stderr=None,
+          close_fds=True
+        )
 
 
 def get_status():
@@ -216,30 +222,34 @@ async def _async_youtube_live(ch_name, json_data):
     if api.get_live_status():
         if api.update_live_id(True):
             bot = nonebot.get_bot()
-            await bot.send_group_msg(
-                group_id=json_data[ch_name]['qqGroup'],
-                message=await api.get_live_details()
-            )
+            message = await api.get_live_details()
+            if message:
+                await bot.send_group_msg(
+                    group_id=json_data[ch_name]['qqGroup'],
+                    message=message
+                )
 
-            await bot.send_private_msg(
-                user_id=SUPER_USER,
-                message=f'{ch_name} is now live:\n'
-                        f'{await api.get_live_details()}'
-            )
+                await bot.send_private_msg(
+                    user_id=SUPER_USER,
+                    message=f'{ch_name} is now live:\n'
+                            f'{await api.get_live_details()}'
+                )
 
     if api.get_upcoming_status():
         if api.update_live_id(False):
             bot = nonebot.get_bot()
-            await bot.send_group_msg(
-                group_id=json_data[ch_name]['qqGroup'],
-                message=await api.get_live_details()
-            )
+            message = await api.get_live_details()
+            if message:
+                await bot.send_group_msg(
+                    group_id=json_data[ch_name]['qqGroup'],
+                    message=await api.get_live_details()
+                )
 
-            await bot.send_private_msg(
-                user_id=SUPER_USER,
-                message=f'{ch_name} is now ready:\n'
-                        f'{await api.get_live_details()}'
-            )
+                await bot.send_private_msg(
+                    user_id=SUPER_USER,
+                    message=f'{ch_name} is now ready:\n'
+                            f'{await api.get_live_details()}'
+                )
             
     logger.info(f'Checking live stat for {ch_name} completed.')
 
@@ -264,7 +274,6 @@ async def do_youtube_update_fetch():
                 if youtube_notify_dict[elements]['retcode'] == 0:
                     try:
                         group_id = int(youtube_notify_dict[elements]['group_id'])
-                        sanity_meter.set_user_data(0, 'tweet', 1, True)
                         await bot.send_group_msg(
                             group_id=group_id,
                             message='刚才你们让扒的源搞好了~\n'

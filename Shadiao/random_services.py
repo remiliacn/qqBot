@@ -83,7 +83,7 @@ class YouTubeLiveTracker:
 
         thumbnail_url = live_stat['thumbnail'] if 'thumbnail' in live_stat else {}
         image_data_in_qcode = ''
-        live_time = 'Unknown'
+
         try:
             live_time = self.json_data['playabilityStatus']['liveStreamability']
             live_time = live_time['liveStreamabilityRenderer']['offlineSlate']
@@ -91,7 +91,15 @@ class YouTubeLiveTracker:
             live_time = datetime.fromtimestamp(int(live_time)).strftime('%Y-%m-%d %H:%M:%S')
         except KeyError:
             logger.warning(f'No live_time param for the live for {self.ch_name}')
-            live_time = 'LIVE NOW'
+            live_time = self.json_data['playabilityStatus']['liveStreamability']
+            live_time = live_time['liveStreamabilityRenderer']['offlineSlate']
+            live_time = live_time['liveStreamOfflineSlateRenderer']
+            if 'mainText' in live_time:
+                live_time = live_time['mainText']['runs'][0]['text']
+                if 'offline' in live_time:
+                    live_time = ''
+            else:
+                live_time = 'LIVE NOW'
 
         if thumbnail_url:
             thumbnail = live_stat['thumbnail']['thumbnails'][-1]['url']
@@ -110,13 +118,16 @@ class YouTubeLiveTracker:
 
         head = f'{self.ch_name}创建了新的直播间！\n' if self.get_upcoming_status() else f'{self.ch_name}开播啦！'
 
-        result = f'{head}\n' \
-                 f'标题 {title}\n\n' \
-                 f'=== 描述 ===\n{description}...\n\n' \
-                 f'=== 封面 ===\n' \
-                 f'{image_data_in_qcode}\n' \
-                 f'开播时间：{live_time}\n' \
-                 f'观看地址：https://www.youtube.com/watch?v={self.new_video_id}'
+        if live_time:
+            result = f'{head}\n' \
+                     f'标题 {title}\n\n' \
+                     f'=== 描述 ===\n{description}...\n\n' \
+                     f'=== 封面 ===\n' \
+                     f'{image_data_in_qcode}\n' \
+                     f'开播时间：{live_time}\n' \
+                     f'观看地址：https://www.youtube.com/watch?v={self.new_video_id}'
+        else:
+            result = ''
 
         return result
 

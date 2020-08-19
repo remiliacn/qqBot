@@ -7,7 +7,7 @@ USER_T = Union[OWNER, ADMIN, WHITELIST, BANNED]
 
 def _init_data(path: str) -> dict:
     if exists(path):
-        with open(path, 'r') as file:
+        with open(path, 'r', encoding='utf8') as file:
             fl = file.read()
             return json.loads(str(fl))
 

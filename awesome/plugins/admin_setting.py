@@ -143,11 +143,11 @@ async def delete_admin(session: nonebot.CommandSession):
 @nonebot.on_command('我懂了', only_to_me=False)
 async def add_ai_real_response(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    question = session.get('question', prompt='请输入回答的问题')
-    question = str(question).replace('\n', '')
-
     if not get_privilege(ctx['user_id'], perm.WHITELIST):
         await session.finish()
+
+    question = session.get('question', prompt='请输入回答的问题')
+    question = str(question).replace('\n', '')
 
     if question in user_control_module.get_user_dict():
         user_control_module.delete_response(question)
