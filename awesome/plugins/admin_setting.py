@@ -286,10 +286,13 @@ def _simple_ai_process(question: str) -> str:
 
 
 def _math_fetch(question: str, user_id: int) -> str:
-    if re.match(r'.*?name__', question) and not get_privilege(user_id, perm.OWNER):
-        return '检测到危险指令。拒绝执行'
+    if not get_privilege(user_id, perm.OWNER):
+        question = question.replace('_', '')
 
-    if re.match(r'.*?(sudo|ls|rm|curl|chmod|usermod|newgrp|vim|objdump|aux|lambda)', question):
+    if re.match(
+            r'.*?(sudo|ls|rm|curl|chmod|usermod|newgrp|vim|objdump|aux|lambda|del)',
+            question
+    ):
         return ''
 
     if re.match(r'.*?\*\*', question):
@@ -331,6 +334,13 @@ def _is_float(content: str) -> bool:
         return True
 
     except ValueError:
+        return False
+
+    except TypeError:
+        return False
+
+    except Exception as err:
+        nonebot.logger.warning(f'Uncaught error: {err}')
         return False
 
 
