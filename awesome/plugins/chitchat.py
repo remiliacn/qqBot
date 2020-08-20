@@ -5,8 +5,8 @@ import re
 import time
 
 from awesome.adminControl import permission as perm
-from awesome.adminControl import group_admin, user_control
 from awesome.plugins.util.helper_util import get_downloaded_image_path
+from qq_bot_core import user_control_module
 
 
 class Votekick:
@@ -21,10 +21,7 @@ class Votekick:
         self.vote_kick_dict[qq_num] += 1
         return self.vote_kick_dict[qq_num]
 
-admin_control = group_admin.Shadiaoadmin()
 vote_kick_controller = Votekick()
-
-user_control_module = user_control.UserControl()
 
 get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
 

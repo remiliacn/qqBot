@@ -4,6 +4,8 @@ import re
 import time
 from json import dump, loads
 
+import aiohttp
+import nonebot
 import requests
 
 #临时图库，在网站不可用的时候使用里面的图片。
@@ -39,59 +41,56 @@ class flatter:
 class ShadiaoAPI:
     def __init__(self):
         self.base_dir = f'{os.getcwd()}/data/biaoqing/'
+        self.timeout = aiohttp.ClientTimeout(total=10)
+        self._init_base_dir()
+        self.page = random.randint(0, 10)
+        self.base_url = f"https://www.fabiaoqing.com/biaoqing/lists/page/{self.page}.html"
+        self.image_list = []
+
+    def _init_base_dir(self):
         if not os.path.exists(self.base_dir):
             try:
                 os.makedirs(self.base_dir)
             except IOError:
                 raise IOError(f'Unable to create directory: {self.base_dir}')
 
-        random.seed(time.time_ns())
-        self.page = random.randint(0, 10)
-        self.base_url = f"https://www.fabiaoqing.com/biaoqing/lists/page/{self.page}.html"
-        self.image_list = self.get_image_list()
-
-    def get_image_list(self):
+    async def get_image_list(self):
         try:
-            page = requests.get(self.base_url, timeout=15)
+            async with aiohttp.ClientSession(headers=headers, timeout=self.timeout) as client:
+                async with client.get(self.base_url) as page:
+                    imageList = re.findall(r'data-original="(.*?)"', await page.text())
+
         except Exception as e:
             print("发表情网不可用：错误%s" % e)
             imageList = os.listdir(self.base_dir)
             return imageList
 
-        imageList = re.findall(r'data-original="(.*?)"', page.text)
         return imageList
 
-    def get_picture(self, download_count=1):
+    async def get_picture(self):
         random.seed(time.time_ns())
-        image_list = self.image_list
+        image = random.choice(self.image_list)
+        try:
+            file_detailed_name = image.split('/')[-1]
+            file_name = self.base_dir + file_detailed_name
+            if not os.path.exists(file_name):
+                async with aiohttp.ClientSession(timeout=self.timeout) as client:
+                    async with client.get(image) as page:
+                        page.raise_for_status()
+                        with open(file_name, 'wb') as f:
+                            while True:
+                                chunk = await page.content.read(1024 ** 2)
+                                if not chunk:
+                                    break
+                                f.write(chunk)
 
-        file_list = []
+            nonebot.logger.info("Picture got:", file_name)
+            return file_name
 
-        for count in range(download_count):
-            image = random.choice(image_list)
-            try:
-                file_detailed_name = image.split('/')[-1]
-                file_name = self.base_dir + file_detailed_name
-                if not os.path.exists(file_name):
-                    img = requests.get(image, timeout=6)
-                    img.raise_for_status()
-                    with open(file_name, 'wb') as f:
-                        for chunk in img.iter_content(chunk_size=1024 ** 2):
-                            f.write(chunk)
-
-                print("Picture got:", file_name)
-                if download_count > 1:
-                    file_list.append(file_name)
-
-                return file_name
-
-            except Exception as e:
-                image_list = os.listdir(self.base_dir)
-                print("Exception occurred: %s" % e)
-                if download_count == 1:
-                    return self.base_dir + random.choice(image_list)
-
-        return file_list if file_list else []
+        except Exception as e:
+            image_list = os.listdir(self.base_dir)
+            nonebot.logger.warning("Exception occurred: %s" % e)
+            return self.base_dir + random.choice(image_list)
 
 
 class Avalidator:

@@ -1,13 +1,14 @@
 import asyncio
-from random import randint, seed
+from random import randint, seed, choice
 from time import time_ns
 
 import nonebot
 
 from Shadiao import poker_game, ru_game
-from awesome.plugins.shadiao import admin_control, sanity_meter
 from awesome.adminControl import permission as perm
 from awesome.plugins.admin_setting import get_privilege
+from awesome.plugins.shadiao import admin_control, sanity_meter
+
 
 class Storer:
     def __init__(self):
@@ -21,46 +22,40 @@ class Storer:
         self.stored_result[group_id] = ''
         return temp
 
-poker = poker_game.Pokergame()
-GLOBAL_STORE = Storer()
-game = ru_game.Russianroulette()
-
-
-import random
 class horseRacing:
-    def __init__(self, userGuess : str):
+    def __init__(self, userGuess: str):
         self.userGuess = userGuess
         self.winningGoal = 7
         self.actualWinner = -1
         self.addingDict = {
-            "正在勇往直前！" : 6,
-            "正在一飞冲天！" : 4,
-            "提起马蹄子就继续往前冲冲冲" : 4,
-            "如同你打日麻放铳一样勇往直前！" : 4,
+            "正在勇往直前！": 6,
+            "正在一飞冲天！": 4,
+            "提起马蹄子就继续往前冲冲冲": 4,
+            "如同你打日麻放铳一样勇往直前！": 4,
             "如同你打日麻放铳一样疾步迈进！": 3,
-            "艰难的往前迈了几步" : 2,
-            "使用了忍术！它！飞！起！来！了！" : 2,
+            "艰难的往前迈了几步": 2,
+            "使用了忍术！它！飞！起！来！了！": 2,
             "艰难的往前迈了一小步": 1,
-            "晃晃悠悠的往前走了一步" : 1,
-            "它窜稀的后坐力竟然让它飞了起来！" : 3,
-            "终于打起勇气，往前走了……一步" : 1,
+            "晃晃悠悠的往前走了一步": 1,
+            "它窜稀的后坐力竟然让它飞了起来！": 3,
+            "终于打起勇气，往前走了……一步": 1,
             "终于打起勇气，往前走了……两步": 2,
             "终于打起勇气，往前走了……三步": 3,
         }
 
         self.subtractingDict = {
-            "被地上的沥青的颜色吓傻了！止步不前" : 0,
+            "被地上的沥青的颜色吓傻了！止步不前": 0,
             '被電マplay啦！爽的倒退了2步！': -2,
-            "打假赛往反方向跑了！" : -3,
-            "被旁边的选手干扰的吓得往后退了几步" : -2,
-            "哼啊啊啊啊啊~的叫了起来，落后大部队！" : -2,
-            "马晕厥了！可能是中暑了！这下要麻烦了！" : -5,
-            "它它它，居然！马猝死了！哎？等会儿！好像它马又复活了" : -10,
-            "吃多了在窜稀，暂时失去了战斗力" : -1,
-            "觉得敌不动我不动，敌动了……我还是不能动" : 0,
-            "觉得现在这个位置的空气不错，决定多待会儿~" : 0,
-            "突然站在原地深情的开始感叹——watashi mo +1" : 0,
-            "决定在原地玩会儿明日方舟" : 0,
+            "打假赛往反方向跑了！": -3,
+            "被旁边的选手干扰的吓得往后退了几步": -2,
+            "哼啊啊啊啊啊~的叫了起来，落后大部队！": -2,
+            "马晕厥了！可能是中暑了！这下要麻烦了！": -5,
+            "它它它，居然！马猝死了！哎？等会儿！好像它马又复活了": -10,
+            "吃多了在窜稀，暂时失去了战斗力": -1,
+            "觉得敌不动我不动，敌动了……我还是不能动": 0,
+            "觉得现在这个位置的空气不错，决定多待会儿~": 0,
+            "突然站在原地深情的开始感叹——watashi mo +1": 0,
+            "决定在原地玩会儿明日方舟": 0,
             "决定在原地玩会儿fgo": 0,
             "决定在原地玩会儿日麻": 0,
         }
@@ -95,13 +90,13 @@ class horseRacing:
         resp = ""
         i = 0
         for idx, elements in enumerate(self.horseList):
-            if random.randint(0, 5) >= 2:
-                thisChoice = random.choice(list(self.addingDict))
+            if randint(0, 5) >= 2:
+                thisChoice = choice(list(self.addingDict))
                 self.horseList[idx] += self.addingDict[thisChoice]
                 self.responseList.append(str(i + 1) + "号马, " + thisChoice)
 
             else:
-                thisChoice = random.choice(list(self.subtractingDict))
+                thisChoice = choice(list(self.subtractingDict))
                 self.horseList[idx] += self.subtractingDict[thisChoice]
                 self.responseList.append(str(i + 1) + "号马, " + thisChoice)
 
@@ -118,8 +113,13 @@ class horseRacing:
 
         return False
 
+poker = poker_game.Pokergame()
+GLOBAL_STORE = Storer()
+game = ru_game.Russianroulette()
+
+
 @nonebot.on_command('赛马', only_to_me=False)
-async def horseRace(session : nonebot.CommandSession):
+async def horseRace(session: nonebot.CommandSession):
     winner = session.get('winner', prompt='请输入一个胜方编号进行猜测（1-6）')
     race = horseRacing(winner)
     ctx = session.ctx.copy()
@@ -138,6 +138,7 @@ async def horseRace(session : nonebot.CommandSession):
         else:
             await session.send(f"啊哦~猜输了呢！其实是{race.whoWin()}号赢了哦")
 
+
 @horseRace.args_parser
 async def _(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
@@ -151,8 +152,9 @@ async def _(session: nonebot.CommandSession):
 
     session.state[session.current_key] = stripped_arg
 
+
 @nonebot.on_command('轮盘赌', only_to_me=False)
-async def russianRoulette(session : nonebot.CommandSession):
+async def russianRoulette(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     id_num = ctx['group_id'] if 'group_id' in ctx else ctx['user_id']
     user_id = ctx['user_id']
@@ -199,8 +201,9 @@ async def russianRoulette(session : nonebot.CommandSession):
         rand_num = randint(low, high)
         await bot.set_group_ban(group_id=id_num, user_id=user_id, duration=60 * rand_num)
 
+
 @nonebot.on_command('转轮', only_to_me=False)
-async def shuffle_gun(session : nonebot.CommandSession):
+async def shuffle_gun(session: nonebot.CommandSession):
     seed(time_ns())
     ctx = session.ctx.copy()
     if 'group_id' not in ctx:
@@ -209,8 +212,9 @@ async def shuffle_gun(session : nonebot.CommandSession):
     game.reset_gun(ctx['group_id'])
     await session.send('%s转动了弹夹！流向改变了！' % ctx['sender']['nickname'])
 
+
 @nonebot.on_command('比大小', only_to_me=False)
-async def the_poker_game(session : nonebot.CommandSession):
+async def the_poker_game(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     user_id = ctx['user_id']
 
@@ -246,6 +250,7 @@ async def the_poker_game(session : nonebot.CommandSession):
             sanity_meter.set_user_data(response, 'poker')
 
         poker.clear_result(str(ctx['group_id']))
+
 
 def encrypt_card(card, time_seed):
     result = ''

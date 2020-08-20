@@ -4,20 +4,17 @@ import re
 import time
 from math import *
 
+import aiohttp
 import nonebot
-import requests
 import os
 
 import config
-from awesome.adminControl import group_admin
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.util.helper_util import get_downloaded_image_path
 from datetime import datetime
-from qq_bot_core import alarm_api
+from qq_bot_core import alarm_api, admin_control
 from qq_bot_core import user_control_module
-
-admin_control = group_admin.Shadiaoadmin()
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
@@ -212,16 +209,6 @@ async def sendAnswer(session: nonebot.CommandSession):
         # math processing
         try:
             response = _math_fetch(question, ctx['user_id'])
-            bot = nonebot.get_bot()
-            await bot.send_private_msg(
-                user_id=config.SUPER_USER,
-                message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
-                        f'风险控制\n'
-                        f'使用命令：！问题\n'
-                        f'我的回复：{response}'
-                        f'使用人：{ctx["user_id"]}\n'
-                        f'来自群：{ctx["group_id"] if "group_id" in ctx else -1}'
-            )
 
         except Exception as err:
             await session.send('计算时遇到了问题，本事件已上报bot主人进行分析。')
@@ -242,12 +229,22 @@ async def sendAnswer(session: nonebot.CommandSession):
                 response + '\n'
                            f'回答用时：{(time.time() - start_time):.2f}s'
             )
+            bot = nonebot.get_bot()
+            await bot.send_private_msg(
+                user_id=config.SUPER_USER,
+                message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
+                        f'风险控制\n'
+                        f'使用命令：！问题\n'
+                        f'我的回复：\n{response}\n'
+                        f'使用人：{ctx["user_id"]}\n'
+                        f'来自群：{ctx["group_id"] if "group_id" in ctx else -1}'
+            )
 
         else:
             nonebot.logger.info(msg="It is not a normal question.")
             ai_process = _simple_ai_process(question)
             if question == ai_process:
-                response = _request_api_response(question)
+                response = await _request_api_response(question)
                 await session.send(
                     response +
                     f'\n'
@@ -460,29 +457,34 @@ def _prefetch(question: str, user_id: int) -> str:
     return ''
 
 
-def _request_api_response(question: str) -> str:
+async def _request_api_response(question: str) -> str:
+    timeout = aiohttp.ClientTimeout(total=5)
     if '鸡汤' in question:
         try:
-            page = requests.get('https://api.daidr.me/apis/poisonous', timeout=5)
-            response = page.text
+            async with aiohttp.ClientSession(timeout=timeout) as client:
+                async with client.get('https://api.daidr.me/apis/poisonous') as page:
+                    response = await page.text()
+
         except Exception as err:
             nonebot.logger.warning(err)
             response = '我还不太会回答这个问题哦！不如换种问法？'
 
     else:
         try:
-            page = requests.get(
-                f'http://i.itpk.cn/api.php?question={question}'
-                f'&limit=7'
-                f'&api_key={config.itpk_key}'
-                f'&api_secret={config.itpk_secret}',
-                timeout=5)
-
-            if not '笑话' in question:
-                response = page.text.replace("\ufeff", "")
-            else:
-                data = json.loads(page.text.replace("\ufeff", ""))
-                response = str(data['content']).replace('\r', '')
+            async with aiohttp.ClientSession(timeout=timeout) as client:
+                async with client.get(
+                        f'http://i.itpk.cn/api.php?question={question}'
+                        f'&limit=7'
+                        f'&api_key={config.itpk_key}'
+                        f'&api_secret={config.itpk_secret}'
+                ) as page:
+                    if not '笑话' in question:
+                        response = await page.text()
+                        response = response.replace("\ufeff", "")
+                    else:
+                        data = await page.text()
+                        data = json.loads(data.replace("\ufeff", ""))
+                        response = str(data['content']).replace('\r', '')
 
         except Exception as err:
             nonebot.logger.warning(err)

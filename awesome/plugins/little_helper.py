@@ -1,7 +1,7 @@
 import time
 
+import aiohttp
 import nonebot
-import requests
 from nonebot.log import logger
 
 from Shadiao import random_services
@@ -187,16 +187,20 @@ async def hhsh(entry: str) -> str:
     guess_url = 'https://lab.magiconch.com/api/nbnhhsh/guess'
 
     try:
-        page = requests.post(guess_url, data={"text": entry}, headers=headers, timeout=5)
+        timeout = aiohttp.ClientTimeout(total=5)
+        async with aiohttp.ClientSession(headers=headers, timeout=timeout) as client:
+            async with client.post(guess_url, data={"text": entry}) as page:
+                json_data = await page.json()
+
     except Exception as e:
         print(e)
         return '出问题了，请重试！'
 
-    json_data = page.json()
     result = '这个缩写可能的意味有：\n'
     try:
         for idx, element in enumerate(json_data[0]['trans']):
             result += element + ', ' if idx + 1 != len(json_data[0]['trans']) else element
+
     except KeyError:
         try:
             return result + json_data[0]['inputting'][0]

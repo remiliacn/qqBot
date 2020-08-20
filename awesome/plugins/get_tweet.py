@@ -9,22 +9,17 @@ import nonebot
 from nonebot.log import logger
 
 from Shadiao.random_services import YouTubeLiveTracker
-from awesome.adminControl import group_admin
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.tweetHelper import tweeter
 from bilibiliService import bilibili_topic
-from config import SUPER_USER, downloader
+from config import SUPER_USER, downloader, share_link
 from qq_bot_core import alarm_api
 from qq_bot_core import user_control_module
-
-admin_control = group_admin.Shadiaoadmin()
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
 tweet = tweeter.tweeter()
-share_link = 'paryi-my.sharepoint.com/:f:/g/personal/hanayori_paryi_xyz/Em62_uotiDlIohJKvbMWoiQBzutGjbRga1uOXNdmTjEtpA?e=X4hGfT'
-
 
 @nonebot.on_command('推特数据', only_to_me=False)
 async def get_tweet_data(session: nonebot.CommandSession):

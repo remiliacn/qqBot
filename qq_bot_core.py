@@ -6,7 +6,7 @@ import nonebot
 from nonebot.log import logger
 
 import config
-from awesome.adminControl import alarm, user_control
+from awesome.adminControl import alarm, user_control, setu, group_admin
 
 config_file = \
 """
@@ -26,6 +26,7 @@ downloader = 'forDownload.py'
 path_export = ''                # OneDrive path for downloaded video.
 path_temp = ''                  # Temp saving path for downloaded video.
 ffmpeg_path = ''                # If ffmpeg is not in $path, here should be set.
+share_link = ''                 # OneDrive share link.
 
 SUPER_USER = 0 # Report will be sent to this qq.
 
@@ -40,6 +41,8 @@ PORT = 5700
 
 alarm_api = alarm.Alarm()
 user_control_module = user_control.UserControl()
+sanity_meter = setu.SetuFunction()
+admin_control = group_admin.Shadiaoadmin()
 
 def register_true():
     if not path.exists('data/started.json'):
