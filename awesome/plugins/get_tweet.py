@@ -2,28 +2,29 @@ import asyncio
 import json
 import re
 import time
-from subprocess import Popen, DETACHED_PROCESS
+from datetime import datetime
+from subprocess import Popen
 
 import nonebot
 from nonebot.log import logger
 
-from awesome.adminControl import permission as perm
-from awesome.adminControl import group_admin
 from Shadiao.random_services import YouTubeLiveTracker
+from awesome.adminControl import group_admin
+from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.tweetHelper import tweeter
 from bilibiliService import bilibili_topic
 from config import SUPER_USER, downloader
 from qq_bot_core import alarm_api
 from qq_bot_core import user_control_module
-from datetime import datetime
+
 admin_control = group_admin.Shadiaoadmin()
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
-
 tweet = tweeter.tweeter()
 share_link = 'paryi-my.sharepoint.com/:f:/g/personal/hanayori_paryi_xyz/Em62_uotiDlIohJKvbMWoiQBzutGjbRga1uOXNdmTjEtpA?e=X4hGfT'
+
 
 @nonebot.on_command('推特数据', only_to_me=False)
 async def get_tweet_data(session: nonebot.CommandSession):
@@ -122,14 +123,13 @@ async def send_tweet():
     if get_status():
         logger.info('Doing video fetch...')
         Popen(
-          ['py', downloader, 'bulk'],
-          shell=True,
-          stdin=None,
-          stdout=None,
-          stderr=None,
-          close_fds=True
+            ['py', downloader, 'bulk'],
+            stdin=None,
+            stdout=None,
+            stderr=None,
+            close_fds=True
         )
-        
+
     await asyncio.gather(
         do_tweet_update_fetch(),
         # do_bilibili_live_fetch(),
@@ -153,9 +153,9 @@ async def send_tweet():
         )
 
         alarm_info = {
-            'sev' : 2,
-            'message' : '网络连接出现巨大延迟！',
-            'time' : datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            'sev': 2,
+            'message': '网络连接出现巨大延迟！',
+            'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
 
         alarm_api.set_alarm(alarm_info)
@@ -171,12 +171,13 @@ async def send_tweet():
                     f'BEE WOO BEE WOO!!!\n'
                     f'{alarm_api.get_info()}'
         )
-    
+
 
 def get_status():
     file = open('data/started.json', 'r')
     status_dict = json.loads(str(file.read()))
     return status_dict['status']
+
 
 async def save_stats():
     sanity_meter.make_a_json('config/stats.json')
@@ -206,6 +207,7 @@ async def do_recall():
 
         sanity_meter.clear_recall()
 
+
 async def check_youtube_live():
     tasks = []
     with open(f'config/downloader.json', 'r', encoding='utf-8') as file:
@@ -214,6 +216,7 @@ async def check_youtube_live():
             tasks.append(_async_youtube_live(ch_name, json_data))
 
     await asyncio.gather(*tasks)
+
 
 async def _async_youtube_live(ch_name, json_data):
     logger.info(f'Checking live stat for {ch_name}')
@@ -231,7 +234,7 @@ async def _async_youtube_live(ch_name, json_data):
 
                 await bot.send_private_msg(
                     user_id=SUPER_USER,
-                    message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] ' 
+                    message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
                             f'{ch_name} is now live:\n'
                             f'{await api.get_live_details()}'
                 )
@@ -248,12 +251,13 @@ async def _async_youtube_live(ch_name, json_data):
 
                 await bot.send_private_msg(
                     user_id=SUPER_USER,
-                    message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] ' 
+                    message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
                             f'{ch_name} is now ready:\n'
                             f'{await api.get_live_details()}'
                 )
-            
+
     logger.info(f'Checking live stat for {ch_name} completed.')
+
 
 async def fill_sanity():
     logger.info('Filling sanity...')
@@ -282,9 +286,9 @@ async def do_youtube_update_fetch():
                                     '视频名称：%s\n'
                                     '如果上传好了的话视频将会出现在\n'
                                     '%s' % (
-                                elements,
-                                share_link
-                            )
+                                        elements,
+                                        share_link
+                                    )
                         )
                         await bot.send_private_msg(
                             user_id=SUPER_USER,
@@ -335,7 +339,7 @@ async def do_tweet_update_fetch():
         for ch_name in diff_dict:
             group_id_list = tweet.get_tweet_config()[ch_name]['group']
             message = diff_dict[ch_name]
-                
+
             if message[0:2] == 'RT':
                 message = f'=== {ch_name}转发推文说 ===\n' + message
             elif message[0] == '@':

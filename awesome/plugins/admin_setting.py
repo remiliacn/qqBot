@@ -13,6 +13,7 @@ from awesome.adminControl import group_admin
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.util.helper_util import get_downloaded_image_path
+from datetime import datetime
 from qq_bot_core import alarm_api
 from qq_bot_core import user_control_module
 
@@ -209,7 +210,33 @@ async def sendAnswer(session: nonebot.CommandSession):
         )
     else:
         # math processing
-        response = _math_fetch(question, ctx['user_id'])
+        try:
+            response = _math_fetch(question, ctx['user_id'])
+            bot = nonebot.get_bot()
+            await bot.send_private_msg(
+                user_id=config.SUPER_USER,
+                message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
+                        f'风险控制\n'
+                        f'使用命令：！问题\n'
+                        f'我的回复：{response}'
+                        f'使用人：{ctx["user_id"]}\n'
+                        f'来自群：{ctx["group_id"] if "group_id" in ctx else -1}'
+            )
+
+        except Exception as err:
+            await session.send('计算时遇到了问题，本事件已上报bot主人进行分析。')
+            bot = nonebot.get_bot()
+            await bot.send_private_msg(
+                user_id=config.SUPER_USER,
+                message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] ' 
+                        f'可能的高危行为汇报：\n'
+                        f'使用命令：！问题\n'
+                        f'错误：{err}\n'
+                        f'使用人：{ctx["user_id"]}\n'
+                        f'来自群：{ctx["group_id"] if "group_id" in ctx else -1}\n'
+            )
+            return
+
         if response:
             await session.send(
                 response + '\n'
@@ -289,18 +316,51 @@ def _math_fetch(question: str, user_id: int) -> str:
     if not get_privilege(user_id, perm.OWNER):
         question = question.replace('_', '')
 
+    if len(question) > 30:
+        return '检测到可能的DDoS攻击。计算停止'
+
     if re.match(
             r'.*?(sudo|ls|rm|curl|chmod|usermod|newgrp|vim|objdump|aux|lambda|del)',
             question
     ):
         return ''
 
+    if 'factorial' in question:
+        if len(question) > 20:
+            return '检测到可能的DDoS攻击。计算停止'
+
+        if '**' in question:
+            return '检测到可能的DDoS攻击。计算停止'
+
+        if 'pow' in question:
+            return '检测到可能的DDoS攻击。计算停止'
+
+        fact_number = re.findall(r'.*?factorial\((\d+)\)', question)
+        if fact_number:
+            if int(fact_number[0]) > 500:
+                return '检测到可能的DDoS攻击。计算停止'
+
+    if re.match(r'.*?<<', question):
+        overflow_fetch = re.findall(r'.*?<<(\d+)', question)
+        if overflow_fetch:
+            if len(overflow_fetch) != 1:
+                return '检测到可能的DDoS攻击。计算停止'
+            if int(overflow_fetch[0]) > 100:
+                return '检测到可能的DDoS攻击。计算停止'
+
     if re.match(r'.*?\*\*', question):
         if len(question) > 10:
             return '检测到可能的DDoS攻击。计算停止'
 
-        if int(re.findall(r'.*?\*\*(\d+)', question)[0]) > 99:
-            return '检测到可能的DDoS攻击。计算停止'
+        overflow_fetch = re.findall(r'.*?\*\*(\d+)', question)
+        if overflow_fetch:
+            if len(overflow_fetch) > 2:
+                return '检测到可能的DDoS攻击。计算停止'
+            else:
+                if int(overflow_fetch[0]) > 99:
+                    return '检测到可能的DDoS攻击。计算停止'
+                if len(overflow_fetch) == 2 and int(overflow_fetch[1]) > 2:
+                    return '检测到可能的DDoS攻击。计算停止'
 
     if re.match(r'.*?pow\(\d+,\d+\)', question):
         if len(question) > 10:
@@ -327,7 +387,11 @@ def _math_fetch(question: str, user_id: int) -> str:
         nonebot.logger.warning(f'This is not a math question.{str(err)}')
         return ''
 
-    return f'运算结果是：{f"{answer:.2f}" if _is_float(answer) else answer}' + '\n我算的对吧~'
+    if _is_float(answer):
+        return f'运算结果是：{answer:.2f}' \
+               '\n我算的对吧~'
+    else:
+        return ''
 
 
 def _is_float(content: str) -> bool:
