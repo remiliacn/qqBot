@@ -47,12 +47,15 @@ class YouTubeLiveTracker:
     async def get_json_data(self):
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.get(self.base_url) as r:
-                content_live = re.findall(r'window\["ytInitialPlayerResponse"] = (.*?});', await r.text())
+                content_live = re.findall(r'window\["ytInitialPlayerResponse"] = ({.*?});', await r.text())
                 if not content_live:
                     json_data = {'videoDetails' : {}}
                 else:
                     content_live = content_live[0]
-                    json_data = json.loads(content_live)
+                    try:
+                        json_data = json.loads(content_live)
+                    except json.JSONDecodeError:
+                        json_data = {'videoDetails' : {}}
 
                 self.json_data = json_data
 
