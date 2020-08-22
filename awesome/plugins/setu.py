@@ -9,7 +9,6 @@ import aiohttp
 import nonebot
 import pixivpy3
 from aiocqhttp import MessageSegment
-from requests import get
 
 from awesome.adminControl import permission as perm
 from config import SUPER_USER, user_name, password
@@ -430,33 +429,34 @@ async def sauce_helper(url):
 
                 image_content = MessageSegment.image(f'file:///{path}')
 
-                if 'ext_urls' not in json_data['data']:
+                if 'ext_urls' not in json_data:
                     return '图片辨别率低。请换一张图试试！'
 
                 pixiv_id = 'Undefined'
                 title = 'Undefined'
                 author = 'Undefined'
 
-                ext_url = json_data['data']['ext_urls'][0]
-                if 'title' not in json_data['data']:
-                    if 'creator' in json_data['data']:
-                        author = json_data['data']['creator']
-                    elif 'author' in json_data['data']:
-                        author = json_data['data']['author']
+                json_data = json_data['data']
+                ext_url = json_data['ext_urls'][0]
+                if 'title' not in json_data:
+                    if 'creator' in json_data:
+                        author = json_data['creator']
+                    elif 'author' in json_data:
+                        author = json_data['author']
                     else:
-                        if 'artist' not in json_data['data']:
+                        if 'artist' not in json_data:
                             return '图片辨别率低。请换一张图试试！'
 
-                        author = json_data['data']['artist']
+                        author = json_data['artist']
 
-                elif 'title' in json_data['data']:
-                    title = json_data['data']['title']
-                    if 'author_name' in json_data['data']:
-                        author = json_data['data']['author_name']
-                    elif 'member_name' in json_data['data']:
-                        author = json_data['data']['member_name']
-                        if 'pixiv_id' in json_data['data']:
-                            pixiv_id = json_data['data']['pixiv_id']
+                elif 'title' in json_data:
+                    title = json_data['title']
+                    if 'author_name' in json_data:
+                        author = json_data['author_name']
+                    elif 'member_name' in json_data:
+                        author = json_data['member_name']
+                        if 'pixiv_id' in json_data:
+                            pixiv_id = json_data['pixiv_id']
 
                 response += f'{image_content}' \
                             f'图片相似度：{simlarity}\n' \

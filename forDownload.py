@@ -165,7 +165,7 @@ def download_video(video_id: str, name: str, groupID, enable: bool):
         os.makedirs(path_temp + name + '/')
 
     ydl_opts = {
-        'format': 'bestvideo+bestaudio',
+        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]',
         'outtmpl': '%s' % video_path_temp,  # 下载地址
         'noplaylist': True,
         'ffmpeg_location': ffmpeg_path,  # ffmpeg.exe路径
