@@ -138,15 +138,16 @@ def download_video(video_id: str, name: str, groupID, enable: bool):
     youtube_link = "https://www.youtube.com/watch?v=%s" % video_id
 
     ydl_opts = {
-        'format': 'best',  # 扒取视频的最好清晰度
+        'format': 'bestvideo+bestaudio',  # 扒取视频的最好清晰度
         'noplaylist': True
     }
     try:
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            ydl.cache.remove()
             videoTitle_temp = ydl.extract_info(youtube_link, download=False).get('title')
             video_title = videoTitle_temp.replace('|', '').replace('/', '').replace('?', '')
-            video_title = video_title.replace('>', '-').replace('<', '-').replace(':', '')
-            video_title = video_title.replace('*', '').replace('\\', '-').replace('"', '')
+            video_title = video_title.replace('>', '').replace('<', '').replace(':', '')
+            video_title = video_title.replace('*', '').replace('\\', '').replace('"', '')
 
 
     except youtube_dl.utils.ExtractorError:
@@ -164,12 +165,13 @@ def download_video(video_id: str, name: str, groupID, enable: bool):
         os.makedirs(path_temp + name + '/')
 
     ydl_opts = {
-        'format': 'best',
+        'format': 'bestvideo+bestaudio',
         'outtmpl': '%s' % video_path_temp,  # 下载地址
         'noplaylist': True,
         'ffmpeg_location': ffmpeg_path,  # ffmpeg.exe路径
         'prefer_ffmpeg': True,
-        'cachedir': False
+        'cachedir': False,
+        'merge_output_format' : 'mp4'
     }
 
     # 查看是否视频已经被下载

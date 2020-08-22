@@ -1,18 +1,18 @@
-import json
-import random
-import re
-import time
+from time import time, time_ns
+from datetime import datetime
+from json import loads
 from math import *
+from os import getcwd
+from random import randint, seed
+from re import findall, match, sub, compile
 
 import aiohttp
 import nonebot
-import os
 
 import config
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.util.helper_util import get_downloaded_image_path
-from datetime import datetime
 from qq_bot_core import alarm_api, admin_control
 from qq_bot_core import user_control_module
 
@@ -153,18 +153,18 @@ async def add_ai_real_response(session: nonebot.CommandSession):
     answer = session.get('answer', prompt='已删除该回答的原始回答，请加入新的回答')
     answer = str(answer).replace('\n', ' ')
 
-    if re.match(r'\$', answer) and not get_privilege(ctx['user_id'], perm.OWNER):
+    if match(r'\$', answer) and not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish('您无权封印此语料')
 
-    has_image = re.findall(r'.*?file=(.*?\.image)', answer)
+    has_image = findall(r'.*?file=(.*?\.image)', answer)
     bot = nonebot.get_bot()
     if has_image:
         response = await bot.get_image(file=has_image[0])
-        answer = re.sub(
+        answer = sub(
             r'.*?file=(.*?\.image)',
             get_downloaded_image_path(
                 response,
-                f'{os.getcwd()}/data/bot/response/'
+                f'{getcwd()}/data/bot/response/'
             ),
             answer
         )
@@ -183,7 +183,7 @@ async def add_ai_real_response(session: nonebot.CommandSession):
 
 @nonebot.on_command('问题', only_to_me=False)
 async def sendAnswer(session: nonebot.CommandSession):
-    start_time = time.time()
+    start_time = time()
     question = session.get('question', prompt='啊？你要问我什么？')
     question = str(question).lower()
     ctx = session.ctx.copy()
@@ -192,10 +192,10 @@ async def sendAnswer(session: nonebot.CommandSession):
 
     sanity_meter.set_user_data(ctx['user_id'], 'question')
 
-    if re.match('.*?你.*?(名字|叫什么|是谁|什么东西)', question):
+    if match('.*?你.*?(名字|叫什么|是谁|什么东西)', question):
         await session.finish(
             f'我叫{ctx["sender"]["nickname"]}\n'
-            f'回答用时：{(time.time() - start_time):.2f}s'
+            f'回答用时：{(time() - start_time):.2f}s'
         )
 
     # pre-processing
@@ -203,7 +203,7 @@ async def sendAnswer(session: nonebot.CommandSession):
     if response:
         await session.send(
             response + '\n'
-                       f'回答用时：{(time.time() - start_time):.2f}s'
+                       f'回答用时：{(time() - start_time):.2f}s'
         )
     else:
         # math processing
@@ -227,7 +227,7 @@ async def sendAnswer(session: nonebot.CommandSession):
         if response:
             await session.send(
                 response + '\n'
-                           f'回答用时：{(time.time() - start_time):.2f}s'
+                           f'回答用时：{(time() - start_time):.2f}s'
             )
             bot = nonebot.get_bot()
             await bot.send_private_msg(
@@ -248,14 +248,14 @@ async def sendAnswer(session: nonebot.CommandSession):
                 await session.send(
                     response +
                     f'\n'
-                    f'回答用时：{(time.time() - start_time):.2f}s'
+                    f'回答用时：{(time() - start_time):.2f}s'
                 )
 
             else:
                 await session.send(
                     ai_process +
                     f'\n'
-                    f'回答用时：{(time.time() - start_time):.2f}s'
+                    f'回答用时：{(time() - start_time):.2f}s'
                 )
 
 
@@ -274,17 +274,17 @@ async def _send_answer(session: nonebot.CommandSession):
 
 
 def _simple_ai_process(question: str) -> str:
-    syntax = re.compile(r'[么嘛吗马][？?]')
-    syntax2 = re.compile(r'.*?(.*?)不\1')
+    syntax = compile(r'[么嘛吗马][？?]')
+    syntax2 = compile(r'.*?(.*?)不\1')
 
-    response = re.sub(syntax, '', question)
+    response = sub(syntax, '', question)
     syntax_question = []
 
-    if re.match(r'.*?是(.*?)还?是(.*?)[？?]', response):
-        syntax_question = list(re.findall(r'.*?是(.*?)还?是(.*?)[？?]', response))[0]
+    if match(r'.*?是(.*?)还?是(.*?)[？?]', response):
+        syntax_question = list(findall(r'.*?是(.*?)还?是(.*?)[？?]', response))[0]
 
     if len(syntax_question) > 1:
-        rand_num = random.randint(0, 50)
+        rand_num = randint(0, 50)
         if syntax_question[0] == syntax_question[1]:
             return '你这什么屑问法？'
 
@@ -293,8 +293,8 @@ def _simple_ai_process(question: str) -> str:
         else:
             return f'{syntax_question[1]}'
 
-    elif re.match(syntax2, response):
-        rand_num = random.randint(0, 50)
+    elif match(syntax2, response):
+        rand_num = randint(0, 50)
         if rand_num < 20:
             return '答案肯定是肯定的啦'
         elif rand_num < 40:
@@ -303,8 +303,8 @@ def _simple_ai_process(question: str) -> str:
             return '我也不晓得'
 
     if len(response) > 3:
-        syntax_bot = re.compile('(bot|机器人|机械人|机屑人)')
-        response = re.sub(syntax_bot, '人类', response)
+        syntax_bot = compile('(bot|机器人|机械人|机屑人)')
+        response = sub(syntax_bot, '人类', response)
 
     return response
 
@@ -316,7 +316,7 @@ def _math_fetch(question: str, user_id: int) -> str:
     if len(question) > 30:
         return '检测到可能的DDoS攻击。计算停止'
 
-    if re.match(
+    if match(
             r'.*?(sudo|ls|rm|curl|chmod|usermod|newgrp|vim|objdump|aux|lambda|del)',
             question
     ):
@@ -332,24 +332,24 @@ def _math_fetch(question: str, user_id: int) -> str:
         if 'pow' in question:
             return '检测到可能的DDoS攻击。计算停止'
 
-        fact_number = re.findall(r'.*?factorial\((\d+)\)', question)
+        fact_number = findall(r'.*?factorial\((\d+)\)', question)
         if fact_number:
             if int(fact_number[0]) > 500:
                 return '检测到可能的DDoS攻击。计算停止'
 
-    if re.match(r'.*?<<', question):
-        overflow_fetch = re.findall(r'.*?<<(\d+)', question)
+    if match(r'.*?<<', question):
+        overflow_fetch = findall(r'.*?<<(\d+)', question)
         if overflow_fetch:
             if len(overflow_fetch) != 1:
                 return '检测到可能的DDoS攻击。计算停止'
             if int(overflow_fetch[0]) > 100:
                 return '检测到可能的DDoS攻击。计算停止'
 
-    if re.match(r'.*?\*\*', question):
+    if match(r'.*?\*\*', question):
         if len(question) > 10:
             return '检测到可能的DDoS攻击。计算停止'
 
-        overflow_fetch = re.findall(r'.*?\*\*(\d+)', question)
+        overflow_fetch = findall(r'.*?\*\*(\d+)', question)
         if overflow_fetch:
             if len(overflow_fetch) > 2:
                 return '检测到可能的DDoS攻击。计算停止'
@@ -359,14 +359,14 @@ def _math_fetch(question: str, user_id: int) -> str:
                 if len(overflow_fetch) == 2 and int(overflow_fetch[1]) > 2:
                     return '检测到可能的DDoS攻击。计算停止'
 
-    if re.match(r'.*?pow\(\d+,\d+\)', question):
+    if match(r'.*?pow\(\d+,\d+\)', question):
         if len(question) > 10:
             return '检测到可能的DDoS攻击。计算停止'
 
-        if int(re.findall(r'.*?pow\(\d+,(\d+)\)', question)[0]) > 99:
+        if int(findall(r'.*?pow\(\d+,(\d+)\)', question)[0]) > 99:
             return '检测到可能的DDoS攻击。计算停止'
 
-    if re.match(r'.*?\\u\d+', question) or re.match(r'.*?\\\w{3}', question):
+    if match(r'.*?\\u\d+', question) or match(r'.*?\\\w{3}', question):
         return '你说你马呢（'
 
     try:
@@ -431,12 +431,12 @@ def _prefetch(question: str, user_id: int) -> str:
     if '屑bot' in question:
         return '你屑你🐴呢'
 
-    if re.match('.*?(祈|衤|qi).*?(雨|yu)', question):
+    if match('.*?(祈|衤|qi).*?(雨|yu)', question):
         return '不敢答，不敢答……溜了溜了w'
 
-    if re.match('.*?你(几|多少?)(岁|大|年龄)', question):
-        random.seed(time.time_ns())
-        rand_num = random.randint(0, 101)
+    if match('.*?你(几|多少?)(岁|大|年龄)', question):
+        seed(time_ns())
+        rand_num = randint(0, 101)
         if rand_num > 76:
             resp = '我永远的17岁。'
         elif rand_num > 45:
@@ -448,7 +448,7 @@ def _prefetch(question: str, user_id: int) -> str:
 
         return resp
 
-    if re.match(r'.*?(爱不爱|喜不喜欢).*?妈妈', question):
+    if match(r'.*?(爱不爱|喜不喜欢).*?妈妈', question):
         return '答案肯定是肯定的啦~'
 
     if '妈妈' in question:
@@ -483,7 +483,7 @@ async def _request_api_response(question: str) -> str:
                         response = response.replace("\ufeff", "")
                     else:
                         data = await page.text()
-                        data = json.loads(data.replace("\ufeff", ""))
+                        data = loads(data.replace("\ufeff", ""))
                         response = str(data['content']).replace('\r', '')
 
         except Exception as err:
@@ -531,8 +531,8 @@ async def getAnswerInfo(session: nonebot.CommandSession):
 
 @nonebot.on_natural_language(only_to_me=False, only_short_message=True)
 async def send_answer(session: nonebot.NLPSession):
-    random.seed(time.time_ns())
-    rand_num = random.randint(0, 2)
+    seed(time_ns())
+    rand_num = randint(0, 2)
     ctx = session.ctx.copy()
     if 'group_id' not in ctx:
         return

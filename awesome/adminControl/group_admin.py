@@ -51,6 +51,20 @@ class Shadiaoadmin:
             return '本组还没有语录哦~'
 
         return choice(self.group_quotes[group_id])
+
+    def clear_group_quote(self, group_id: Union[int, str]):
+        if isinstance(group_id, int):
+            group_id = str(group_id)
+
+        if group_id not in self.group_quotes:
+            return False
+
+        if not self.group_quotes[group_id]:
+            return False
+
+        self.group_quotes[group_id].clear()
+        self.make_a_json(self.group_quotes_path)
+        return True
     
     def get_group_quote_count(self, group_id: Union[int, str]):
         if isinstance(group_id, int):

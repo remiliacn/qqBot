@@ -20,13 +20,17 @@ class Alarm:
         return {}
 
     def set_alarm(self, alarm : dict):
+        self.trigger += 1
         if not self.global_alarm:
-            self.trigger += 1
-            if self.trigger == 3:
+            if self.trigger >= 3:
                 self.global_alarm = alarm
                 self.update_alarm_stat()
 
     def get_alarm(self) -> dict:
+        if self.trigger == 0 and self.global_alarm:
+            self.clear_alarm()
+            return {}
+
         return self.global_alarm
 
     def clear_alarm(self):
@@ -40,7 +44,7 @@ class Alarm:
                f'触发时间：{self.global_alarm["time"]}'
 
     def suppress_alarm(self):
-        if 3 > self.trigger > 0:
+        if self.trigger > 0:
             self.trigger -= 1
 
     def update_alarm_stat(self):

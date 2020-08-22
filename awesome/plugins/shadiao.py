@@ -41,6 +41,17 @@ async def do_joke_flatter(session: nonebot.CommandSession):
     user_id = ctx['user_id']
     await session.send(flatter_api.get_flatter_result(user_id))
 
+@nonebot.on_command('清空语录', only_to_me=False)
+async def clear_group_quotes(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    if not get_privilege(ctx['user_id'], perm.OWNER):
+        await session.finish()
+
+    group_id = session.get('group_id', prompt='群号？')
+    if admin_control.clear_group_quote(group_id):
+        await session.finish('Done!')
+
+    await session.finish('啊这……群号不对啊……')
 
 @nonebot.on_command('你群语录', aliases=('你组语录', '语录'), only_to_me=False)
 async def get_group_quotes(session: nonebot.CommandSession):
@@ -341,6 +352,7 @@ async def entertain_switch(session: nonebot.CommandSession):
 
 @check_pcr_drop.args_parser
 @entertain_switch.args_parser
+@clear_group_quotes.args_parser
 async def _set_group_property(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:
@@ -381,11 +393,12 @@ async def av_validator(session: nonebot.CommandSession):
 
     key_word = session.get('key_word', prompt='在？你要让我查什么啊baka')
     validator = shadiao.Avalidator(text=key_word)
+    await validator.get_page_text()
     if 'group_id' in ctx:
         sanity_meter.set_usage(ctx['group_id'], tag='yanche')
         sanity_meter.set_user_data(ctx['user_id'], 'yanche')
 
-    await session.finish(validator.get_content())
+    await session.finish(await validator.get_content())
 
 
 

@@ -58,14 +58,13 @@ class ShadiaoAPI:
         try:
             async with aiohttp.ClientSession(headers=headers, timeout=self.timeout) as client:
                 async with client.get(self.base_url) as page:
-                    imageList = re.findall(r'data-original="(.*?)"', await page.text())
+                    image_list = re.findall(r'data-original="(.*?)"', await page.text())
 
         except Exception as e:
             print("发表情网不可用：错误%s" % e)
-            imageList = os.listdir(self.base_dir)
-            return imageList
+            image_list = os.listdir(self.base_dir)
 
-        return imageList
+        self.image_list = image_list
 
     async def get_picture(self):
         random.seed(time.time_ns())
@@ -84,7 +83,7 @@ class ShadiaoAPI:
                                     break
                                 f.write(chunk)
 
-            nonebot.logger.info("Picture got:", file_name)
+            nonebot.logger.info(f"Picture got: {file_name}")
             return file_name
 
         except Exception as e:
@@ -97,22 +96,21 @@ class Avalidator:
     def __init__(self, text):
         self.base_url = f'https://www.libredmm.com/movies/{text}'
         self.torrent_url = 'https://idope.se/'
-        self.page_text = self._get_page_text()
+        self._client = None
+        self.timeout = aiohttp.ClientTimeout(total=10)
+        self.page_text = ''
         self.product_number = text
 
-    def _get_page_text(self) -> str:
+    async def get_page_text(self):
         try:
-            page = requests.get(self.base_url, timeout=15)
-        except Exception as e:
-            print("Timetout when fetching data %s" % e)
-            return ''
-            
-        if page.status_code == 200:
-            return page.text
+            self._client = aiohttp.ClientSession(timeout=self.timeout)
+            async with self._client.get(self.base_url) as page:
+                self.page_text = await page.text()
 
-        return ''
+        except aiohttp.ClientTimeout:
+            self.page_text = ''
 
-    def get_content(self) -> str:
+    async def get_content(self) -> str:
         from lxml import etree
         if self.page_text:
             e = etree.HTML(self.page_text)
@@ -132,12 +130,13 @@ class Avalidator:
                 source = str(source[0]).replace('http://', '').replace('https://', '').replace('.', '点')
 
             torrentURL = self.torrent_url + f'/torrent-list/{self.product_number}'
+
             try:
-                page = requests.get(torrentURL, timeout=10)
+                async with self._client.get(torrentURL) as page:
+                    urls = re.findall('<a href="(/torrent/.*?)"', await page.text())
             except Exception as e:
                 return f'连接出错: {e}'
-                
-            urls = re.findall('<a href="(/torrent/.*?)"', page.text)
+
             if not urls:
                 tor = '暂不可用'
             else:

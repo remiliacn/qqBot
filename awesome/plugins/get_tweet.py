@@ -277,7 +277,7 @@ async def do_youtube_update_fetch():
                         group_id = int(youtube_notify_dict[elements]['group_id'])
                         await bot.send_group_msg(
                             group_id=group_id,
-                            message='刚才你们让扒的源搞好了~\n'
+                            message='视频下载完毕~\n'
                                     '视频名称：%s\n'
                                     '如果上传好了的话视频将会出现在\n'
                                     '%s' % (

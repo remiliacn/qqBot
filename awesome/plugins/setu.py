@@ -1,6 +1,7 @@
 import random
 import re
 import time
+from datetime import datetime
 from os import getcwd
 from os.path import exists
 
@@ -8,6 +9,7 @@ import aiohttp
 import nonebot
 import pixivpy3
 from aiocqhttp import MessageSegment
+from requests import get
 
 from awesome.adminControl import permission as perm
 from config import SUPER_USER, user_name, password
@@ -353,6 +355,119 @@ async def download_image(illust):
     nonebot.logger.info("PATH = " + path)
     return path
 
+@nonebot.on_command('搜图', only_to_me=False)
+async def reverse_image_search(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    args = ctx['raw_message'].split()
+    if len(args) != 2:
+        await session.finish('¿')
+
+    bot = nonebot.get_bot()
+    has_image = re.findall(r'.*?\[CQ:image,file=(.*?\.image)]', args[1])
+    if has_image:
+        image = await bot.get_image(file=has_image[0])
+        url = image['url']
+        nonebot.logger.info(f'URL extracted: {url}')
+        try:
+            response = await sauce_helper(url)
+            await session.send(
+                f"{MessageSegment.at(ctx['user_id'])}\n"
+                f"{response}"
+            )
+            return
+
+        except Exception as err:
+            await session.send(f'啊这~出错了！报错信息已发送主人debug~')
+            await bot.send_private_msg(
+                user_id=SUPER_USER,
+                message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
+                        f'搜图功能出错：\n'
+                        f'Error：{err}\n'
+                        f'出错URL：{url}'
+            )
+
+
+async def sauce_helper(url):
+    params = {
+        'output_type': 2,
+        'testmode': 0,
+        'db': 999,
+        'numres': 6,
+        'url': url
+    }
+
+    async with aiohttp.ClientSession() as client:
+        async with client.get(
+                'https://saucenao.com/search.php',
+                params=params
+        ) as page:
+            json_data = await page.json()
+
+        if json_data['results']:
+            json_data = json_data['results'][0]
+            nonebot.logger.info(f'Json data: \n'
+                                 f'{json_data}')
+            response = ''
+            if json_data:
+                response += '图片搜索结果如下！\n'
+                simlarity = json_data['header']['similarity'] + '%'
+                thumbnail = json_data['header']['thumbnail']
+                async with client.get(thumbnail) as page:
+                    file_name = thumbnail.split('/')[-1]
+                    file_name = re.sub(r'\?auth=.*?$', '', file_name)
+                    path = f'{getcwd()}/data/lol/{file_name}'
+                    if not exists(path):
+                        with open(path, 'wb') as file:
+                            while True:
+                                chunk = await page.content.read(1024 ** 2)
+                                if not chunk:
+                                    break
+
+                                file.write(chunk)
+
+                image_content = MessageSegment.image(f'file:///{path}')
+
+                if 'ext_urls' not in json_data['data']:
+                    return '图片辨别率低。请换一张图试试！'
+
+                ext_url = json_data['data']['ext_urls'][0]
+                if 'title' not in json_data['data']:
+                    if 'creator' in json_data['data']:
+                        author = json_data['data']['creator']
+                    elif 'author' in json_data['data']:
+                        author = json_data['data']['author']
+                    else:
+                        author = json_data['data']['artist']
+
+                    pixiv_id = 'Undefined'
+                    title = 'Undefined'
+
+                elif 'title' in json_data['data']:
+                    title = json_data['data']['title']
+                    if 'author_name' in json_data['data']:
+                        author = json_data['data']['author_name']
+                        pixiv_id = 'Undefined'
+                    elif 'member_name' in json_data['data']:
+                        author = json_data['data']['member_name']
+                        pixiv_id = json_data['data']['pixiv_id']
+                    else:
+                        author = 'Undefined'
+                        pixiv_id = 'Undefined'
+                else:
+                    author = 'Undefined'
+                    pixiv_id = 'Undefined'
+                    title = 'Undefined'
+
+                response += f'{image_content}' \
+                            f'图片相似度：{simlarity}\n' \
+                            f'图片标题：{title}\n' \
+                            f'图片画师：{author}\n' \
+                            f'Pixiv ID：{pixiv_id}\n' \
+                            f'直链：{ext_url}'
+        else:
+            response = '未找到结果呢！'
+
+    return response
 
 @nonebot.on_command('ghs', only_to_me=False)
 async def get_random_image(session: nonebot.CommandSession):

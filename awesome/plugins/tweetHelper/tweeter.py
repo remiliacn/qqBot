@@ -2,13 +2,13 @@ import asyncio
 import json
 import os
 import re
+import time
 
 import requests
 import twitter
 from nonebot.log import logger
 
 import config
-from bilibiliService import bilibili_live as live_api
 
 try:
     api = twitter.Api(
@@ -31,6 +31,8 @@ class tweeter:
 
         self.tweet_list_init = {}
         self.tweet_config = self._get_tweet_config()
+
+        self.tweet_sent_set = set()
 
         # self.live_stat = {}
         # self.live_stat = self.get_live_room_info()
@@ -78,8 +80,6 @@ class tweeter:
         if key in self.tweet_config:
             del self.tweet_config[key]
             del self.tweet_list_init[key]
-            if key in self.live_stat:
-                del self.live_stat[key]
 
             self.save_config()
             return True
@@ -90,30 +90,6 @@ class tweeter:
         with open(self.config, 'w+', encoding='utf8') as file:
             json.dump(self.tweet_config, file, indent=4)
 
-    def get_live_room_info(self):
-        live_temp_dict = {}
-        for ch_name in self.tweet_config:
-            if not 'bilibili' in self.tweet_config[ch_name]:
-                continue
-
-            if not self.tweet_config[ch_name]['enabled']:
-                continue
-
-            if self.tweet_config[ch_name]['bilibili'] == '_':
-                continue
-
-            live_room_cid = self.tweet_config[ch_name]['bilibili']
-            live = live_api.BilibiliLive(live_room_cid, ch_name)
-            if not live.get_status():
-                if ch_name in self.live_stat:
-                    del self.live_stat[ch_name]
-
-            else:
-                if ch_name not in self.live_stat:
-                    live_temp_dict.update(live.get_info())
-                    self.live_stat = live_temp_dict
-
-        return live_temp_dict
 
     async def check_update(self):
         temp_dict = {}
@@ -134,15 +110,16 @@ class tweeter:
             if element not in self.tweet_list_init or \
                     (self.tweet_list_init[element] != temp_dict[element]):
 
-                if not (temp_dict[element] == '' or
-                        temp_dict[element] == '转发动态' or
-                        temp_dict[element] == self.INFO_NOT_AVAILABLE or 
-                        element not in self.tweet_list_init or
-                        self.tweet_list_init[element] == ''):
+                if not (
+                    not temp_dict[element] or
+                    temp_dict[element] == '转发动态' or
+                    temp_dict[element] == self.INFO_NOT_AVAILABLE or
+                    element not in self.tweet_list_init
+                ):
 
                     diff_dict[element] = temp_dict[element]
+                    self.tweet_list_init = temp_dict
 
-        self.tweet_list_init = temp_dict
         logger.info(f'Changed: {self.tweet_list_init}')
         return diff_dict
 
@@ -155,7 +132,9 @@ class tweeter:
 
             try:
                 resp_text = self.get_time_line_from_screen_name(
-                    screen_name=self.tweet_config[ch_name]['screen_name'])
+                    screen_name=self.tweet_config[ch_name]['screen_name'],
+                    auto=True
+                )
                 if resp_text == self.INFO_NOT_AVAILABLE:
                     temp_dict[ch_name] = ''
                     return temp_dict
@@ -180,9 +159,9 @@ class tweeter:
             with open(self.config, 'r', encoding='utf8') as file:
                 return json.loads(file.read())
 
-    def get_time_line_from_screen_name(self, screen_name, fetch_count=1):
+    def get_time_line_from_screen_name(self, screen_name, fetch_count=1, auto=False):
         if re.match('[A-Za-z0-9_]+$', screen_name):
-            return self.fetch_user_screen_name(screen_name, fetch_count)
+            return self.fetch_user_screen_name(screen_name, fetch_count, auto)
 
         else:
             search_term = screen_name
@@ -197,7 +176,7 @@ class tweeter:
             else:
                 return self.INFO_NOT_AVAILABLE
 
-    def fetch_user_screen_name(self, screen_name, fetch_count):
+    def fetch_user_screen_name(self, screen_name, fetch_count, auto=False):
         response_main = []
         resp_text = ''
         fetch_count = int(fetch_count)
@@ -207,10 +186,14 @@ class tweeter:
             logger.warning('连接出错！%s' % err)
             resp_text += self.INFO_NOT_AVAILABLE
 
-        if fetch_count >= len(response_main):
+        if fetch_count > len(response_main):
             return self.INFO_NOT_AVAILABLE
 
         for i in range(fetch_count):
+            if auto:
+                if (time.time() - response_main[i].created_at_in_seconds) > (10 * 60):
+                    return self.INFO_NOT_AVAILABLE
+
             response = response_main[i]
             if response.full_text is None:
                 response_text = response.text
@@ -252,5 +235,11 @@ class tweeter:
                         resp_text += '\n[CQ:image,file=file:///%s]' % file_name
 
             resp_text += '\n====================\n' if fetch_count != 1 else ''
+
+            if auto:
+                if resp_text not in self.tweet_sent_set:
+                    self.tweet_sent_set.add(resp_text)
+                else:
+                    return ''
 
         return resp_text
