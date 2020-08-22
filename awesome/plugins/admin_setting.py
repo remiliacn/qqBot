@@ -5,12 +5,14 @@ from math import *
 from os import getcwd
 from random import randint, seed
 from re import findall, match, sub, compile
+from aiocqhttp import MessageSegment
 
 import aiohttp
 import nonebot
 
 import config
 from awesome.adminControl import permission as perm
+from awesome.plugins.setu import sauce_helper
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.util.helper_util import get_downloaded_image_path
 from qq_bot_core import alarm_api, admin_control
@@ -570,6 +572,34 @@ async def send_answer(session: nonebot.NLPSession):
                         admin_control.repeat_dict[ctx['group_id']] = {}
                         admin_control.repeat_dict[ctx['group_id']] = {message: 1}
 
+    message = ctx['raw_message']
+    if '搜图' in message and '[CQ:reply' in message:
+        reply_id = findall(r'\[CQ:reply,id=(.*?)]', message)
+        bot = nonebot.get_bot()
+        data = await bot.get_group_msg(message_id=int(reply_id[0]))
+        possible_image_content = data['content']
+        has_image = findall(r'.*?\[CQ:image,file=(.*?\.image)]', possible_image_content)
+        if has_image:
+            image = await bot.get_image(file=has_image[0])
+            url = image['url']
+            nonebot.logger.info(f'URL extracted: {url}')
+            try:
+                response = await sauce_helper(url)
+                await session.send(
+                    f"{MessageSegment.at(ctx['user_id'])}\n"
+                    f"{response}"
+                )
+            except Exception as err:
+                await session.send(f'啊这~出错了！报错信息已发送主人debug~')
+                await bot.send_private_msg(
+                    user_id=config.SUPER_USER,
+                    message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
+                            f'搜图功能出错：\n'
+                            f'Error：{err}\n'
+                            f'出错URL：{url}'
+                )
+        else:
+            await session.send('阿这，是我瞎了么？好像没有图片啊原文里。')
 
 @nonebot.on_command('ban', only_to_me=False)
 async def ban_someone(session: nonebot.CommandSession):

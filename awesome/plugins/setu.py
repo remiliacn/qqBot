@@ -417,18 +417,25 @@ async def sauce_helper(url):
                     file_name = re.sub(r'\?auth=.*?$', '', file_name)
                     path = f'{getcwd()}/data/lol/{file_name}'
                     if not exists(path):
-                        with open(path, 'wb') as file:
-                            while True:
-                                chunk = await page.content.read(1024 ** 2)
-                                if not chunk:
-                                    break
+                        try:
+                            with open(path, 'wb') as file:
+                                while True:
+                                    chunk = await page.content.read(1024 ** 2)
+                                    if not chunk:
+                                        break
 
-                                file.write(chunk)
+                                    file.write(chunk)
+                        except IOError:
+                            return '图片辨别率低。请换一张图试试！'
 
                 image_content = MessageSegment.image(f'file:///{path}')
 
                 if 'ext_urls' not in json_data['data']:
                     return '图片辨别率低。请换一张图试试！'
+
+                pixiv_id = 'Undefined'
+                title = 'Undefined'
+                author = 'Undefined'
 
                 ext_url = json_data['data']['ext_urls'][0]
                 if 'title' not in json_data['data']:
@@ -437,26 +444,19 @@ async def sauce_helper(url):
                     elif 'author' in json_data['data']:
                         author = json_data['data']['author']
                     else:
-                        author = json_data['data']['artist']
+                        if 'artist' not in json_data['data']:
+                            return '图片辨别率低。请换一张图试试！'
 
-                    pixiv_id = 'Undefined'
-                    title = 'Undefined'
+                        author = json_data['data']['artist']
 
                 elif 'title' in json_data['data']:
                     title = json_data['data']['title']
                     if 'author_name' in json_data['data']:
                         author = json_data['data']['author_name']
-                        pixiv_id = 'Undefined'
                     elif 'member_name' in json_data['data']:
                         author = json_data['data']['member_name']
-                        pixiv_id = json_data['data']['pixiv_id']
-                    else:
-                        author = 'Undefined'
-                        pixiv_id = 'Undefined'
-                else:
-                    author = 'Undefined'
-                    pixiv_id = 'Undefined'
-                    title = 'Undefined'
+                        if 'pixiv_id' in json_data['data']:
+                            pixiv_id = json_data['data']['pixiv_id']
 
                 response += f'{image_content}' \
                             f'图片相似度：{simlarity}\n' \
