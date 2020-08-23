@@ -9,14 +9,22 @@
 from nonebot.default_config import *
 
 NICKNAME = {}
+
 consumer_key = '' # twitter API consumer key
 consumer_secret = '' # twitter API consumer secret
 access_token = '' # twitter API access token
 access_secret = '' # twitter API access secret
+
 user_name = '' # Pixiv login username
 password = '' # Pixiv login password
 
-SUPER_USER = 0
+downloader = 'forDownload.py'
+path_export = ''                # OneDrive path for downloaded video.
+path_temp = ''                  # Temp saving path for downloaded video.
+ffmpeg_path = ''                # If ffmpeg is not in $path, here should be set.
+share_link = ''                 # OneDrive share link.
+
+SUPER_USER = 0 # Report will be sent to this qq.
 
 itpk_key = '' # 茉莉机器人API key
 itpk_secret = '' # 茉莉机器人API secret

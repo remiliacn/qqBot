@@ -429,6 +429,7 @@ async def sauce_helper(url):
 
                 image_content = MessageSegment.image(f'file:///{path}')
 
+                json_data = json_data['data']
                 if 'ext_urls' not in json_data:
                     return '图片辨别率低。请换一张图试试！'
 
@@ -436,7 +437,6 @@ async def sauce_helper(url):
                 title = 'Undefined'
                 author = 'Undefined'
 
-                json_data = json_data['data']
                 ext_url = json_data['ext_urls'][0]
                 if 'title' not in json_data:
                     if 'creator' in json_data:

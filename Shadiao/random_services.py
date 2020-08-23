@@ -96,7 +96,7 @@ class YouTubeLiveTracker:
             logger.warning(f'No live_time param for the live for {self.ch_name}')
             live_time = self.json_data['playabilityStatus']['liveStreamability']
             live_time = live_time['liveStreamabilityRenderer']
-            if 'offlineSlate' not in live_time:
+            if self.get_live_status():
                 live_time = 'LIVE NOW'
             else:
                 live_time = live_time['offlineSlate']['liveStreamOfflineSlateRenderer']
@@ -105,16 +105,17 @@ class YouTubeLiveTracker:
                     if 'offline' in live_time:
                         live_time = ''
                     else:
-                        live_time = 'LIVE NOW'
+                        live_time = 'Unknown Status'
                 else:
-                    live_time = 'LIVE NOW'
+                    live_time = 'Unknown Status'
 
         if thumbnail_url:
             thumbnail = live_stat['thumbnail']['thumbnails'][-1]['url']
             async with aiohttp.ClientSession(headers=self.headers) as session:
                 async with session.get(thumbnail) as image:
                     file_name = f'{os.getcwd()}/data/live/{live_stat["videoId"]}.jpg'
-                    if not os.path.exists(file_name):
+                    # Redownload the thumbnail when going live just in case a thumbnail change.
+                    if not os.path.exists(file_name) or self.get_live_status():
                         with open(file_name, 'wb') as file:
                             while True:
                                 chunk = await image.content.read(1024 ** 2)
