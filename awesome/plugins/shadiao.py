@@ -11,7 +11,7 @@ from nonebot.plugin import PluginManager
 
 from Shadiao import waifu_finder, ark_nights, shadiao, pcr_news
 from awesome.adminControl import permission as perm
-from awesome.plugins.util.helper_util import get_downloaded_image_path
+from awesome.plugins.util.helper_util import get_downloaded_image_path, ark_helper
 from config import SUPER_USER
 from qq_bot_core import admin_control
 from qq_bot_core import user_control_module, sanity_meter
@@ -22,16 +22,6 @@ ark_pool_pity = ark_nights.ArknightsPity()
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 timeout = aiohttp.ClientTimeout(total=5)
-
-
-def ark_helper(args: list) -> str:
-    if len(args) != 2:
-        return '用法有误\n' + '使用方法：！命令 干员名 星级（数字）'
-
-    if not args[1].isdigit():
-        return '使用方法有误，第二参数应为数字'
-
-    return ''
 
 
 @nonebot.on_command('吹我', only_to_me=False)
@@ -86,7 +76,7 @@ async def add_group_quotes(session: nonebot.CommandSession):
 
 
 @nonebot.message_preprocessor
-async def message_preprocessing(unused1: nonebot.NoneBot, event: aiocqhttp.event, unused2: PluginManager):
+async def message_preprocessing(_: nonebot.NoneBot, event: aiocqhttp.event, __: PluginManager):
     group_id = event.group_id
     user_id = event.user_id
 

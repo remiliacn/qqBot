@@ -83,3 +83,13 @@ class translation:
         except Exception as e:
             logger.warning('Something went wrong when trying to translate %s' % e)
             return self.INFO_NOT_AVAILABLE
+
+
+def ark_helper(args: list) -> str:
+    if len(args) != 2:
+        return '用法有误\n' + '使用方法：！命令 干员名 星级（数字）'
+
+    if not args[1].isdigit():
+        return '使用方法有误，第二参数应为数字'
+
+    return ''
