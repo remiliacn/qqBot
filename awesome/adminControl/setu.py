@@ -57,7 +57,11 @@ class SetuFunction:
         return self.setu_config['bad_words']
 
     def add_bad_word_dict(self, keyWord, multiplier):
-        self.setu_config['bad_words'][keyWord] = multiplier
+        if multiplier == 1:
+            if keyWord in self.setu_config['bad_words']:
+                del self.setu_config['bad_words'][keyWord]
+        else:
+            self.setu_config['bad_words'][keyWord] = multiplier
 
     def _init_bad_word(self):
         if exists(self.setu_config_path):
