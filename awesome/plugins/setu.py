@@ -331,6 +331,10 @@ async def download_image(illust):
         else:
             image_url = illust.image_urls['medium']
     else:
+        if 'meta_pages' in illust:
+            image_url_list = illust.meta_pages
+            illust = random.choice(image_url_list)
+
         image_url = illust.image_urls['medium']
 
     nonebot.logger.info(f"{illust.title}: {image_url}, {illust.id}")
@@ -408,8 +412,15 @@ async def sauce_helper(url):
                                  f'{json_data}')
             response = ''
             if json_data:
-                response += '图片搜索结果如下！\n'
-                simlarity = json_data['header']['similarity'] + '%'
+                simlarity = json_data['header']['similarity']
+                sim = float(simlarity)
+                if sim < 60:
+                    response += 'WTM不是很确定啊~'
+                else:
+                    response += 'WTM觉得就是这个！'
+
+                simlarity += '%'
+
                 thumbnail = json_data['header']['thumbnail']
                 async with client.get(thumbnail) as page:
                     file_name = thumbnail.split('/')[-1]
