@@ -37,6 +37,7 @@ def main():
             register_true()
             exit(-1)
 
+        register_false()
         for youtube_user in user_in_dict:
             try:
                 logger.warning(f'Getting first video for: {youtube_user}')
@@ -90,10 +91,15 @@ def get_config() -> dict:
 
 def get_first_video(channel_id: str, name: str, group_id, user_dict: dict):
     headers = {
-        'User-Agent': 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36',
+        'User-Agent': 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                      'AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/84.0.4147.125 Safari/537.36',
         'Referer': 'https://www.youtube.com/'
     }
-    page = requests.get(f'https://www.youtube.com/channel/{channel_id}/videos', headers=headers)
+    page = requests.get(
+        f'https://www.youtube.com/channel/{channel_id}/videos',
+        headers=headers
+    )
     content = re.findall(r'window\["ytInitialData"] = (.*?});', page.text)
     if content:
         content = content[0]
@@ -115,9 +121,18 @@ def get_first_video(channel_id: str, name: str, group_id, user_dict: dict):
             return
 
         publish_time = first_video_outer['publishedTimeText']['simpleText']
-        if 'hours ago' not in publish_time:
+        enabled = user_dict[name]['enabled']
+        if 'hours ago' not in publish_time and enabled:
             logger.warning('Not a recent video or the video is not yet converted.')
             return
+        else:
+            if enabled:
+                time = re.findall(r'(\d+) hours ago', publish_time)
+                if time:
+                    logger.warning(f'{name} - This video is published {time[0]} hours ago')
+                    if int(time[0]) < 4:
+                        logger.warning('The video may not be fully converted, aborting...')
+                        return
 
     except KeyError as err:
         logger.warning('Something has happened with %s... Error Message: %s' % (name, err))
