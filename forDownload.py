@@ -50,8 +50,9 @@ def main():
             except Exception as err:
                 logger.warning(f'Unknown error occurred for {youtube_user}: {err}')
 
-    logger.warning('Exiting YouTube downloader...')
-    register_true()
+    if not get_status():
+        logger.warning('Exiting YouTube downloader...')
+        register_true()
 
 
 def register_true():
@@ -122,7 +123,7 @@ def get_first_video(channel_id: str, name: str, group_id, user_dict: dict):
 
         publish_time = first_video_outer['publishedTimeText']['simpleText']
         enabled = user_dict[name]['enabled']
-        if 'hours ago' not in publish_time and enabled:
+        if 'hours ago' not in publish_time:
             logger.warning('Not a recent video or the video is not yet converted.')
             return
         else:
@@ -236,10 +237,11 @@ def upload_status(ch_name: str, video_name: str, video_id: str, group_id, retcod
 def signal_downloader_register(video_id: str, name: str, retcode: int):
     if name != 'others' and retcode != -1:
         user_dict = get_config()
-        user_dict[name]['videoID'] = video_id
+        if user_dict[name]['videoID'] != video_id:
+            user_dict[name]['videoID'] = video_id
 
-        with open('config/downloader.json', 'w+') as f:
-            json.dump(user_dict, f, indent=4)
+            with open('config/downloader.json', 'w+') as f:
+                json.dump(user_dict, f, indent=4)
 
 
 if __name__ == '__main__':
