@@ -158,15 +158,6 @@ async def send_tweet():
     else:
         alarm_api.suppress_alarm()
 
-    if alarm_api.get_alarm():
-        bot = nonebot.get_bot()
-        await bot.send_private_msg(
-            user_id=SUPER_USER,
-            message=f'Alarm raised!!!: \n'
-                    f'BEE WOO BEE WOO!!!\n'
-                    f'{alarm_api.get_info()}'
-        )
-
 
 def get_status():
     file = open('data/started.json', 'r')
