@@ -149,7 +149,7 @@ async def send_tweet():
 
         alarm_info = {
             'sev': 2,
-            'message': '网络连接出现巨大延迟！',
+            'message': '网络连接出现延迟！',
             'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
 
@@ -209,13 +209,14 @@ async def _async_youtube_live(ch_name, json_data):
     api = YouTubeLiveTracker(json_data[ch_name]['channel'], ch_name)
     await api.get_json_data()
     if api.get_live_status():
-        if api.update_live_id(True):
+        if await api.update_live_id(True) == 1:
             bot = nonebot.get_bot()
             message = await api.get_live_details()
             if message:
                 await bot.send_group_msg(
                     group_id=json_data[ch_name]['qqGroup'],
-                    message=message
+                    message=f'{ch_name} 开播啦！\n'
+                            f'{message}'
                 )
 
                 await bot.send_private_msg(
@@ -225,20 +226,37 @@ async def _async_youtube_live(ch_name, json_data):
                             f'{await api.get_live_details()}'
                 )
 
+    # Not currently LIVE info fetch:
     if api.get_upcoming_status():
-        if api.update_live_id(False):
+        resp_code = await api.update_live_id(False)
+        if resp_code == 1:
             bot = nonebot.get_bot()
             message = await api.get_live_details()
             if message:
                 await bot.send_group_msg(
                     group_id=json_data[ch_name]['qqGroup'],
-                    message=await api.get_live_details()
+                    message=f'{ch_name} 直播间待机！\n{await api.get_live_details()}'
                 )
 
                 await bot.send_private_msg(
                     user_id=SUPER_USER,
                     message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
                             f'{ch_name} is now ready:\n'
+                            f'{await api.get_live_details()}'
+                )
+        elif resp_code == 2:
+            bot = nonebot.get_bot()
+            message = await api.get_live_details()
+            if message:
+                await bot.send_group_msg(
+                    group_id=json_data[ch_name]['qqGroup'],
+                    message=f'{ch_name} 直播间内容更新！\n{await api.get_live_details()}'
+                )
+
+                await bot.send_private_msg(
+                    user_id=SUPER_USER,
+                    message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
+                            f'{ch_name} updated:\n'
                             f'{await api.get_live_details()}'
                 )
 
@@ -348,6 +366,7 @@ async def do_tweet_update_fetch():
                 )
 
 
+"""
 async def do_bilibili_live_fetch():
     logger.info('Automatically fetching bilibili live info...')
     live_stat_dict = tweet.get_live_room_info()
@@ -360,6 +379,7 @@ async def do_bilibili_live_fetch():
                 message = live_stat_dict[ch_name]
                 await bot.send_group_msg(group_id=element,
                                          message=message)
+"""
 
 
 @nonebot.on_command('b站话题', aliases={'B站话题', 'btopic'}, only_to_me=False)

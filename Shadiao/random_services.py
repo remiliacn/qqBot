@@ -10,6 +10,8 @@ import random
 import requests
 import time
 
+with open('config/downloader_data.json', 'r') as f:
+    JSON_DATA = json.loads(f.read())
 
 class Earthquakeinfo:
     def __init__(self):
@@ -42,6 +44,7 @@ class YouTubeLiveTracker:
         self.base_url = f'https://www.youtube.com/channel/{channel}/live'
         self.ch_name = ch_name
         self.json_data = {}
+        self.live_data = {}
         self.new_video_id = ''
 
     async def get_json_data(self):
@@ -80,9 +83,6 @@ class YouTubeLiveTracker:
         get_data = lambda x, y: y[x] if x in y else ''
 
         title = get_data('title', live_stat)
-        description = get_data('shortDescription', live_stat)
-        if len(description) > 200:
-            description = description[:200]
 
         thumbnail_url = live_stat['thumbnail'] if 'thumbnail' in live_stat else {}
         image_data_in_qcode = ''
@@ -125,50 +125,74 @@ class YouTubeLiveTracker:
 
             image_data_in_qcode = f'[CQ:image,file=file:///{file_name}]'
 
-        head = f'{self.ch_name}创建了新的直播间！\n' if self.get_upcoming_status() else f'{self.ch_name}开播啦！'
-
         if live_time:
-            result = f'{head}\n' \
-                     f'标题 {title}\n\n' \
-                     f'=== 描述 ===\n{description}...\n\n' \
+            result = f'标题 {title}\n\n' \
                      f'=== 封面 ===\n' \
                      f'{image_data_in_qcode}\n' \
                      f'开播时间：{live_time}\n' \
                      f'观看地址：https://www.youtube.com/watch?v={self.new_video_id}'
+
+            self.live_data = {
+                "title": title,
+                "thumbnail": image_data_in_qcode,
+                "live_time": live_time,
+                "videoID": self.new_video_id
+            }
         else:
             result = ''
 
         return result
 
-    def update_live_id(self, is_checking_live: bool):
+    async def update_live_id(self, is_checking_live: bool) -> int:
         if not os.path.exists(f'config/downloader.json'):
             raise FileNotFoundError()
 
         with open(f'config/downloader.json', 'r', encoding='utf8') as file:
             json_data = json.loads(file.read())
 
+        # if live
         if is_checking_live:
-            self.get_live_status()
+            # self.get_live_status()
             if 'liveID' not in json_data[self.ch_name] or self.new_video_id != json_data[self.ch_name]['liveID']:
                 json_data[self.ch_name]['liveID'] = self.new_video_id
                 with open(f'{os.getcwd()}/config/downloader.json', 'w+', encoding='utf8') as file:
                     json.dump(json_data, file, indent=4)
 
-                return True
+                return 1
+
+        #if not live
         else:
-            self.get_upcoming_status()
+            # self.get_upcoming_status()
+            await self.get_live_details()
             if 'upcomingID' not in json_data[self.ch_name] or self.new_video_id != json_data[self.ch_name]['upcomingID']:
                 json_data[self.ch_name]['upcomingID'] = self.new_video_id
                 with open(f'{os.getcwd()}/config/downloader.json', 'w+', encoding='utf8') as file:
                     json.dump(json_data, file, indent=4)
 
-                return True
+                self.save_vtuber_stat()
+                return 1
 
-        return False
+            elif self.new_video_id == json_data[self.ch_name]['upcomingID']:
+                loaded_data = self.load_vtuber_saved_stat()
+                if loaded_data != self.live_data:
+                    self.save_vtuber_stat()
+                    return 2
+
+        return 0
+
+    def load_vtuber_saved_stat(self):
+        if self.ch_name not in JSON_DATA:
+            return {}
+
+        return JSON_DATA[self.ch_name]
+
+    def save_vtuber_stat(self):
+        JSON_DATA[self.ch_name] = self.live_data
+        with open('config/downloader_data.json', 'w+') as file:
+            json.dump(JSON_DATA, file, indent=4)
 
 
 if __name__ == '__main__':
     api = YouTubeLiveTracker('UC9pYOJPB5UYlMlGKKZWo-Bw', 'test')
-    print(api.get_live_status())
     if api.get_live_status():
         print(api.get_live_details())

@@ -49,6 +49,10 @@ def register_true():
         with open('data/started.json', 'w+') as f:
             dump({}, f, indent=4)
 
+    if not path.exists('config/downloader_data.json'):
+        with open('config/downloader_data.json', 'w+') as f:
+            dump({}, f, indent=4)
+
     with open('data/started.json', 'w+') as f:
         dump({'status' : True}, f, indent=4)
 
