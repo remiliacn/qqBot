@@ -104,6 +104,7 @@ async def pixiv_send(session: nonebot.CommandSession):
         )
 
     ctx = session.ctx.copy()
+    message_id = ctx['message_id']
     if get_privilege(ctx['user_id'], perm.BANNED):
         return
 
@@ -267,11 +268,11 @@ async def pixiv_send(session: nonebot.CommandSession):
     if not is_r18:
         try:
             await session.send(
-                f'[CQ:at,qq={user_id}]\n'
+                f'[CQ:reply,id={message_id}]'
                 f'Pixiv ID: {illust.id}\n'
                 f'查询关键词：{key_word}\n'
                 f'画师：{illust["user"]["name"]}\n' +
-                f'{MessageSegment.image(f"file:///{path}")}' +
+                f'{MessageSegment.image(f"file:///{path}")}\n' +
                 f'Download Time: {(time.time() - start_time):.2f}s'
             )
 
@@ -283,20 +284,20 @@ async def pixiv_send(session: nonebot.CommandSession):
             return
 
     elif is_r18 and (group_id == -1 or admin_control.get_data(group_id, 'R18')):
-        message_id = await session.send(
-            f'[CQ:at,qq={user_id}]\n'
+        message_sent = await session.send(
+            f'[CQ:reply,id={message_id}]'
             f'芜湖~好图来了ww\n'
             f'Pixiv ID: {illust.id}\n'
             f'关键词：{key_word}\n'
             f'画师：{illust["user"]["name"]}\n'
-            f'{MessageSegment.image(f"file:///{path}")}' +
+            f'{MessageSegment.image(f"file:///{path}")}\n' +
             f'Download Time: {(time.time() - start_time):.2f}s'
         )
 
         if not is_exempt:
-            message_id = message_id['message_id']
-            sanity_meter.add_recall(message_id)
-            nonebot.logger.info(f'Added message_id {message_id} to recall list.')
+            message_id_sent = message_sent['message_id']
+            sanity_meter.add_recall(message_id_sent)
+            nonebot.logger.info(f'Added message_id {message_id_sent} to recall list.')
 
     else:
         if not monitored:
@@ -306,7 +307,7 @@ async def pixiv_send(session: nonebot.CommandSession):
                                                f"来自群：{group_id}\n"
                                                f"查询关键词：{key_word}\n" +
                                                f'Pixiv ID: {illust.id}\n' +
-                                               f'{MessageSegment.image(f"file:///{path}")}' +
+                                               f'{MessageSegment.image(f"file:///{path}")}\n' +
                                                f'Download Time: {(time.time() - start_time):.2f}s'
                                        )
 
@@ -372,11 +373,18 @@ async def reverse_image_search(session: nonebot.CommandSession):
         url = image['url']
         nonebot.logger.info(f'URL extracted: {url}')
         try:
-            response = await sauce_helper(url)
-            await session.send(
-                f"{MessageSegment.at(ctx['user_id'])}\n"
-                f"{response}"
-            )
+            response_data = await sauce_helper(url)
+            if not response_data:
+                await session.finish('阿这~图片辨别率低，请换一张图试试！')
+                return
+
+            response = f'{response_data["data"]}' \
+                       f'图片相似度：{response_data["simlarity"]}\n' \
+                       f'图片标题：{response_data["title"]}\n' \
+                       f'图片画师：{response_data["author"]}\n' \
+                       f'Pixiv ID：{response_data["pixiv_id"]}\n' \
+                       f'直链：{response_data["ext_url"]}'
+            await session.send(response)
             return
 
         except Exception as err:
@@ -399,6 +407,8 @@ async def sauce_helper(url):
         'url': url
     }
 
+    response = {}
+
     async with aiohttp.ClientSession() as client:
         async with client.get(
                 'https://saucenao.com/search.php',
@@ -412,15 +422,7 @@ async def sauce_helper(url):
                                  f'{json_data}')
             response = ''
             if json_data:
-                simlarity = json_data['header']['similarity']
-                sim = float(simlarity)
-                if sim < 60:
-                    response += 'WTM不是很确定啊~'
-                else:
-                    response += 'WTM觉得就是这个！'
-
-                simlarity += '%'
-
+                simlarity = json_data['header']['similarity'] + '%'
                 thumbnail = json_data['header']['thumbnail']
                 async with client.get(thumbnail) as page:
                     file_name = thumbnail.split('/')[-1]
@@ -436,13 +438,13 @@ async def sauce_helper(url):
 
                                     file.write(chunk)
                         except IOError:
-                            return '图片辨别率低。请换一张图试试！'
+                            return {}
 
                 image_content = MessageSegment.image(f'file:///{path}')
 
                 json_data = json_data['data']
                 if 'ext_urls' not in json_data:
-                    return '图片辨别率低。请换一张图试试！'
+                    return {}
 
                 pixiv_id = 'Undefined'
                 title = 'Undefined'
@@ -456,7 +458,7 @@ async def sauce_helper(url):
                         author = json_data['author']
                     else:
                         if 'artist' not in json_data:
-                            return '图片辨别率低。请换一张图试试！'
+                            return {}
 
                         author = json_data['artist']
 
@@ -469,14 +471,24 @@ async def sauce_helper(url):
                         if 'pixiv_id' in json_data:
                             pixiv_id = json_data['pixiv_id']
 
+                response = {
+                    'data': image_content,
+                    'simlarity': simlarity,
+                    'title': title,
+                    'author': author,
+                    'pixiv_id': pixiv_id,
+                    'ext_url': ext_url,
+                    'thumbnail': thumbnail
+                }
+
+                """
                 response += f'{image_content}' \
                             f'图片相似度：{simlarity}\n' \
                             f'图片标题：{title}\n' \
                             f'图片画师：{author}\n' \
                             f'Pixiv ID：{pixiv_id}\n' \
                             f'直链：{ext_url}'
-        else:
-            response = '未找到结果呢！'
+                """
 
     return response
 

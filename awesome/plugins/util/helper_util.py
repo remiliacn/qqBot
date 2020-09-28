@@ -1,3 +1,4 @@
+import json
 import re
 import os
 
@@ -93,3 +94,37 @@ def ark_helper(args: list) -> str:
         return '使用方法有误，第二参数应为数字'
 
     return ''
+
+def send_message_with_mini_program(title: str, content: list, image=None, action: list=None) -> str:
+    data = {
+      "app": "com.tencent.miniapp",
+      "desc": "",
+      "view": "notification",
+      "ver": "1.0.0.11",
+      "prompt": "[又有lsp在搜图]",
+      "appID": "",
+      "sourceName": "",
+      "actionData": "",
+      "actionData_A": "",
+      "sourceUrl": "",
+      "meta": {
+        "notification": {
+          "appInfo": {
+            "appName": "",
+            "appType": 4,
+            "appid": 1109659848,
+            "iconUrl": image if image is not None else ""
+          },
+          "data": content,
+          "title": title,
+          "button": action if action is not None else [],
+          "emphasis_keyword": ""
+        }
+      },
+      "text": "",
+      "sourceAd": ""
+    }
+
+    result = json.dumps(data)
+    result = result.replace('&', '&amp;').replace(',', '&#44;').replace('[', '&#91;').replace(']', '&#93;')
+    return f'[CQ:json,data={result}]'

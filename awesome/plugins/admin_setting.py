@@ -1,11 +1,10 @@
-from time import time, time_ns
 from datetime import datetime
 from json import loads
 from math import *
 from os import getcwd
 from random import randint, seed
 from re import findall, match, sub, compile
-from aiocqhttp import MessageSegment
+from time import time, time_ns
 
 import aiohttp
 import nonebot
@@ -14,12 +13,15 @@ import config
 from awesome.adminControl import permission as perm
 from awesome.plugins.setu import sauce_helper
 from awesome.plugins.shadiao import sanity_meter
-from awesome.plugins.util.helper_util import get_downloaded_image_path
+from awesome.plugins.util.helper_util import get_downloaded_image_path, send_message_with_mini_program
 from qq_bot_core import alarm_api, admin_control
 from qq_bot_core import user_control_module
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
+@nonebot.on_command('测试', only_to_me=False)
+async def test_json(session: nonebot.CommandSession):
+    await session.send()
 
 @nonebot.on_command('警报解除', only_to_me=False)
 async def lower_alarm(session: nonebot.CommandSession):
@@ -584,11 +586,40 @@ async def send_answer(session: nonebot.NLPSession):
             url = image['url']
             nonebot.logger.info(f'URL extracted: {url}')
             try:
-                response = await sauce_helper(url)
+                response_data = await sauce_helper(url)
+                if not response_data:
+                    await session.send('阿这~好像图片无法辨别的说！')
+                    return
+
                 await session.send(
-                    f"{MessageSegment.at(ctx['user_id'])}\n"
-                    f"{response}"
+                    send_message_with_mini_program(
+                        "搜索结果如下！",
+                        [
+                            {
+                                'title': '相似度',
+                                'value': response_data["simlarity"]
+                            },
+                            {
+                                'title': '标题',
+                                'value': response_data["title"]
+                            },
+                            {
+                                'title': '画师',
+                                'value': response_data["author"]
+                            },
+                            {
+                                'title': 'ID',
+                                'value': response_data["pixiv_id"]
+                            },
+                            {
+                                'title': '直链',
+                                'value': response_data['ext_url']
+                            }
+                        ],
+                        image=response_data["thumbnail"]
+                    )
                 )
+
             except Exception as err:
                 await session.send(f'啊这~出错了！报错信息已发送主人debug~')
                 await bot.send_private_msg(
