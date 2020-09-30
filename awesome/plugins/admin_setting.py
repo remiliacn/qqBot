@@ -13,7 +13,8 @@ import config
 from awesome.adminControl import permission as perm
 from awesome.plugins.setu import sauce_helper
 from awesome.plugins.shadiao import sanity_meter
-from awesome.plugins.util.helper_util import get_downloaded_image_path, send_message_with_mini_program
+from awesome.plugins.util.helper_util import get_downloaded_image_path, send_message_with_mini_program, \
+    send_as_xml_message
 from qq_bot_core import alarm_api, admin_control
 from qq_bot_core import user_control_module
 
@@ -21,7 +22,7 @@ get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
 @nonebot.on_command('测试', only_to_me=False)
 async def test_json(session: nonebot.CommandSession):
-    await session.send()
+    await session.send('')
 
 @nonebot.on_command('警报解除', only_to_me=False)
 async def lower_alarm(session: nonebot.CommandSession):
@@ -591,34 +592,48 @@ async def send_answer(session: nonebot.NLPSession):
                     await session.send('阿这~好像图片无法辨别的说！')
                     return
 
-                await session.send(
-                    send_message_with_mini_program(
-                        "搜索结果如下！",
-                        [
-                            {
-                                'title': '相似度',
-                                'value': response_data["simlarity"]
-                            },
-                            {
-                                'title': '标题',
-                                'value': response_data["title"]
-                            },
-                            {
-                                'title': '画师',
-                                'value': response_data["author"]
-                            },
-                            {
-                                'title': 'ID',
-                                'value': response_data["pixiv_id"]
-                            },
-                            {
-                                'title': '直链',
-                                'value': response_data['ext_url']
-                            }
-                        ],
-                        image=response_data["thumbnail"]
+                if rand_num == 1:
+                    await session.send(
+                        send_message_with_mini_program(
+                            "搜索结果如下！",
+                            [
+                                {
+                                    'title': '相似度',
+                                    'value': response_data["simlarity"]
+                                },
+                                {
+                                    'title': '标题',
+                                    'value': response_data["title"]
+                                },
+                                {
+                                    'title': '画师',
+                                    'value': response_data["author"]
+                                },
+                                {
+                                    'title': 'ID',
+                                    'value': response_data["pixiv_id"]
+                                },
+                                {
+                                    'title': '直链',
+                                    'value': response_data['ext_url']
+                                }
+                            ],
+                            image=response_data["thumbnail"]
+                        )
                     )
-                )
+                else:
+                    await session.send(
+                        send_as_xml_message(
+                            'lsp出现了！',
+                            '搜索结果如下！',
+                            f'相似度：{response_data["simlarity"]}\n'
+                            f'标题：{response_data["title"]}\n'
+                            f'画师：{response_data["author"]}\n',
+                            url=response_data['ext_url'],
+                            image=response_data["thumbnail"],
+                            source=f'ID：{response_data["pixiv_id"]}'
+                        )
+                    )
 
             except Exception as err:
                 await session.send(f'啊这~出错了！报错信息已发送主人debug~')

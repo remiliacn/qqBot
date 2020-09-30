@@ -109,17 +109,6 @@ async def shadiao_send(session: nonebot.CommandSession):
     await session.send(f'[CQ:image,file=file:///{file}]')
 
 
-@nonebot.on_command('PCR', only_to_me=False)
-async def pcr_news_send(session: nonebot.CommandSession):
-    try:
-        await session.send(await pcr_api.get_content())
-    except Exception as e:
-        await session.send(
-            f'请上报机器人主人\n'
-            f'Error fetching data: {e}'
-        )
-
-
 @nonebot.on_command('你群有多色', only_to_me=False)
 async def get_setu_stat(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
