@@ -156,6 +156,29 @@ async def pixiv_send(session: nonebot.CommandSession):
             await session.send(
                 f'该查询关键词在黑名单中，危机合约模式已开启：本次色图搜索将{multiplier}倍消耗理智'
             )
+
+            if multiplier * 2 > 400:
+                sanity_meter.set_user_data(user_id, 'ban_count')
+                if sanity_meter.get_user_data_by_tag(user_id, 'ban_count') >= 2:
+                    user_control_module.set_user_privilege(user_id, 'BANNED', True)
+                    await session.send(f'用户{user_id}已被封停机器人使用权限')
+                    bot = nonebot.get_bot()
+                    await bot.send_private_msg(
+                        user_id=SUPER_USER,
+                        message=f'User {user_id} has been banned for triggering prtection. Keyword = {key_word}'
+                    )
+
+
+                else:
+                    await session.send('本次黑名单搜索已触发群保护机制，下次触发将会导致所有功能禁用。')
+                    bot = nonebot.get_bot()
+                    await bot.send_private_msg(
+                        user_id=SUPER_USER,
+                        message=f'User {user_id} triggered protection mechanism. Keyword = {key_word}'
+                    )
+
+                del bot
+                return
         else:
             await session.send(
                 f'该查询关键词在白名单中，支援合约已开启：本次色图搜索将{abs(multiplier)}倍补充理智'
