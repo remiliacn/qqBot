@@ -592,35 +592,6 @@ async def send_answer(session: nonebot.NLPSession):
                     await session.send('阿这~好像图片无法辨别的说！')
                     return
 
-                if rand_num == 1:
-                    await session.send(
-                        send_message_with_mini_program(
-                            "搜索结果如下！",
-                            [
-                                {
-                                    'title': '相似度',
-                                    'value': response_data["simlarity"]
-                                },
-                                {
-                                    'title': '标题',
-                                    'value': response_data["title"]
-                                },
-                                {
-                                    'title': '画师',
-                                    'value': response_data["author"]
-                                },
-                                {
-                                    'title': 'ID',
-                                    'value': response_data["pixiv_id"]
-                                },
-                                {
-                                    'title': '直链',
-                                    'value': response_data['ext_url']
-                                }
-                            ],
-                            image=response_data["thumbnail"]
-                        )
-                    )
                 else:
                     await session.send(
                         send_as_xml_message(
