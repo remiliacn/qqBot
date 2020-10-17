@@ -15,7 +15,10 @@ from config import SUPER_USER, user_name, password
 from qq_bot_core import sanity_meter, user_control_module, admin_control, alarm_api
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
-pixiv_api = pixivpy3.AppPixivAPI()
+pixiv_api = pixivpy3.ByPassSniApi()
+pixiv_api.require_appapi_hosts(hostname='public-api.secure.pixiv.net')
+pixiv_api.set_accept_language('en_us')
+
 
 
 @nonebot.on_command('色图数据', only_to_me=False)
@@ -230,7 +233,7 @@ async def pixiv_send(session: nonebot.CommandSession):
         admin_control.set_if_authed(False)
         try:
             admin_control.set_access_token(
-                access_token=pixiv_api.auth(
+                access_token=pixiv_api.login(
                     username=user_name,
                     password=password).response.access_token
             )
@@ -238,7 +241,8 @@ async def pixiv_send(session: nonebot.CommandSession):
             await session.send('新的P站匿名访问链接已建立……')
             admin_control.set_if_authed(True)
 
-        except pixivpy3.PixivError:
+        except pixivpy3.PixivError as err:
+            print(err)
             return
 
     if '{user=' in key_word:
