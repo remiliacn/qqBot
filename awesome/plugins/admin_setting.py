@@ -544,8 +544,8 @@ async def send_answer(session: nonebot.NLPSession):
 
     group_id = ctx['group_id']
 
+    message = str(ctx['raw_message'])
     if admin_control.get_data(group_id, 'enabled'):
-        message = str(ctx['raw_message'])
         if get_privilege(ctx['user_id'], perm.BANNED):
             return
 
@@ -575,48 +575,63 @@ async def send_answer(session: nonebot.NLPSession):
                         admin_control.repeat_dict[ctx['group_id']] = {}
                         admin_control.repeat_dict[ctx['group_id']] = {message: 1}
 
-    message = ctx['raw_message']
-    if '搜图' in message and '[CQ:reply' in message:
-        reply_id = findall(r'\[CQ:reply,id=(.*?)]', message)
-        bot = nonebot.get_bot()
-        data = await bot.get_group_msg(message_id=int(reply_id[0]))
-        possible_image_content = data['content']
-        has_image = findall(r'.*?\[CQ:image,file=(.*?\.image)]', possible_image_content)
-        if has_image:
-            image = await bot.get_image(file=has_image[0])
-            url = image['url']
-            nonebot.logger.info(f'URL extracted: {url}')
-            try:
-                response_data = await sauce_helper(url)
-                if not response_data:
-                    await session.send('阿这~好像图片无法辨别的说！')
-                    return
+    if '[CQ:reply' in message:
+        if '搜图' in message:
+            response = await _do_soutu_operation(message)
+            await session.send(response)
+        elif '复述' in message:
+            response = await _do_message_retrieve(message)
+            await session.send(response)
 
-                else:
-                    await session.send(
-                        send_as_xml_message(
-                            'lsp出现了！',
-                            '搜索结果如下！',
-                            f'相似度：{response_data["simlarity"]}\n'
-                            f'标题：{response_data["title"]}\n'
-                            f'画师：{response_data["author"]}\n',
-                            url=response_data['ext_url'],
-                            image=response_data["thumbnail"],
-                            source=f'ID：{response_data["pixiv_id"]}'
-                        )
-                    )
+async def _do_message_retrieve(message: str) -> str:
+    reply_id = findall(r'\[CQ:reply,id=(.*?)]', message)
+    bot = nonebot.get_bot()
+    data = await bot.get_msg(message_id=int(reply_id[0]))
+    message = data['content']
+    if 'CQ' in data:
+        message = sub(r'\[CQ.*?\]', '', data)
 
-            except Exception as err:
-                await session.send(f'啊这~出错了！报错信息已发送主人debug~')
-                await bot.send_private_msg(
-                    user_id=config.SUPER_USER,
-                    message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
-                            f'搜图功能出错：\n'
-                            f'Error：{err}\n'
-                            f'出错URL：{url}'
+    return f'[CQ:tts,text={message}]'
+
+async def _do_soutu_operation(message: str) -> str:
+    reply_id = findall(r'\[CQ:reply,id=(.*?)]', message)
+    bot = nonebot.get_bot()
+    data = await bot.get_msg(message_id=int(reply_id[0]))
+    possible_image_content = data['content']
+    has_image = findall(r'.*?\[CQ:image,file=(.*?\.image)]', possible_image_content)
+    if has_image:
+        image = await bot.get_image(file=has_image[0])
+        url = image['url']
+        nonebot.logger.info(f'URL extracted: {url}')
+        try:
+            response_data = await sauce_helper(url)
+            if not response_data:
+                return '阿这~好像图片无法辨别的说！'
+
+            else:
+                return send_as_xml_message(
+                        'lsp出现了！',
+                        '搜索结果如下！',
+                        f'相似度：{response_data["simlarity"]}\n'
+                        f'标题：{response_data["title"]}\n'
+                        f'画师：{response_data["author"]}\n',
+                        url=response_data['ext_url'],
+                        image=response_data["thumbnail"],
+                        source=f'ID：{response_data["pixiv_id"]}'
                 )
-        else:
-            await session.send('阿这，是我瞎了么？好像没有图片啊原文里。')
+
+
+        except Exception as err:
+            await bot.send_private_msg(
+                user_id=config.SUPER_USER,
+                message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
+                        f'搜图功能出错：\n'
+                        f'Error：{err}\n'
+                        f'出错URL：{url}'
+            )
+            return f'啊这~出错了！报错信息已发送主人debug~'
+
+    return '阿这，是我瞎了么？好像没有图片啊原文里。'
 
 @nonebot.on_command('ban', only_to_me=False)
 async def ban_someone(session: nonebot.CommandSession):
