@@ -74,6 +74,16 @@ async def add_group_quotes(session: nonebot.CommandSession):
     else:
         await session.finish('啊这……')
 
+@nonebot.on_command('说', only_to_me=False)
+async def send_voice_message(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    msg: str = ctx['raw_message']
+    args = msg.split()
+    if len(args) != 2:
+        return
+
+    text = args[1]
+    await session.send(f'[CQ:tts,text={text}]')
 
 @nonebot.message_preprocessor
 async def message_preprocessing(_: nonebot.NoneBot, event: aiocqhttp.event, __: PluginManager):
