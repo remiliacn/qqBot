@@ -79,10 +79,13 @@ async def send_voice_message(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     msg: str = ctx['raw_message']
     args = msg.split()
-    if len(args) != 2:
+    if len(args) < 2:
         return
+    else:
+        message = ''.join(args[1:])
 
-    text = args[1]
+    text = re.sub('\[CQ:.*?\]', '', message)
+    text = re.sub('祈.*?雨', f'{ctx["sender"]["nickname"]}', text)
     await session.send(f'[CQ:tts,text={text}]')
 
 @nonebot.message_preprocessor

@@ -13,8 +13,7 @@ import config
 from awesome.adminControl import permission as perm
 from awesome.plugins.setu import sauce_helper
 from awesome.plugins.shadiao import sanity_meter
-from awesome.plugins.util.helper_util import get_downloaded_image_path, send_message_with_mini_program, \
-    send_as_xml_message
+from awesome.plugins.util.helper_util import get_downloaded_image_path, send_as_xml_message
 from qq_bot_core import alarm_api, admin_control
 from qq_bot_core import user_control_module
 
@@ -588,8 +587,7 @@ async def _do_message_retrieve(message: str) -> str:
     bot = nonebot.get_bot()
     data = await bot.get_msg(message_id=int(reply_id[0]))
     message = data['content']
-    if 'CQ' in data:
-        message = sub(r'\[CQ.*?\]', '', data)
+    message = sub('\[CQ.*?\]', '', message)
 
     return f'[CQ:tts,text={message}]'
 
