@@ -130,7 +130,6 @@ async def send_tweet():
         # do_bilibili_live_fetch(),
         do_youtube_update_fetch(),
         fill_sanity(),
-        do_recall(),
         save_stats(),
         check_youtube_live()
     )
@@ -168,30 +167,6 @@ def get_status():
 async def save_stats():
     sanity_meter.make_a_json('config/stats.json')
     sanity_meter.make_a_json('config/setu.json')
-
-
-async def do_recall():
-    logger.info('Recalling messages...')
-    recall_list = sanity_meter.get_recall()
-    if recall_list:
-        bot = nonebot.get_bot()
-        for message in recall_list:
-            logger.info(f'recalling message by message id: {message}')
-            try:
-                await bot.delete_msg(message_id=message)
-            except Exception as err:
-                logger.info(
-                    f'Error recalling message: {err}\n'
-                    f'Message id: {message}'
-                )
-
-                await bot.send_private_msg(
-                    user_id=SUPER_USER,
-                    message=f'Error recalling message: {err}\n'
-                            f'Message id: {message}'
-                )
-
-        sanity_meter.clear_recall()
 
 
 async def check_youtube_live():

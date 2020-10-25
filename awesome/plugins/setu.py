@@ -20,7 +20,6 @@ pixiv_api.require_appapi_hosts(hostname='public-api.secure.pixiv.net')
 pixiv_api.set_accept_language('en_us')
 
 
-
 @nonebot.on_command('色图数据', only_to_me=False)
 async def get_setu_stat(session: nonebot.CommandSession):
     setu_stat = sanity_meter.get_keyword_track()[0:10]
@@ -311,20 +310,15 @@ async def pixiv_send(session: nonebot.CommandSession):
             return
 
     elif is_r18 and (group_id == -1 or admin_control.get_data(group_id, 'R18')):
-        message_sent = await session.send(
+        await session.send(
             f'[CQ:reply,id={message_id}]'
             f'芜湖~好图来了ww\n'
             f'Pixiv ID: {illust.id}\n'
             f'关键词：{key_word}\n'
             f'画师：{illust["user"]["name"]}\n'
-            f'{MessageSegment.image(f"file:///{path}")}\n' +
+            f'[CQ:image,file=file:///{path}{",type=flash" if not is_exempt else ""}]' +
             f'Download Time: {(time.time() - start_time):.2f}s'
         )
-
-        if not is_exempt:
-            message_id_sent = message_sent['message_id']
-            sanity_meter.add_recall(message_id_sent)
-            nonebot.logger.info(f'Added message_id {message_id_sent} to recall list.')
 
     else:
         if not monitored:
@@ -533,12 +527,7 @@ async def get_random_image(session: nonebot.CommandSession):
     sanity_meter.set_usage(id_num, 'setu')
     sanity_meter.set_user_data(user_id, 'setu')
 
-    message, is_nsfw = await get_random()
-    message_id = await session.send(message)
-    if is_nsfw:
-        message_id = message_id['message_id']
-        nonebot.logger.info(f'Adding message_id {message_id} to recall list.')
-        sanity_meter.add_recall(message_id)
+    message = await get_random()
 
 
 async def get_random():
@@ -549,10 +538,7 @@ async def get_random():
     sfw = 'https://gallery.fluxpoint.dev/api/sfw/anime'
     nsfw = 'https://gallery.fluxpoint.dev/api/nsfw/lewd'
     rand_num = random.randint(0, 101)
-    if rand_num >= 80:
-        is_nsfw = True
-    else:
-        is_nsfw = False
+    is_nsfw = rand_num >= 80
 
     async with aiohttp.ClientSession(
             headers=headers,
@@ -573,7 +559,7 @@ async def get_random():
 
                         f.write(chunk)
 
-    return MessageSegment.image(f'file:///{path}'), is_nsfw
+    return f'[CQ:image,file=file:///{path}{",type=flash" if is_nsfw else ""}]'
 
 
 @pixiv_send.args_parser
