@@ -32,8 +32,6 @@ class tweeter:
         self.tweet_list_init = {}
         self.tweet_config = self._get_tweet_config()
 
-        self.tweet_sent_set = set()
-
         # self.live_stat = {}
         # self.live_stat = self.get_live_room_info()
 
@@ -132,8 +130,7 @@ class tweeter:
 
             try:
                 resp_text = self.get_time_line_from_screen_name(
-                    screen_name=self.tweet_config[ch_name]['screen_name'],
-                    auto=True
+                    screen_name=self.tweet_config[ch_name]['screen_name']
                 )
                 if resp_text == self.INFO_NOT_AVAILABLE:
                     temp_dict[ch_name] = ''
@@ -159,9 +156,9 @@ class tweeter:
             with open(self.config, 'r', encoding='utf8') as file:
                 return json.loads(file.read())
 
-    def get_time_line_from_screen_name(self, screen_name, fetch_count=1, auto=False):
+    def get_time_line_from_screen_name(self, screen_name, fetch_count=1):
         if re.match('[A-Za-z0-9_]+$', screen_name):
-            return self.fetch_user_screen_name(screen_name, fetch_count, auto)
+            return self.fetch_user_screen_name(screen_name, fetch_count)
 
         else:
             search_term = screen_name
@@ -235,11 +232,5 @@ class tweeter:
                         resp_text += '\n[CQ:image,file=file:///%s]' % file_name
 
             resp_text += '\n====================\n' if fetch_count != 1 else ''
-
-            if auto:
-                if resp_text not in self.tweet_sent_set:
-                    self.tweet_sent_set.add(resp_text)
-                else:
-                    return ''
 
         return resp_text

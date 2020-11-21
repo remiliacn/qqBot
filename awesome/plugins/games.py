@@ -199,6 +199,9 @@ async def russianRoulette(session: nonebot.CommandSession):
             high = 2 + play_time
 
         rand_num = randint(low, high)
+        if rand_num > 10:
+            rand_num = 10
+            
         await bot.set_group_ban(group_id=id_num, user_id=user_id, duration=60 * rand_num)
 
 

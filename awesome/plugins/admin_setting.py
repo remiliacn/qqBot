@@ -151,7 +151,7 @@ async def add_ai_real_response(session: nonebot.CommandSession):
     question = session.get('question', prompt='请输入回答的问题')
     question = str(question).replace('\n', '')
 
-    if question in user_control_module.get_user_dict():
+    if question in user_control_module.get_user_response_dict():
         user_control_module.delete_response(question)
 
     answer = session.get('answer', prompt='已删除该回答的原始回答，请加入新的回答')
@@ -278,7 +278,7 @@ async def _send_answer(session: nonebot.CommandSession):
 
 
 def _simple_ai_process(question: str) -> str:
-    syntax = compile(r'[么嘛吗马][？?]')
+    syntax = compile(r'[么嘛吗马][？?]?')
     syntax2 = compile(r'.*?(.*?)不\1')
 
     response = sub(syntax, '', question)
@@ -309,6 +309,14 @@ def _simple_ai_process(question: str) -> str:
     if len(response) > 3:
         syntax_bot = compile('(bot|机器人|机械人|机屑人)')
         response = sub(syntax_bot, '人类', response)
+
+    if '你' in response:
+        for element in ('傻', '逼', '憨', '智障', 'retarded'):
+            if element in response:
+                break
+        else:
+            response = response.replace('你', '我')
+
 
     return response
 
@@ -424,7 +432,7 @@ def _prefetch(question: str, user_id: int) -> str:
         user_control_module.set_user_repeat_question(user_id)
         return '你怎么又问一遍？'
 
-    elif question in user_control_module.get_user_dict():
+    elif question in user_control_module.get_user_response_dict():
         user_control_module.last_question = question
         response = user_control_module.get_user_response(question)
         return response if response != '$' else ''
@@ -549,7 +557,7 @@ async def send_answer(session: nonebot.NLPSession):
             return
 
         if 'group_id' in ctx:
-            if rand_num == 1 and message in user_control_module.get_user_dict():
+            if rand_num == 1 and message in user_control_module.get_user_response_dict():
                 group_id = str(ctx['group_id'])
                 try:
                     if group_id not in user_control_module.last_question or \
@@ -560,19 +568,6 @@ async def send_answer(session: nonebot.NLPSession):
                 except Exception as err:
                     print(f"Something went wrong: {err}")
                     return
-
-                if ctx['group_id'] not in admin_control.repeat_dict:
-                    admin_control.repeat_dict[ctx['group_id']] = {message: 1}
-                else:
-                    if message in admin_control.repeat_dict[ctx['group_id']]:
-                        admin_control.repeat_dict[ctx['group_id']][message] += 1
-                        if admin_control.repeat_dict[ctx['group_id']][message] == 3:
-                            await session.send(message)
-                            return
-
-                    else:
-                        admin_control.repeat_dict[ctx['group_id']] = {}
-                        admin_control.repeat_dict[ctx['group_id']] = {message: 1}
 
     if '[CQ:reply' in message:
         if '搜图' in message:

@@ -91,8 +91,7 @@ async def get_new_tweet_by_ch_name(session: nonebot.CommandSession):
         )
 
     else:
-        the_tweet = await tweet.get_time_line_from_screen_name(key_word)
-        await session.finish(the_tweet)
+        await session.finish('查询失败！')
 
 
 @nonebot.on_command('推特查询', only_to_me=False)

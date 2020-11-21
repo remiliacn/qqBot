@@ -87,7 +87,7 @@ class UserControl:
 
         return False
 
-    def get_user_dict(self):
+    def get_user_response_dict(self):
         return self.answer_dict
 
     def get_user_response(self, question):

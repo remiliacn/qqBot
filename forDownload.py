@@ -131,7 +131,7 @@ def get_first_video(channel_id: str, name: str, group_id, user_dict: dict):
                 time = re.findall(r'(\d+) hours ago', publish_time)
                 if time:
                     logger.warning(f'{name} - This video is published {time[0]} hours ago')
-                    if int(time[0]) < 4:
+                    if int(time[0]) < 2:
                         logger.warning('The video may not be fully converted, aborting...')
                         return
 
