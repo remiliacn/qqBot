@@ -490,10 +490,13 @@ async def cai_hong_pi(session: nonebot.CommandSession):
 
     msg = str(ctx['raw_message'])
 
+    do_tts = '语音' in msg
+
     if re.match(r'.*?\[CQ:at,qq=.*?\]', msg):
         qq = re.findall(r'\[CQ:at,qq=(.*?)\]', msg)[0]
         if qq != "all":
-            await session.send(f"[CQ:at,qq={int(qq)}] {text}")
-            return
+            if not do_tts:
+                await session.send(f"[CQ:at,qq={int(qq)}] {text}")
+                return
 
-    await session.send(text)
+    await session.send(f'[CQ:tts,text={text}]' if do_tts else f'[CQ:reply,id={ctx["message_id"]}{text}')
