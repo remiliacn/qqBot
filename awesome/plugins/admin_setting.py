@@ -246,7 +246,7 @@ async def sendAnswer(session: nonebot.CommandSession):
 
         else:
             nonebot.logger.info(msg="It is not a normal question.")
-            ai_process = _simple_ai_process(question)
+            ai_process = _simple_ai_process(question, ctx)
             if question == ai_process:
                 response = await _request_api_response(question)
                 await session.send(
@@ -277,7 +277,7 @@ async def _send_answer(session: nonebot.CommandSession):
     session.state[session.current_key] = stripped_arg
 
 
-def _simple_ai_process(question: str) -> str:
+def _simple_ai_process(question: str, ctx: dict) -> str:
     syntax = compile(r'[么嘛吗马][？?]?')
     syntax2 = compile(r'.*?(.*?)不\1')
 
@@ -313,6 +313,7 @@ def _simple_ai_process(question: str) -> str:
     if '你' in response:
         for element in ('傻', '逼', '憨', '智障', 'retarded'):
             if element in response:
+                response = response.replace('你', ctx['sender']['nickname'])
                 break
         else:
             response = response.replace('你', '我')

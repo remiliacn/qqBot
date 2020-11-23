@@ -262,11 +262,8 @@ async def do_youtube_update_fetch():
                         await bot.send_group_msg(
                             group_id=group_id,
                             message='视频下载完毕~\n'
-                                    '视频名称：%s\n'
-                                    '如果上传好了的话视频将会出现在\n'
-                                    '%s' % (
-                                        elements,
-                                        share_link
+                                    '视频名称：%s\n' % (
+                                        elements
                                     )
                         )
                         await bot.send_private_msg(

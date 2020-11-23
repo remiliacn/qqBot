@@ -175,16 +175,17 @@ async def russianRoulette(session: nonebot.CommandSession):
         game.add_player_play_time(group_id=id_num, user_id=user_id)
 
     play_time = game.get_play_time_with_user_id(group_id=id_num, user_id=user_id)
+    message_id = ctx['message_id']
     if not game.get_result(id_num):
-        await session.send('咔')
+        await session.send(f'[CQ:reply,id={message_id}]咔')
     else:
         death = game.get_death(id_num)
         if get_privilege(user_id, perm.OWNER):
-            await session.send(f'[CQ:at,qq={id_num}] sv_cheats 1 -> 成功触发免死\n'
+            await session.send(f'[CQ:reply,id={message_id}] sv_cheats 1 -> 成功触发免死\n'
                                '本应中枪几率为：%.2f' % (1 / (7 - death)))
             return
 
-        await session.send('[CQ:at,qq=%d]boom！你死了。这是第%d枪，理论几率为：%.2f' % (user_id, death, (1 / (7 - death))))
+        await session.send(f'[CQ:reply,id={message_id}]boom！你死了。这是第%d枪，理论几率为：%.2f' % (death, (1 / (7 - death))))
         sanity_meter.set_user_data(user_id, 'roulette')
 
         bot = nonebot.get_bot()
