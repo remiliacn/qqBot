@@ -246,6 +246,23 @@ async def up_ten_polls(session: nonebot.CommandSession):
 
     await session.finish(arknights_api.set_up(args[0], args[1]))
 
+@nonebot.on_command('帮我做选择', only_to_me=False)
+async def do_mcq(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    raw_message: str = ctx['raw_message']
+
+    question_count = 1
+    if len(raw_message.split()) == 2:
+        try:
+            question_count = int(raw_message.split()[1])
+        except TypeError:
+            question_count = 1
+
+    answer = '选'
+    for i in range(question_count):
+        answer += f'{chr(random.randint(65, 68))}'
+
+    await session.send(answer + '。')
 
 @nonebot.on_command('方舟up重置', aliases='方舟UP重置', only_to_me=False)
 async def reset_ark_up(session: nonebot.CommandSession):
@@ -499,4 +516,4 @@ async def cai_hong_pi(session: nonebot.CommandSession):
                 await session.send(f"[CQ:at,qq={int(qq)}] {text}")
                 return
 
-    await session.send(f'[CQ:tts,text={text}]' if do_tts else f'[CQ:reply,id={ctx["message_id"]}{text}')
+    await session.send(f'[CQ:tts,text={text}]' if do_tts else f'[CQ:reply,id={ctx["message_id"]}]/{text}')

@@ -156,7 +156,7 @@ async def vote_kick_person(session : nonebot.CommandSession):
     message = ctx['raw_message']
     if re.match(r'.*?CQ:at,qq=\d+', str(message)):
         qq_num = re.findall(r'CQ:at,qq=(\d+)', message)[0]
-        if get_privilege(ctx['user_id'], perm.OWNER):
+        if get_privilege(qq_num, perm.OWNER):
             await session.finish('民意说踢………你踢你🐴呢')
 
         await session.finish(f'民意说踢出[CQ:at,qq={qq_num}]的人有{vote_kick_controller.get_vote_kick(qq_num)}个')

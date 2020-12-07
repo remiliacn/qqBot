@@ -591,7 +591,7 @@ async def _do_soutu_operation(message: str) -> str:
     reply_id = findall(r'\[CQ:reply,id=(.*?)]', message)
     bot = nonebot.get_bot()
     data = await bot.get_msg(message_id=int(reply_id[0]))
-    possible_image_content = data['content']
+    possible_image_content = data['message']
     has_image = findall(r'.*?\[CQ:image,file=(.*?\.image)]', possible_image_content)
     if has_image:
         image = await bot.get_image(file=has_image[0])
