@@ -101,7 +101,7 @@ def get_first_video(channel_id: str, name: str, group_id, user_dict: dict):
         f'https://www.youtube.com/channel/{channel_id}/videos',
         headers=headers
     )
-    content = re.findall(r'window\["ytInitialData"] = (.*?});', page.text)
+    content = re.findall(r'ytInitialData = ({.*?});', page.text)
     if content:
         content = content[0]
 
