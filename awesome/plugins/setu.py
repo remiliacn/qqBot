@@ -399,7 +399,7 @@ async def reverse_image_search(session: nonebot.CommandSession):
                 await session.finish('阿这~图片辨别率低，请换一张图试试！')
                 return
 
-            response = f'{response_data["data"]}' \
+            response = f'{response_data["data"]}\n' \
                        f'图片相似度：{response_data["simlarity"]}\n' \
                        f'图片标题：{response_data["title"]}\n' \
                        f'图片画师：{response_data["author"]}\n' \

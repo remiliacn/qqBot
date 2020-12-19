@@ -592,7 +592,7 @@ async def _do_soutu_operation(message: str) -> str:
     bot = nonebot.get_bot()
     data = await bot.get_msg(message_id=int(reply_id[0]))
     possible_image_content = data['message']
-    has_image = findall(r'.*?\[CQ:image,file=(.*?\.image)]', possible_image_content)
+    has_image = findall(r'.*?file=([a-z0-9]+\.image)', possible_image_content)
     if has_image:
         image = await bot.get_image(file=has_image[0])
         url = image['url']
@@ -603,16 +603,13 @@ async def _do_soutu_operation(message: str) -> str:
                 return '阿这~好像图片无法辨别的说！'
 
             else:
-                return send_as_xml_message(
-                        'lsp出现了！',
-                        '搜索结果如下！',
-                        f'相似度：{response_data["simlarity"]}\n'
-                        f'标题：{response_data["title"]}\n'
-                        f'画师：{response_data["author"]}\n',
-                        url=response_data['ext_url'],
-                        image=response_data["thumbnail"],
-                        source=f'ID：{response_data["pixiv_id"]}'
-                )
+                response = f'{response_data["data"]}\n' \
+                           f'图片相似度：{response_data["simlarity"]}\n' \
+                           f'图片标题：{response_data["title"]}\n' \
+                           f'图片画师：{response_data["author"]}\n' \
+                           f'Pixiv ID：{response_data["pixiv_id"]}\n' \
+                           f'直链：{response_data["ext_url"]}'
+                return response
 
 
         except Exception as err:
