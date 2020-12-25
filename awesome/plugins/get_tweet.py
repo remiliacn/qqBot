@@ -203,7 +203,7 @@ async def _async_youtube_live(ch_name, json_data):
 
         # Not currently LIVE info fetch:
         if api.get_upcoming_status():
-            resp_code = await api.update_live_id(False)
+            resp_code, update_info = await api.update_live_id(False)
             if resp_code == 1:
                 bot = nonebot.get_bot()
                 message = await api.get_live_details()
@@ -225,14 +225,15 @@ async def _async_youtube_live(ch_name, json_data):
                 if message:
                     await bot.send_group_msg(
                         group_id=json_data[ch_name]['qqGroup'],
-                        message=f'{ch_name} 直播间内容更新！\n{await api.get_live_details()}'
+                        message=f'{ch_name} 直播间内容更新！\n{update_info}'
                     )
+
 
                     await bot.send_private_msg(
                         user_id=SUPER_USER,
                         message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
                                 f'{ch_name} updated:\n'
-                                f'{await api.get_live_details()}'
+                                f'{update_info}'
                     )
 
         logger.info(f'Checking live stat for {ch_name} completed.')

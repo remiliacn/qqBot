@@ -145,7 +145,7 @@ class YouTubeLiveTracker:
 
         return result
 
-    async def update_live_id(self, is_checking_live: bool) -> int:
+    async def update_live_id(self, is_checking_live: bool) -> (int, str):
         if not os.path.exists(f'config/downloader.json'):
             raise FileNotFoundError()
 
@@ -160,7 +160,7 @@ class YouTubeLiveTracker:
                 with open(f'{os.getcwd()}/config/downloader.json', 'w+', encoding='utf8') as file:
                     json.dump(json_data, file, indent=4)
 
-                return 1
+                return 1, ''
 
         #if not live
         else:
@@ -172,15 +172,41 @@ class YouTubeLiveTracker:
                     json.dump(json_data, file, indent=4)
 
                 self.save_vtuber_stat()
-                return 1
+                return 1, ''
 
             elif self.new_video_id == json_data[self.ch_name]['upcomingID']:
                 loaded_data = self.load_vtuber_saved_stat()
                 if loaded_data != self.live_data:
                     self.save_vtuber_stat()
-                    return 2
+                    result = ''
+                    if loaded_data['title'] != self.live_data['title']:
+                        result += f'- 标题 {loaded_data["title"]}\n'
+                        result += f'+ 标题 {self.live_data["title"]}\n\n'
+                    else:
+                        result += f'标题 {self.live_data["title"]}\n'
 
-        return 0
+                    result += f'=== 封面 ===\n'
+                    if loaded_data['thumbnail'] != self.live_data['thumbnail']:
+                        result += f'- {loaded_data["thumbnail"]}\n'
+                        result += f'+ {self.live_data["thumbnail"]}\n'
+                    else:
+                        result += self.live_data["thumbnail"] + '\n'
+
+                    if loaded_data['live_time'] != self.live_data['live_time']:
+                        result += f'- 开播时间：{loaded_data["live_time"]}\n'
+                        result += f'+ 开播时间：{self.live_data["live_time"]}\n'
+                    else:
+                        result += f'开播时间：{self.live_data["live_time"]}\n'
+
+                    if loaded_data["videoID"] != self.live_data["videoID"]:
+                        result += f'- 观看地址：https://www.youtube.com/watch?v={loaded_data["videoID"]}\n'
+                        result += f'+ 观看地址：https://www.youtube.com/watch?v={self.live_data["videoID"]}\n'
+                    else:
+                        result += f'观看地址：https://www.youtube.com/watch?v={self.live_data["videoID"]}\n'
+
+                    return 2, result
+
+        return 0, ''
 
     def load_vtuber_saved_stat(self):
         if self.ch_name not in JSON_DATA:
