@@ -17,6 +17,7 @@ consumer_key = '' # twitter API consumer key
 consumer_secret = '' # twitter API consumer secret
 access_token = '' # twitter API access token
 access_secret = '' # twitter API access secret
+sauce_nao_API_key = ''
 
 user_name = '' # Pixiv login username
 password = '' # Pixiv login password

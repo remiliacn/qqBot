@@ -11,7 +11,7 @@ import pixivpy3
 from aiocqhttp import MessageSegment
 
 from awesome.adminControl import permission as perm
-from config import SUPER_USER, user_name, password
+from config import SUPER_USER, user_name, password, sauce_nao_API_key
 from qq_bot_core import sanity_meter, user_control_module, admin_control, alarm_api
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
@@ -422,6 +422,7 @@ async def reverse_image_search(session: nonebot.CommandSession):
 async def sauce_helper(url):
     params = {
         'output_type': 2,
+        'api_key': sauce_nao_API_key,
         'testmode': 0,
         'db': 999,
         'numres': 6,
