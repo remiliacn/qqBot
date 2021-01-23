@@ -603,12 +603,21 @@ async def _do_soutu_operation(message: str) -> str:
                 return '阿这~好像图片无法辨别的说！'
 
             else:
-                response = f'{response_data["data"]}\n' \
-                           f'图片相似度：{response_data["simlarity"]}\n' \
-                           f'图片标题：{response_data["title"]}\n' \
-                           f'图片画师：{response_data["author"]}\n' \
-                           f'Pixiv ID：{response_data["pixiv_id"]}\n' \
-                           f'直链：{response_data["ext_url"]}'
+                if 'est_time' in response_data:
+                    response = f'{response_data["thumbnail"]}\n' \
+                               f'图片相似度：{response_data["simlarity"]}\n' \
+                               f'番名：{response_data["source"]}\n' \
+                               f'番剧年份：{response_data["year"]}\n' \
+                               f'集数：{response_data["part"]}\n' \
+                               f'大概出现时间：{response_data["est_time"]}'
+                else:
+                    response = f'{response_data["data"]}\n' \
+                               f'图片相似度：{response_data["simlarity"]}\n' \
+                               f'图片标题：{response_data["title"]}\n' \
+                               f'图片画师：{response_data["author"]}\n' \
+                               f'Pixiv ID：{response_data["pixiv_id"]}\n' \
+                               f'直链：{response_data["ext_url"]}'
+
                 return response
 
 

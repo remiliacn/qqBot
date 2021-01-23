@@ -26,6 +26,8 @@ consumer_secret = '' # twitter API consumer secret
 access_token = '' # twitter API access token
 access_secret = '' # twitter API access secret
 
+sauce_nao_API_key = '' # Generate your API key from here: https://saucenao.com/user.php?page=search-api
+
 user_name = '' # Pixiv login username
 password = '' # Pixiv login password
 

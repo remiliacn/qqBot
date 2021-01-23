@@ -399,12 +399,21 @@ async def reverse_image_search(session: nonebot.CommandSession):
                 await session.finish('阿这~图片辨别率低，请换一张图试试！')
                 return
 
-            response = f'{response_data["data"]}\n' \
-                       f'图片相似度：{response_data["simlarity"]}\n' \
-                       f'图片标题：{response_data["title"]}\n' \
-                       f'图片画师：{response_data["author"]}\n' \
-                       f'Pixiv ID：{response_data["pixiv_id"]}\n' \
-                       f'直链：{response_data["ext_url"]}'
+            if 'est_time' in response_data:
+                response = f'{response_data["thumbnail"]}\n' \
+                           f'图片相似度：{response_data["simlarity"]}\n' \
+                           f'番名：{response_data["source"]}\n' \
+                           f'番剧年份：{response_data["year"]}\n' \
+                           f'集数：{response_data["part"]}\n' \
+                           f'大概出现时间：{response_data["est_time"]}'
+            else:
+                response = f'{response_data["data"]}\n' \
+                           f'图片相似度：{response_data["simlarity"]}\n' \
+                           f'图片标题：{response_data["title"]}\n' \
+                           f'图片画师：{response_data["author"]}\n' \
+                           f'Pixiv ID：{response_data["pixiv_id"]}\n' \
+                           f'直链：{response_data["ext_url"]}'
+
             await session.send(response)
             return
 
@@ -449,6 +458,9 @@ async def sauce_helper(url):
                 async with client.get(thumbnail) as page:
                     file_name = thumbnail.split('/')[-1]
                     file_name = re.sub(r'\?auth=.*?$', '', file_name)
+                    if len(file_name) > 10:
+                        file_name = f'{int(time.time())}.jpg'
+
                     path = f'{getcwd()}/data/lol/{file_name}'
                     if not exists(path):
                         try:
@@ -479,6 +491,20 @@ async def sauce_helper(url):
                     elif 'author' in json_data:
                         author = json_data['author']
                     else:
+                        if 'source' and 'est_time' in json_data:
+                            year = json_data['year']
+                            part = json_data['part']
+                            est_time = json_data['est_time']
+
+                            return {
+                                'simlarity': simlarity,
+                                'year': year,
+                                'part': part,
+                                'est_time': est_time,
+                                'source': json_data['source'],
+                                'thumbnail': image_content
+                            }
+
                         if 'artist' not in json_data:
                             return {}
 
