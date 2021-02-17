@@ -19,8 +19,7 @@ access_token = '' # twitter API access token
 access_secret = '' # twitter API access secret
 sauce_nao_API_key = ''
 
-user_name = '' # Pixiv login username
-password = '' # Pixiv login password
+pixiv_refresh_token = '' # See issues #158 in repo upbit/pixivpy for retrieving method.
 
 downloader = 'forDownload.py'
 

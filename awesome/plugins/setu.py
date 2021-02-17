@@ -12,7 +12,7 @@ from aiocqhttp import MessageSegment
 
 from awesome.adminControl import permission as perm
 from awesome.plugins.util.helper_util import anime_reverse_search_response
-from config import SUPER_USER, user_name, password, sauce_nao_API_key
+from config import SUPER_USER, sauce_nao_API_key, pixiv_refresh_token
 from qq_bot_core import sanity_meter, user_control_module, admin_control, alarm_api
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
@@ -232,12 +232,8 @@ async def pixiv_send(session: nonebot.CommandSession):
     if 'error' in json_result:
         admin_control.set_if_authed(False)
         try:
-            admin_control.set_access_token(
-                access_token=pixiv_api.login(
-                    username=user_name,
-                    password=password).response.access_token
-            )
-
+               
+            pixiv_api.auth(refresh_token=pixiv_refresh_token)
             await session.send('新的P站匿名访问链接已建立……')
             admin_control.set_if_authed(True)
 
