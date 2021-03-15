@@ -118,6 +118,39 @@ GLOBAL_STORE = Storer()
 game = ru_game.Russianroulette()
 
 
+@nonebot.on_command('1d100', patterns='\d+[dD]\d+', only_to_me=False)
+async def pao_tuan_shai_zi(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    message_id = ctx['message_id']
+    raw_message = ctx['raw_message'].split()[0][1:].lower()
+    args = raw_message.split('d')
+    throw_times = int(args[0])
+    if throw_times > 10:
+        await session.finish('扔这么多干嘛，爬')
+
+    max_val = int(args[1])
+    result_list = [randint(1, max_val + 1) for _ in range(throw_times)]
+    expected_list = [randint(1, max_val + 1) for _ in range(throw_times)]
+    result_sum = sum(result_list)
+    expect = sum(expected_list)
+
+    if expect == result_sum:
+        result = '差一点就成成功了呀！'
+    elif expect > result_sum:
+        if result_sum / expect > 0.9:
+            result = '大失败！'
+        else:
+            result = '失败力！'
+    else:
+        if expect / result_sum > 0.9:
+            result = '大成功！'
+        else:
+            result = '成功！'
+
+    await session.finish(f'[CQ:reply,id={message_id}]结果：{result}')
+
+
+
 @nonebot.on_command('赛马', only_to_me=False)
 async def horseRace(session: nonebot.CommandSession):
     winner = session.get('winner', prompt='请输入一个胜方编号进行猜测（1-6）')
