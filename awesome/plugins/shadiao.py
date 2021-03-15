@@ -23,6 +23,16 @@ ark_pool_pity = ark_nights.ArknightsPity()
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 timeout = aiohttp.ClientTimeout(total=5)
 
+OCR_DICT = {
+    'zh': '中文',
+    'en': '英文',
+    'jp': '日语',
+    'es': '西班牙语',
+    'fr': '法语',
+    'ru': '俄语',
+    'ar': '阿拉伯语'
+}
+
 
 @nonebot.on_command('吹我', only_to_me=False)
 async def do_joke_flatter(session: nonebot.CommandSession):
@@ -73,6 +83,38 @@ async def add_group_quotes(session: nonebot.CommandSession):
             await session.finish(f'已添加！（当前总语录条数：{admin_control.get_group_quote_count(ctx["group_id"])})')
     else:
         await session.finish('啊这……')
+
+@nonebot.on_command('图片识别', only_to_me=False)
+async def ocr_image_test(session: nonebot.CommandSession):
+    bot = nonebot.get_bot()
+    ctx = session.ctx.copy()
+    msg: str = ctx['raw_message']
+
+    has_image = re.findall(r'.*?\[CQ:image,file=(.*?\.image)]', msg)
+    if not has_image:
+        await session.finish('无图片哼啊啊啊啊~')
+
+    ocr_response = await bot.ocr_image(image=has_image[0])
+    if not 'texts' in ocr_response:
+        await session.finish('识别失败！')
+
+    if not ocr_response['texts']:
+        await session.finish('无可识别文字')
+
+    text_list = ocr_response['texts']
+    language = ocr_response['language']
+
+    if language not in OCR_DICT:
+        language = '其他小语种'
+    else:
+        language = OCR_DICT[language]
+
+    response = f'已识别到{language}文字：\n'
+    for element in text_list:
+        response += element['text'] + '\n'
+
+    await session.finish(response)
+
 
 @nonebot.on_command('说', only_to_me=False)
 async def send_voice_message(session: nonebot.CommandSession):
