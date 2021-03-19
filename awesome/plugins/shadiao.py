@@ -184,10 +184,12 @@ async def teach_you_weeb_shit(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     msg = ctx['raw_message']
     args = msg.split()
-    if len(args) != 3:
+    response = ' '.join(args[2:])
+
+    if len(args) < 3:
         await session.finish('使用方法应该是：！我教你怪话 {关键词} {二刺猿的答复}')
 
-    uuid, keyword, response = weeb_learning.set_weeb_word_wait_approve(keyword=args[1], response=args[2])
+    uuid, keyword, response = weeb_learning.set_weeb_word_wait_approve(keyword=args[1], response=response)
     if uuid:
         await session.send('已汇报给机器人的主人！请等待审批！')
         bot = nonebot.get_bot()
@@ -196,7 +198,10 @@ async def teach_you_weeb_shit(session: nonebot.CommandSession):
             message=f'新的二刺猿语录等待审批：\n'
                     f'uuid: {uuid}\n'
                     f'关键词：{keyword}\n'
-                    f'回复：{response}'
+                    f'回复：{response}\n'
+                    f'添加人qq：{ctx["user_id"]}\n'
+                    f'添加人昵称：{ctx["sender"]["nickname"]}\n'
+                    f'来自群：{ctx["group_id"] if "group_id" in ctx else "-1"}'
         )
     else:
         await session.finish('已检测到该词条存在，将拒绝添加。')

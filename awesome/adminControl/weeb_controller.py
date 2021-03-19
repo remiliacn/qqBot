@@ -60,7 +60,9 @@ class WeebController:
                     self.weeb_dict[keyword] = []
 
                 self.weeb_dict[keyword].append(response)
+                del self.weeb_dict_waiting_list[uid]
                 self.make_a_json(self.weeb_file_path, self.weeb_dict)
+                self.make_a_json(self.weeb_holder_path, self.weeb_dict_waiting_list)
 
                 return True
 
