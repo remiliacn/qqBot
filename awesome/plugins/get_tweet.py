@@ -13,7 +13,7 @@ from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.tweetHelper import tweeter
 from bilibiliService import bilibili_topic
-from config import SUPER_USER, downloader, share_link
+from config import SUPER_USER, downloader, share_link, path_export
 from qq_bot_core import alarm_api
 from qq_bot_core import user_control_module
 
@@ -262,7 +262,7 @@ async def do_youtube_update_fetch():
                         group_id = int(youtube_notify_dict[elements]['group_id'])
                         await bot.send_group_msg(
                             group_id=group_id,
-                            message='视频下载完毕~\n'
+                            message=f'视频下载完毕~ [{share_link}]\n'
                                     '视频名称：%s\n' % (
                                         elements
                                     )
@@ -273,6 +273,19 @@ async def do_youtube_update_fetch():
                                     f'Video is now available for group {group_id}\n'
                                     f'Video title: {elements}'
                         )
+                        try:
+                            await bot.upload_group_file(
+                                group_id=group_id,
+                                file=f"{path_export}others/{elements}.mp4",
+                                name=f"{elements}.mp4"
+                            )
+                        except Exception as err:
+                            await bot.send_private_msg(
+                                user_id=SUPER_USER,
+                                message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}]'
+                                        f'上传群文件失败{err}\n'
+                                        f'Video title: {elements}'
+                            )
 
                     except Exception as err:
                         await bot.send_private_msg(

@@ -7,6 +7,7 @@ from nonebot.log import logger
 
 import config
 from awesome.adminControl import alarm, user_control, setu, group_admin
+from awesome.adminControl.weeb_controller import WeebController
 
 config_file = \
 """
@@ -33,8 +34,6 @@ SUPER_USER = 0 # Report will be sent to this qq.
 itpk_key = '' # 茉莉机器人API key
 itpk_secret = '' # 茉莉机器人API secret
 
-SESSION_EXPIRE_TIMEOUT = timedelta(minutes=1)
-
 HOST = '127.0.0.1'
 PORT = 5700
 """
@@ -43,6 +42,7 @@ alarm_api = alarm.Alarm()
 user_control_module = user_control.UserControl()
 sanity_meter = setu.SetuFunction()
 admin_control = group_admin.Shadiaoadmin()
+weeb_learning = WeebController()
 
 def register_true():
     if not path.exists('data/started.json'):
