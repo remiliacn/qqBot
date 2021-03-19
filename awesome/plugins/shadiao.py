@@ -184,10 +184,11 @@ async def teach_you_weeb_shit(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     msg = ctx['raw_message']
     args = msg.split()
-    response = ' '.join(args[2:])
 
     if len(args) < 3:
         await session.finish('使用方法应该是：！我教你怪话 {关键词} {二刺猿的答复}')
+
+    response = ' '.join(args[2:])
 
     uuid, keyword, response = weeb_learning.set_weeb_word_wait_approve(keyword=args[1], response=response)
     if uuid:
