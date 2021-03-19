@@ -14,7 +14,7 @@ from awesome.adminControl import permission as perm
 from awesome.plugins.util.helper_util import get_downloaded_image_path, ark_helper
 from config import SUPER_USER
 from qq_bot_core import admin_control
-from qq_bot_core import user_control_module, sanity_meter
+from qq_bot_core import user_control_module, sanity_meter, weeb_learning
 
 pcr_api = pcr_news.GetPCRNews()
 arknights_api = ark_nights.ArkHeadhunt(times=10)
@@ -164,6 +164,64 @@ async def shadiao_send(session: nonebot.CommandSession):
     await session.send(f'[CQ:image,file=file:///{file}]')
 
 
+@nonebot.on_command('来点怪话', only_to_me=False)
+async def say_something_weird(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    msg = ctx['raw_message']
+    args = msg.split()
+    if len(args) != 2:
+        return
+
+    response = weeb_learning.get_weeb_reply_by_keyword(args[1])
+    if isinstance(response, list):
+        response = random.choice(response)
+
+    await session.send(response)
+
+
+@nonebot.on_command('我教你怪话', only_to_me=False)
+async def teach_you_weeb_shit(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    msg = ctx['raw_message']
+    args = msg.split()
+    if len(args) != 3:
+        await session.finish('使用方法应该是：！我教你怪话 {关键词} {二刺猿的答复}')
+
+    uuid, keyword, response = weeb_learning.set_weeb_word_wait_approve(keyword=args[1], response=args[2])
+    if uuid:
+        await session.send('已汇报给机器人的主人！请等待审批！')
+        bot = nonebot.get_bot()
+        await bot.send_private_msg(
+            user_id=SUPER_USER,
+            message=f'新的二刺猿语录等待审批：\n'
+                    f'uuid: {uuid}\n'
+                    f'关键词：{keyword}\n'
+                    f'回复：{response}'
+        )
+    else:
+        await session.finish('已检测到该词条存在，将拒绝添加。')
+
+@nonebot.on_command('决定怪话', only_to_me=False)
+async def decision_on_weeb_shit(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    user_id = ctx['user_id']
+    if not get_privilege(user_id, perm.OWNER):
+        await session.finish('您无权使用本命令')
+
+    message = ctx['raw_message']
+    args = message.split()
+    if len(args) != 3:
+        await session.finish('使用方法：！决定怪话 {uuid} {y/n}')
+
+    uuid = args[1]
+    decision = args[2].lower()
+    decision = decision == 'y'
+
+    if weeb_learning.set_weeb_word_to_main_dict(uuid, decision):
+        await session.finish('完成！')
+
+    await session.finish('添加失败（uuid不存在或重复添加语录）')
+
 @nonebot.on_command('你群有多色', only_to_me=False)
 async def get_setu_stat(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -178,7 +236,7 @@ async def get_setu_stat(session: nonebot.CommandSession):
     yanche_notice = ('并且验车了' + str(yanche) + "次！\n") if yanche > 0 else ''
     ark_data = ''
     if ark_stat:
-        ark_data += f'十连充卡共{ark_pull}次，理论消耗合成玉{ark_pull * 6000}。抽到了：\n' \
+        ark_data += f'十连抽卡共{ark_pull}次，理论消耗合成玉{ark_pull * 6000}。抽到了：\n' \
                     f"3星{ark_stat['3']}个，4星{ark_stat['4']}个，5星{ark_stat['5']}个，6星{ark_stat['6']}个"
 
     await session.send(setu_notice + yanche_notice + ark_data)
