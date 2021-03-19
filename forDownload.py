@@ -123,7 +123,7 @@ def get_first_video(channel_id: str, name: str, group_id, user_dict: dict):
 
         publish_time = first_video_outer['publishedTimeText']['simpleText']
         enabled = user_dict[name]['enabled']
-        if 'hours ago' not in publish_time:
+        if 'hours ago' not in publish_time and enabled:
             logger.warning('Not a recent video or the video is not yet converted.')
             return
         else:
