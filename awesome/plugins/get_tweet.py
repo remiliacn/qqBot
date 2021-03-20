@@ -260,6 +260,7 @@ async def do_youtube_update_fetch():
                 if youtube_notify_dict[elements]['retcode'] == 0:
                     try:
                         group_id = int(youtube_notify_dict[elements]['group_id'])
+                        name = youtube_notify_dict[elements]['ch_name']
                         await bot.send_group_msg(
                             group_id=group_id,
                             message=f'视频下载完毕~ [{share_link}]\n'
@@ -276,7 +277,7 @@ async def do_youtube_update_fetch():
                         try:
                             await bot.upload_group_file(
                                 group_id=group_id,
-                                file=f"{path_export}others/{elements}.mp4",
+                                file=f"{path_export}{name}/{elements}.mp4",
                                 name=f"{elements}.mp4"
                             )
                         except Exception as err:

@@ -222,10 +222,13 @@ def upload_status(ch_name: str, video_name: str, video_id: str, group_id, retcod
     file = open('config/YouTubeNotify.json', 'r')
     fl = file.read()
     downloaded_dict = json.loads(str(fl))
+    file.close()
+
     downloaded_dict[video_name] = {
         "status": False,
         "group_id": group_id,
-        "retcode": retcode
+        "retcode": retcode,
+        "ch_name": ch_name
     }
 
     signal_downloader_register(video_id, ch_name, retcode)
