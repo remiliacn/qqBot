@@ -63,7 +63,7 @@ def register_true():
             file.write(config_file)
 
         logger.warning('Generation completed... Exiting the program. Please edit it!')
-        sleep(3)
+        sleep(10)
 
         exit(1)
 
@@ -75,10 +75,19 @@ def register_true():
             mkdir(f'{getcwd()}/data/bilibiliPic')
 
         if not path.exists(f'{getcwd()}/data/pixivPic/'):
-            mkdir(f"{getcwd()}/data/pixivPic/")
+            mkdir(f'{getcwd()}/data/pixivPic/')
 
         if not path.exists(f'{getcwd()}/data/lol/'):
-            mkdir(f"{getcwd()}/data/lol/")
+            mkdir(f'{getcwd()}/data/lol/')
+
+        if not path.exists(f'{getcwd()}/data/live/'):
+            mkdir(f'{getcwd()}/data/live/')
+
+        if not path.exists(f'{getcwd()}/config/'):
+            mkdir(f'{getcwd()}/config/')
+
+        if not path.exists(f'{getcwd()}/Waifu/'):
+            mkdir(f'{getcwd()}/Waifu')
 
     except IOError:
         raise IOError('Error occurred while creating directory for biaoqing, and bilibiliPic.')
