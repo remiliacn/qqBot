@@ -42,8 +42,9 @@ SUPER_USER = 0 # Report will be sent to this qq.
 itpk_key = '' # 茉莉机器人API key
 itpk_secret = '' # 茉莉机器人API secret
 
-SESSION_EXPIRE_TIMEOUT = timedelta(minutes=1)
-
 HOST = '127.0.0.1'
 PORT = 5700
 ```
+
+在配置后可能会出现部分文件缺失的情况，请按需删除不需要的参数。（因为有些功能是为某些群的需求特供的，所以可能不适合大部分用户）
+
