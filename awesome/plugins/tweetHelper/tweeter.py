@@ -12,10 +12,10 @@ import config
 
 try:
     api = twitter.Api(
-        consumer_key=config.consumer_key,
-        consumer_secret=config.consumer_secret,
-        access_token_key=config.access_token,
-        access_token_secret=config.access_secret,
+        consumer_key=config.CONSUMER_KEY,
+        consumer_secret=config.CONSUMER_SECRET,
+        access_token_key=config.ACCESS_TOKEN,
+        access_token_secret=config.ACCESS_SECRET,
         tweet_mode='extended'
     )
 

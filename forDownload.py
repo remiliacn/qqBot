@@ -8,7 +8,7 @@ import requests
 import youtube_dl
 from nonebot.log import logger
 
-from config import ffmpeg_path, path_temp, path_export
+from config import FFMPEG_PATH, PATH_TEMP_DOWNLOAD, PATH_TO_ONEDRIVE
 
 
 def main():
@@ -170,21 +170,21 @@ def download_video(video_id: str, name: str, groupID, enable: bool):
         logger.warning('Current Video is not available yet')
         return
 
-    video_path = path_export + name + '/' + video_title + '.mp4'
-    video_path_temp = path_temp + name + '/' + video_title + '.mp4'
+    video_path = PATH_TO_ONEDRIVE + name + '/' + video_title + '.mp4'
+    video_path_temp = PATH_TEMP_DOWNLOAD + name + '/' + video_title + '.mp4'
     logger.warning('Downloading in %s' % video_path_temp)
 
-    if not os.path.exists(path_export + name + '/'):
-        os.makedirs(path_export + name + '/')
+    if not os.path.exists(PATH_TO_ONEDRIVE + name + '/'):
+        os.makedirs(PATH_TO_ONEDRIVE + name + '/')
 
-    if not os.path.exists(path_temp + name + '/'):
-        os.makedirs(path_temp + name + '/')
+    if not os.path.exists(PATH_TEMP_DOWNLOAD + name + '/'):
+        os.makedirs(PATH_TEMP_DOWNLOAD + name + '/')
 
     ydl_opts = {
         'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]',
         'outtmpl': '%s' % video_path_temp,  # 下载地址
         'noplaylist': True,
-        'ffmpeg_location': ffmpeg_path,  # ffmpeg.exe路径
+        'ffmpeg_location': FFMPEG_PATH,  # ffmpeg.exe路径
         'prefer_ffmpeg': True,
         'cachedir': False,
         'merge_output_format' : 'mp4'

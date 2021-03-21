@@ -13,7 +13,7 @@ from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.tweetHelper import tweeter
 from bilibiliService import bilibili_topic
-from config import SUPER_USER, downloader, share_link, path_export
+from config import SUPER_USER, DOWNLODER_FILE_NAME, SHARE_LINK, PATH_TO_ONEDRIVE
 from qq_bot_core import alarm_api
 from qq_bot_core import user_control_module
 
@@ -117,7 +117,7 @@ async def send_tweet():
     if get_status():
         logger.info('Doing video fetch...')
         Popen(
-            ['py', downloader, 'bulk'],
+            ['py', DOWNLODER_FILE_NAME, 'bulk'],
             stdin=None,
             stdout=None,
             stderr=None,
@@ -263,7 +263,7 @@ async def do_youtube_update_fetch():
                         name = youtube_notify_dict[elements]['ch_name']
                         await bot.send_group_msg(
                             group_id=group_id,
-                            message=f'视频下载完毕~ [{share_link}]\n'
+                            message=f'视频下载完毕~ [{SHARE_LINK}]\n'
                                     '视频名称：%s\n' % (
                                         elements
                                     )
@@ -277,7 +277,7 @@ async def do_youtube_update_fetch():
                         try:
                             await bot.upload_group_file(
                                 group_id=group_id,
-                                file=f"{path_export}{name}/{elements}.mp4",
+                                file=f"{PATH_TO_ONEDRIVE}{name}/{elements}.mp4",
                                 name=f"{elements}.mp4"
                             )
                         except Exception as err:
