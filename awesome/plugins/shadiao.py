@@ -342,7 +342,7 @@ async def up_ten_polls(session: nonebot.CommandSession):
 
     key_word: str = session.get(
         'key_word',
-        prompt='使用方法：！方舟up 干员名 星级（数字）限定UP选项（可选，输入1代表同意）'
+        prompt='使用方法：！方舟up 干员名 星级（数字）限定UP选项（可选，输入-1代表同意）'
     )
 
     args = key_word.split()
