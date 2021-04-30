@@ -87,7 +87,7 @@ class translation:
 
 
 def ark_helper(args: list) -> str:
-    if len(args) != 2:
+    if len(args) < 2:
         return '用法有误\n' + '使用方法：！命令 干员名 星级（数字）'
 
     if not args[1].isdigit():

@@ -308,8 +308,8 @@ async def ten_polls(session: nonebot.CommandSession):
         offset = ark_pool_pity.get_offset_setting(ctx['group_id'])
         arknights_api.get_randomized_results(offset)
         class_list = arknights_api.random_class
-        six_star_count = class_list.count(6)
-        if 6 in class_list:
+        six_star_count = class_list.count(6) + class_list.count(-1)
+        if 6 in class_list or -1 in class_list:
             ark_pool_pity.reset_offset(ctx['group_id'])
 
         five_star_count = class_list.count(5)
@@ -342,7 +342,7 @@ async def up_ten_polls(session: nonebot.CommandSession):
 
     key_word: str = session.get(
         'key_word',
-        prompt='使用方法：！方舟up 干员名 星级（数字）'
+        prompt='使用方法：！方舟up 干员名 星级（数字）限定UP选项（可选，输入1代表同意）'
     )
 
     args = key_word.split()
@@ -350,7 +350,13 @@ async def up_ten_polls(session: nonebot.CommandSession):
     if validation:
         await session.finish(validation)
 
-    await session.finish(arknights_api.set_up(args[0], args[1]))
+    await session.finish(
+        arknights_api.set_up(
+            args[0],
+            args[1],
+            args[-1] == '-1'
+        )
+    )
 
 @nonebot.on_command('帮我做选择', only_to_me=False)
 async def do_mcq(session: nonebot.CommandSession):

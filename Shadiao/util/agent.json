@@ -31,7 +31,10 @@
         "\u6ce5\u5ca9",
         "\u5c71",
         "\u5d6f\u5ce8",
-        "Ash"
+        "\u5f02\u5ba2",
+        "\u51ef\u5c14\u5e0c",
+        "\u6d4a\u5fc3\u65af\u5361\u8482",
+        "W"
     ],
     "5": [
         "\u767d\u9762\u9e2e",
@@ -83,8 +86,8 @@
         "\u7d6e\u96e8",
         "\u5361\u592b\u5361",
         "\u4e4c\u6709",
-        "Blitz",
-        "Frost"
+        "\u7194\u6cc9",
+        "\u8d64\u51ac"
     ],
     "4": [
         "\u591c\u70df",
@@ -146,10 +149,13 @@
     "UP3": [],
     "UP4": [],
     "UP5": [
-        "Blitz",
-        "Frost"
+        "\u8d64\u51ac"
     ],
     "UP6": [
-        "Ash"
+        "\u6d4a\u5fc3\u65af\u5361\u8482",
+        "\u51ef\u5c14\u5e0c"
+    ],
+    "sixSecondaryUp": [
+        "W"
     ]
 }

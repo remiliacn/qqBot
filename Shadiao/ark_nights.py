@@ -94,20 +94,36 @@ class ArkHeadhunt:
         random.seed(time.time_ns())
         for elements in self.random_class:
             random_int = random.randint(0, 100)
-            if random_int < 50 and self.agent_dict[f'UP{elements}']:
-                random_agent.append(random.choice(self.agent_dict[f'UP{elements}']))
+            if elements == 6 and 'sixSecondaryUp' in self.agent_dict and self.agent_dict['sixSecondaryUp']:
+                if random_int < 70:
+                    random_agent.append(random.choice(self.agent_dict[f'UP6']))
+                else:
+                    second_random = random.randint(0, 10)
+                    if second_random < 3:
+                        random_agent.append(random.choice(self.agent_dict['sixSecondaryUp']))
+                    else:
+                        random_agent.append(random.choice(self.agent_dict['6']))
+
             else:
-                random_agent.append(random.choice(self.agent_dict[str(elements)]))
+                if random_int < 50 and self.agent_dict[f'UP{elements}']:
+                    random_agent.append(random.choice(self.agent_dict[f'UP{elements}']))
+                else:
+                    random_agent.append(random.choice(self.agent_dict[str(elements)]))
 
         return random_agent
 
-    def set_up(self, agent : str, star : Union[int, str]):
+    def set_up(self, agent : str, star : Union[int, str], is_second_up=False):
         if isinstance(star, int):
             star = str(star)
 
         if agent in self.agent_dict[star]:
             if agent not in self.agent_dict[f'UP{star}']:
-                self.agent_dict[f'UP{star}'].append(agent)
+                if not is_second_up:
+                    self.agent_dict[f'UP{star}'].append(agent)
+                else:
+                    self.agent_dict['sixSecondaryUp'] = []
+                    self.agent_dict['sixSecondaryUp'].append(agent)
+
                 self.update_content()
                 return 'Done'
 
@@ -124,6 +140,9 @@ class ArkHeadhunt:
         self.agent_dict['UP4'] = []
         self.agent_dict['UP5'] = []
         self.agent_dict['UP6'] = []
+
+        if 'sixSecondaryUp' in self.agent_dict:
+            self.agent_dict['sixSecondaryUp'] = []
 
         self.update_content()
 
@@ -143,11 +162,16 @@ class ArkHeadhunt:
         four_up = self.agent_dict['UP4']
         five_up = self.agent_dict['UP5']
         six_up = self.agent_dict['UP6']
+        if 'sixSecondaryUp' in self.agent_dict and self.agent_dict['sixSecondaryUp']:
+            secondary_up = self.agent_dict['sixSecondaryUp']
+        else:
+            secondary_up = ''
+
         if four_up:
             result += '四星：'
             result += '，'.join(map(str, four_up))
             result += '\n'
-            
+
         if five_up:
             result += '五星：'
             result += '，'.join(map(str, five_up))
@@ -158,7 +182,12 @@ class ArkHeadhunt:
             result += '，'.join(map(str, six_up))
             result += '\n'
 
-        return result if result else '无'
+        if secondary_up:
+            result += '六星保底UP：'
+            result += '，'.join(map(str, secondary_up))
+            result += '\n'
+
+        return result if result else '无\n'
 
     def __str__(self):
         """
@@ -170,9 +199,14 @@ class ArkHeadhunt:
         response += f'本次卡池UP：\n{self.get_up()}'
         six_star = 0
         for idx, elements in enumerate(self.random_class):
-            if elements == 6:
+            if elements == 6 or elements == -1:
                 six_star += 1
-            response += str(elements) + '星干员： %s\n' % self.random_agent[idx]
+
+            if elements == -1:
+                element = 6
+            else:
+                element = elements
+            response += str(element) + '星干员： %s\n' % self.random_agent[idx]
 
 
         if 5 not in self.random_class and 6 not in self.random_class:
