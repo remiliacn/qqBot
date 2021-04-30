@@ -288,6 +288,12 @@ async def do_youtube_update_fetch():
                                         f'Video title: {elements}'
                             )
 
+                            if 'retcode=100' in str(err):
+                                await bot.send_group_msg(
+                                    group_id=group_id,
+                                    message='尝试上传群文件失败。请检查群空间是否足够'
+                                )
+
                     except Exception as err:
                         await bot.send_private_msg(
                             user_id=SUPER_USER,
