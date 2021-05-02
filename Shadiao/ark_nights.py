@@ -98,8 +98,9 @@ class ArkHeadhunt:
                 if random_int < 70:
                     random_agent.append(random.choice(self.agent_dict[f'UP6']))
                 else:
-                    second_random = random.randint(0, 10)
-                    if second_random < 3:
+                    # 30%中的五倍权值爆率。
+                    second_random = random.randint(0, len(self.agent_dict['6']))
+                    if second_random < 5:
                         random_agent.append(random.choice(self.agent_dict['sixSecondaryUp']))
                     else:
                         random_agent.append(random.choice(self.agent_dict['6']))
