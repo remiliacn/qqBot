@@ -589,32 +589,37 @@ async def _do_message_retrieve(message: str) -> str:
 
 async def _do_soutu_operation(message: str) -> str:
     reply_id = findall(r'\[CQ:reply,id=(.*?)]', message)
+    response = ''
     bot = nonebot.get_bot()
     data = await bot.get_msg(message_id=int(reply_id[0]))
     possible_image_content = data['message']
     has_image = findall(r'.*?file=([a-z0-9]+\.image)', possible_image_content)
     if has_image:
-        image = await bot.get_image(file=has_image[0])
-        url = image['url']
-        nonebot.logger.info(f'URL extracted: {url}')
-        try:
-            response_data = await sauce_helper(url)
-            if not response_data:
-                return '阿这~好像图片无法辨别的说！'
+        for idx, element in enumerate(has_image):
+            image = await bot.get_image(file=element)
+            url = image['url']
+            nonebot.logger.info(f'URL extracted: {url}')
+            try:
+                response_data = await sauce_helper(url)
+                if not response_data:
+                    response += f'图片{idx + 1}无法辨别的说！'
+                else:
+                    response += f'==={idx + 1}===\n'
+                    response += anime_reverse_search_response(response_data)
 
-            else:
-                return anime_reverse_search_response(response_data)
+            except Exception as err:
+                await bot.send_private_msg(
+                    user_id=config.SUPER_USER,
+                    message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
+                            f'搜图功能出错：\n'
+                            f'Error：{err}\n'
+                            f'出错URL：{url}'
+                )
+                return f'啊这~图片{idx + 1}搜索出错了！报错信息已发送主人debug~'
+            finally:
+                response += '\n\n'
 
-
-        except Exception as err:
-            await bot.send_private_msg(
-                user_id=config.SUPER_USER,
-                message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
-                        f'搜图功能出错：\n'
-                        f'Error：{err}\n'
-                        f'出错URL：{url}'
-            )
-            return f'啊这~出错了！报错信息已发送主人debug~'
+        return response
 
     return '阿这，是我瞎了么？好像没有图片啊原文里。'
 
