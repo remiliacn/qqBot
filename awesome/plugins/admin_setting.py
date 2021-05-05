@@ -5,6 +5,7 @@ from os import getcwd
 from random import randint, seed
 from re import findall, match, sub, compile
 from time import time, time_ns
+from typing import Union
 
 import aiohttp
 import nonebot
@@ -545,38 +546,63 @@ async def getAnswerInfo(session: nonebot.CommandSession):
 @nonebot.on_natural_language(only_to_me=False, only_short_message=True)
 async def send_answer(session: nonebot.NLPSession):
     seed(time_ns())
-    rand_num = randint(0, 2)
     ctx = session.ctx.copy()
     if 'group_id' not in ctx:
         return
 
     group_id = ctx['group_id']
-
+    user_id = ctx['user_id']
     message = str(ctx['raw_message'])
+
+    auto_reply = _do_auto_reply_retrieve(user_id, group_id, message)
+    if auto_reply:
+        await session.send(auto_reply)
+        return
+
+    reply_response = await _check_reply_keywords(message)
+    if not reply_response:
+        return
+
+    await session.send(reply_response)
+
+
+def _do_auto_reply_retrieve(
+        user_id: Union[str, int],
+        group_id: Union[str, int],
+        message: str
+) -> str:
+    rand_num = randint(0, 2)
+
     if admin_control.get_data(group_id, 'enabled'):
-        if get_privilege(ctx['user_id'], perm.BANNED):
-            return
+        if get_privilege(user_id, perm.BANNED):
+            return ''
 
-        if 'group_id' in ctx:
-            if rand_num == 1 and message in user_control_module.get_user_response_dict():
-                group_id = str(ctx['group_id'])
-                try:
-                    if group_id not in user_control_module.last_question or \
-                            user_control_module.last_question[group_id] != message:
-                        user_control_module.last_question[group_id] = message
-                        await session.send(user_control_module.get_user_response(message))
+        if rand_num == 1 and message in user_control_module.get_user_response_dict():
+            group_id = str(group_id)
+            try:
+                if group_id not in user_control_module.get_last_question() or \
+                user_control_module.get_last_question_by_group(group_id) != message:
+                    user_control_module.set_last_question_by_group(group_id, message)
+                    return user_control_module.get_user_response(message)
 
-                except Exception as err:
-                    print(f"Something went wrong: {err}")
-                    return
+            except Exception as err:
+                print(f"Something went wrong: {err}")
 
+    return ''
+
+
+async def _check_reply_keywords(message: str) -> str:
     if '[CQ:reply' in message:
         if '搜图' in message:
             response = await _do_soutu_operation(message)
-            await session.send(response)
         elif '复述' in message:
             response = await _do_message_retrieve(message)
-            await session.send(response)
+        else:
+            response = ''
+    else:
+        response = ''
+
+    return response
 
 async def _do_message_retrieve(message: str) -> str:
     reply_id = findall(r'\[CQ:reply,id=(.*?)]', message)
@@ -593,7 +619,10 @@ async def _do_soutu_operation(message: str) -> str:
     bot = nonebot.get_bot()
     data = await bot.get_msg(message_id=int(reply_id[0]))
     possible_image_content = data['message']
-    has_image = findall(r'.*?file=([a-z0-9]+\.image)', possible_image_content)
+    if not possible_image_content:
+        possible_image_content = data['raw_message']
+
+    has_image = findall(r'file=(.*?\.image)', possible_image_content)
     if has_image:
         for idx, element in enumerate(has_image):
             image = await bot.get_image(file=element)
@@ -604,7 +633,7 @@ async def _do_soutu_operation(message: str) -> str:
                 if not response_data:
                     response += f'图片{idx + 1}无法辨别的说！'
                 else:
-                    response += f'==={idx + 1}===\n'
+                    response += f'==={idx + 1}===\n' if len(has_image) > 1 else ''
                     response += anime_reverse_search_response(response_data)
 
             except Exception as err:

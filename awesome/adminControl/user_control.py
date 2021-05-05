@@ -64,6 +64,21 @@ class UserControl:
 
         return self.user_repeat_question_count[user_id]
 
+    def get_last_question(self) -> dict:
+        return self.last_question
+
+    def get_last_question_by_group(self, group_id: Union[str, int]):
+        if isinstance(group_id, int):
+            group_id = str(group_id)
+
+        return self.last_question[group_id] if group_id in self.last_question else None
+
+    def set_last_question_by_group(self, group_id: Union[str, int], msg: str):
+        if isinstance(group_id, int):
+            group_id = str(group_id)
+
+        self.last_question[group_id] = msg
+
     def add_response(self, question, answer_dict):
         self.answer_dict[question] = answer_dict
         self.make_a_json(self.WORD_DICT_PATH)
