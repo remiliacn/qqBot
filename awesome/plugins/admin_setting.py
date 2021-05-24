@@ -20,9 +20,11 @@ from qq_bot_core import user_control_module
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
+
 @nonebot.on_command('测试', only_to_me=False)
 async def test_json(session: nonebot.CommandSession):
     await session.send('')
+
 
 @nonebot.on_command('警报解除', only_to_me=False)
 async def lower_alarm(session: nonebot.CommandSession):
@@ -220,7 +222,7 @@ async def sendAnswer(session: nonebot.CommandSession):
             bot = nonebot.get_bot()
             await bot.send_private_msg(
                 user_id=config.SUPER_USER,
-                message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] ' 
+                message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
                         f'可能的高危行为汇报：\n'
                         f'使用命令：！问题\n'
                         f'错误：{err}\n'
@@ -319,7 +321,6 @@ def _simple_ai_process(question: str, ctx: dict) -> str:
         else:
             response = response.replace('你', '我')
 
-
     return response
 
 
@@ -328,7 +329,7 @@ def _math_fetch(question: str, user_id: int) -> str:
         question = question.replace('_', '')
 
     if len(question) > 30:
-        return '检测到可能的DDoS攻击。计算停止'
+        return ''
 
     if match(
             r'.*?(sudo|ls|rm|curl|chmod|usermod|newgrp|vim|objdump|aux|lambda|del)',
@@ -387,10 +388,11 @@ def _math_fetch(question: str, user_id: int) -> str:
         answer = eval(
             question,
             {"__builtins__": None},
-            {'gcd': gcd, 'sqrt': sqrt, 'pow': pow,
-             'floor': floor, 'factorial': factorial, 'sin': sin,
-             'cos': cos,
-             'tan': tan, 'asin': asin, 'acos': acos, 'pi': pi, 'atan': atan
+            {
+                'gcd': gcd, 'sqrt': sqrt, 'pow': pow,
+                'floor': floor, 'factorial': factorial, 'sin': sin,
+                'cos': cos, 'tan': tan, 'asin': asin, 'acos': acos,
+                'pi': pi, 'atan': atan
             }
         )
 
@@ -410,14 +412,8 @@ def _is_float(content: str) -> bool:
         float(content)
         return True
 
-    except ValueError:
-        return False
-
-    except TypeError:
-        return False
-
     except Exception as err:
-        nonebot.logger.warning(f'Uncaught error: {err}')
+        nonebot.logger.warning(f'Not number: {err}')
         return False
 
 
@@ -438,9 +434,6 @@ def _prefetch(question: str, user_id: int) -> str:
         user_control_module.last_question = question
         response = user_control_module.get_user_response(question)
         return response if response != '$' else ''
-
-    if 'おやすみ' in question:
-        return ''
 
     if '屑bot' in question:
         return '你屑你🐴呢'
@@ -487,10 +480,10 @@ async def _request_api_response(question: str) -> str:
         try:
             async with aiohttp.ClientSession(timeout=timeout) as client:
                 async with client.get(
-                        f'http://i.itpk.cn/api.php?question={question}'
-                        f'&limit=7'
-                        f'&api_key={config.ITPK_KEY}'
-                        f'&api_secret={config.ITPK_SECRET}'
+                    f'http://i.itpk.cn/api.php?question={question}'
+                    f'&limit=7'
+                    f'&api_key={config.ITPK_KEY}'
+                    f'&api_secret={config.ITPK_SECRET}'
                 ) as page:
                     if not '笑话' in question:
                         response = await page.text()
@@ -571,7 +564,7 @@ def _do_auto_reply_retrieve(
         group_id: Union[str, int],
         message: str
 ) -> str:
-    rand_num = randint(0, 2)
+    rand_num = randint(0, 3)
 
     if admin_control.get_data(group_id, 'enabled'):
         if get_privilege(user_id, perm.BANNED):
@@ -581,7 +574,7 @@ def _do_auto_reply_retrieve(
             group_id = str(group_id)
             try:
                 if group_id not in user_control_module.get_last_question() or \
-                user_control_module.get_last_question_by_group(group_id) != message:
+                        user_control_module.get_last_question_by_group(group_id) != message:
                     user_control_module.set_last_question_by_group(group_id, message)
                     return user_control_module.get_user_response(message)
 
@@ -604,6 +597,7 @@ async def _check_reply_keywords(message: str) -> str:
 
     return response
 
+
 async def _do_message_retrieve(message: str) -> str:
     reply_id = findall(r'\[CQ:reply,id=(.*?)]', message)
     bot = nonebot.get_bot()
@@ -612,6 +606,7 @@ async def _do_message_retrieve(message: str) -> str:
     message = sub('\[CQ.*?\]', '', message)
 
     return f'[CQ:tts,text={message}]'
+
 
 async def _do_soutu_operation(message: str) -> str:
     reply_id = findall(r'\[CQ:reply,id=(.*?)]', message)
@@ -651,6 +646,7 @@ async def _do_soutu_operation(message: str) -> str:
         return response
 
     return '阿这，是我瞎了么？好像没有图片啊原文里。'
+
 
 @nonebot.on_command('ban', only_to_me=False)
 async def ban_someone(session: nonebot.CommandSession):

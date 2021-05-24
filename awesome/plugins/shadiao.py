@@ -147,8 +147,8 @@ async def message_preprocessing(_: nonebot.NoneBot, event: aiocqhttp.event, __: 
 
 @nonebot.on_command('来个老婆', aliases=('来张waifu', '来个waifu', '老婆来一个'), only_to_me=False)
 async def send_waifu(session: nonebot.CommandSession):
-    waifu_api = waifu_finder.waifuFinder()
-    path, message = waifu_api.getImage()
+    waifu_api = waifu_finder.WaifuFinder()
+    path, message = waifu_api.get_image()
     if not path:
         await session.send(message)
     else:
