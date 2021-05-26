@@ -13,7 +13,7 @@ from aiocqhttp import MessageSegment
 from awesome.adminControl import permission as perm
 from awesome.plugins.util.helper_util import anime_reverse_search_response
 from config import SUPER_USER, SAUCE_API_KEY, PIXIV_REFRESH_TOKEN
-from qq_bot_core import sanity_meter, user_control_module, admin_control, alarm_api
+from qq_bot_core import sanity_meter, user_control_module, admin_control, alarm_api, cangku_api
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 pixiv_api = pixivpy3.ByPassSniApi()
@@ -232,7 +232,7 @@ async def pixiv_send(session: nonebot.CommandSession):
     if 'error' in json_result:
         admin_control.set_if_authed(False)
         try:
-               
+
             pixiv_api.auth(refresh_token=PIXIV_REFRESH_TOKEN)
             await session.send('新的P站匿名访问链接已建立……')
             admin_control.set_if_authed(True)
@@ -377,6 +377,7 @@ async def download_image(illust):
     nonebot.logger.info("PATH = " + path)
     return path
 
+
 @nonebot.on_command('搜图', only_to_me=False)
 async def reverse_image_search(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -433,7 +434,7 @@ async def sauce_helper(url):
         if json_data['results']:
             json_data = json_data['results'][0]
             nonebot.logger.info(f'Json data: \n'
-                                 f'{json_data}')
+                                f'{json_data}')
             response = ''
             if json_data:
                 simlarity = json_data['header']['similarity'] + '%'
@@ -523,56 +524,37 @@ async def sauce_helper(url):
 
     return response
 
-@nonebot.on_command('ghs', only_to_me=False)
-async def get_random_image(session: nonebot.CommandSession):
+
+@nonebot.on_command('仓库搜索', only_to_me=False)
+async def cangku_search(session: nonebot.CommandSession):
+    key_word = str(session.get('key_word', prompt='请输入关键字进行查询')).lower()
     ctx = session.ctx.copy()
     if 'group_id' not in ctx:
-        return
+        is_r18 = True
+    else:
+        group_id = ctx['group_id']
+        is_r18 = admin_control.get_data(group_id, 'R18')
 
-    if admin_control.get_data(ctx['group_id'], 'banned'):
-        await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
-
-    id_num = ctx['group_id']
     user_id = ctx['user_id']
-    sanity_meter.set_usage(id_num, 'setu')
-    sanity_meter.set_user_data(user_id, 'setu')
+    user_id = str(user_id)
 
-    message = await get_random()
-
-
-async def get_random():
-    headers = {
-        'Authorization': 'HM9GYMGhY7ccUk7'
-    }
-
-    sfw = 'https://gallery.fluxpoint.dev/api/sfw/anime'
-    nsfw = 'https://gallery.fluxpoint.dev/api/nsfw/lewd'
-    rand_num = random.randint(0, 101)
-    is_nsfw = rand_num >= 80
-
-    async with aiohttp.ClientSession(
-            headers=headers,
-            timeout=aiohttp.ClientTimeout(total=10)
-    ) as client:
-        async with client.get(nsfw if is_nsfw else sfw) as page:
-            json_data = await page.json()
-
-        filename = json_data['file'].split('/')[-1]
-        async with client.get(json_data['file']) as image_page:
-            path = f'{getcwd()}/data/pixivPic/{filename}'
-            if not exists(path):
-                with open(path, 'wb') as f:
-                    while True:
-                        chunk = await image_page.content.read(1024 ** 3)
-                        if not chunk:
-                            break
-
-                        f.write(chunk)
-
-    return f'[CQ:image,file=file:///{path}{",type=flash" if is_nsfw else ""}]'
+    search_result = cangku_api.get_search_string(
+        key_word,
+        user_id=user_id,
+        is_r18=is_r18
+    )
+    index = session.get(
+        'index_name',
+        prompt=search_result + '\n'
+                               '请输入序号进行查询~'
+    )
+    search_by_index = cangku_api.get_info_by_index(user_id, index)
+    dissect_to_string = cangku_api.anaylze_dissected_data(search_by_index)
+    await session.finish(dissect_to_string)
 
 
 @pixiv_send.args_parser
+@cangku_search.args_parser
 async def _(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:

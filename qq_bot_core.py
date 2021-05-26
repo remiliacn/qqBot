@@ -6,6 +6,7 @@ import nonebot
 from nonebot.log import logger
 
 import config
+from Shadiao.cangku_api import CangkuApi
 from awesome.adminControl import alarm, user_control, setu, group_admin
 from awesome.adminControl.weeb_controller import WeebController
 
@@ -47,6 +48,7 @@ user_control_module = user_control.UserControl()
 sanity_meter = setu.SetuFunction()
 admin_control = group_admin.Shadiaoadmin()
 weeb_learning = WeebController()
+cangku_api = CangkuApi()
 
 
 def register_true():
