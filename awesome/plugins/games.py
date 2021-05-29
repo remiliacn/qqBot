@@ -2,6 +2,7 @@ import asyncio
 from random import randint, seed, choice
 from time import time_ns
 
+import china_idiom as idiom
 import nonebot
 
 from Shadiao import poker_game, ru_game
@@ -14,13 +15,38 @@ class Storer:
     def __init__(self):
         self.stored_result = {}
 
-    def set_store(self, ref, group_id):
-        self.stored_result[group_id] = ref
+    def set_store(self, function, ref, group_id: str, is_global: bool, user_id='-1'):
+        if group_id not in self.stored_result:
+            self.stored_result[group_id] = {}
 
-    def getStore(self, group_id):
-        temp = self.stored_result[group_id]
-        self.stored_result[group_id] = ''
-        return temp
+        if function not in self.stored_result[group_id]:
+            self.stored_result[group_id][function] = {}
+            if is_global:
+                self.stored_result[group_id][function] = ref
+            else:
+                self.stored_result[group_id][function][user_id] = ref
+
+    def get_store(self, group_id, function, is_global: bool, user_id='-1'):
+        if group_id not in self.stored_result:
+            self.stored_result[group_id] = {}
+            return ''
+
+        if function not in self.stored_result[group_id]:
+            self.stored_result[group_id][function] = {}
+            return ''
+
+        if is_global:
+            temp = self.stored_result[group_id][function]
+            self.stored_result[group_id][function] = ''
+            return temp
+        else:
+            if user_id not in self.stored_result[group_id][function]:
+                return ''
+
+            info = self.stored_result[group_id][function][user_id]
+            self.stored_result[group_id][function][user_id] = ''
+            return info
+
 
 class horseRacing:
     def __init__(self, userGuess: str):
@@ -113,6 +139,7 @@ class horseRacing:
 
         return False
 
+
 poker = poker_game.Pokergame()
 GLOBAL_STORE = Storer()
 game = ru_game.Russianroulette()
@@ -148,7 +175,6 @@ async def pao_tuan_shai_zi(session: nonebot.CommandSession):
             result = '成功！'
 
     await session.finish(f'[CQ:reply,id={message_id}]结果：{result}')
-
 
 
 @nonebot.on_command('赛马', only_to_me=False)
@@ -235,7 +261,7 @@ async def russianRoulette(session: nonebot.CommandSession):
         rand_num = randint(low, high)
         if rand_num > 10:
             rand_num = 10
-            
+
         await bot.set_group_ban(group_id=id_num, user_id=user_id, duration=60 * rand_num)
 
 
@@ -248,6 +274,33 @@ async def shuffle_gun(session: nonebot.CommandSession):
 
     game.reset_gun(ctx['group_id'])
     await session.send('%s转动了弹夹！流向改变了！' % ctx['sender']['nickname'])
+
+
+@nonebot.on_command('成语接龙', only_to_me=False)
+async def jielong(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    random_idiom = GLOBAL_STORE.get_store(
+        str(ctx['group_id']) if 'group_id' in ctx else "-1",
+        'solitaire',
+        False,
+        str(ctx['user_id'])
+    )
+
+    if not random_idiom:
+        random_idiom = get_random_idiom()
+        GLOBAL_STORE.set_store(
+            'solitaire',
+            random_idiom,
+            str(ctx['group_id']) if 'group_id' in ctx else "-1",
+            False,
+            str(ctx['user_id'])
+        )
+
+    user_choice = session.get('user_choice', prompt=f'请接龙：{random_idiom}')
+    if idiom.is_idiom_solitaire(random_idiom, str(user_choice).strip()):
+        await session.finish('啧啧啧，什么嘛~还不错嘛~（好感度 +1）')
+    else:
+        await session.finish('你接球呢ww （好感度 -1）')
 
 
 @nonebot.on_command('比大小', only_to_me=False)
@@ -271,17 +324,28 @@ async def the_poker_game(session: nonebot.CommandSession):
     stat, response = poker.compare_two(str(ctx['group_id']))
 
     if not stat and response == -1:
-        GLOBAL_STORE.set_store(drawed_card, ctx['group_id'])
+        GLOBAL_STORE.set_store(
+            'guess',
+            drawed_card,
+            ctx['group_id'] if 'group_id' in ctx else '-1',
+            is_global=True
+        )
         await session.send(f"玩家[CQ:at,qq={user_id}]拿到了加密过的卡：{encrypt_card(drawed_card, time_seed)}\n"
                            f"有来挑战一下的么？\n"
                            f"本次游戏随机种子：{time_seed}")
 
     else:
+        player_one_card = GLOBAL_STORE.get_store(
+            ctx['group_id'] if 'group_id' in ctx else '-1',
+            'guess',
+            is_global=True
+        )
         if not stat and response == -2:
             await session.send(f"玩家[CQ:at,qq={user_id}]抓到了{drawed_card}。咳咳虽然斗争很激烈，但是平局啦！！")
         else:
             await session.send(f"玩家[CQ:at,qq={user_id}]抓到了{drawed_card}\n"
-                               f"玩家1的加密卡为：{GLOBAL_STORE.getStore(ctx['group_id'])}。\n"
+                               f"玩家1的加密卡为："
+                               f"{player_one_card}。\n"
                                f"玩家[CQ:at,qq={response}]获胜！")
 
             sanity_meter.set_user_data(response, 'poker')
@@ -296,3 +360,16 @@ def encrypt_card(card, time_seed):
         result += chr(order % 32 + 100)
 
     return result
+
+
+def get_random_idiom() -> str:
+    with open('data/util/idiom.csv', 'r', encoding='utf-8') as file:
+        content = file.readlines()
+
+    # Remove first line in csv file.
+    content = [x.strip() for x in content][1:]
+    random_idiom = choice(content).split(',')[6]
+    while not idiom.is_idiom(random_idiom):
+        random_idiom = choice(content).split(',')[6]
+
+    return random_idiom
