@@ -275,6 +275,7 @@ async def do_youtube_update_fetch():
                                     f'Video title: {elements}'
                         )
                         try:
+                            logger.info(f'Uploading video: {elements}')
                             await bot.upload_group_file(
                                 group_id=group_id,
                                 file=f"{PATH_TO_ONEDRIVE}{name}/{elements}.mp4",
