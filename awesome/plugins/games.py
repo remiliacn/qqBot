@@ -5,7 +5,7 @@ from time import time_ns
 import china_idiom as idiom
 import nonebot
 
-from Shadiao import poker_game, ru_game
+from Services import poker_game, ru_game
 from awesome.adminControl import permission as perm
 from awesome.plugins.admin_setting import get_privilege
 from awesome.plugins.shadiao import admin_control, sanity_meter
@@ -32,7 +32,7 @@ class Storer:
             return ''
 
         if function not in self.stored_result[group_id]:
-            self.stored_result[group_id][function] = {}
+            self.stored_result[group_id][function] = ''
             return ''
 
         if is_global:
@@ -280,20 +280,20 @@ async def shuffle_gun(session: nonebot.CommandSession):
 async def jielong(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     random_idiom = GLOBAL_STORE.get_store(
-        str(ctx['group_id']) if 'group_id' in ctx else "-1",
-        'solitaire',
-        False,
-        str(ctx['user_id'])
+        group_id=str(ctx['group_id']) if 'group_id' in ctx else "-1",
+        function='solitaire',
+        is_global=False,
+        user_id=str(ctx['user_id'])
     )
 
     if not random_idiom:
         random_idiom = get_random_idiom()
         GLOBAL_STORE.set_store(
-            'solitaire',
-            random_idiom,
-            str(ctx['group_id']) if 'group_id' in ctx else "-1",
-            False,
-            str(ctx['user_id'])
+            function='solitaire',
+            ref=random_idiom,
+            group_id=str(ctx['group_id']) if 'group_id' in ctx else "-1",
+            is_global=False,
+            user_id=str(ctx['user_id'])
         )
 
     user_choice = session.get('user_choice', prompt=f'请接龙：{random_idiom}')

@@ -241,7 +241,7 @@ async def sendAnswer(session: nonebot.CommandSession):
                 user_id=config.SUPER_USER,
                 message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
                         f'风险控制\n'
-                        f'使用命令：！问题\n'
+                        f'使用命令：{str(ctx["raw_message"])}\n'
                         f'我的回复：\n{response}\n'
                         f'使用人：{ctx["user_id"]}\n'
                         f'来自群：{ctx["group_id"] if "group_id" in ctx else -1}'
@@ -339,47 +339,47 @@ def _math_fetch(question: str, user_id: int) -> str:
 
     if 'factorial' in question:
         if len(question) > 20:
-            return '检测到可能的DDoS攻击。计算停止'
+            return '可是我不想动哎.jpg'
 
         if '**' in question:
-            return '检测到可能的DDoS攻击。计算停止'
+            return '可是我不想动哎.jpg'
 
         if 'pow' in question:
-            return '检测到可能的DDoS攻击。计算停止'
+            return '可是我不想动哎.jpg'
 
         fact_number = findall(r'.*?factorial\((\d+)\)', question)
         if fact_number:
             if int(fact_number[0]) > 500:
-                return '检测到可能的DDoS攻击。计算停止'
+                return '可是我不想动哎.jpg'
 
     if match(r'.*?<<', question):
         overflow_fetch = findall(r'.*?<<(\d+)', question)
         if overflow_fetch:
             if len(overflow_fetch) != 1:
-                return '检测到可能的DDoS攻击。计算停止'
+                return '可是我不想动哎.jpg'
             if int(overflow_fetch[0]) > 100:
-                return '检测到可能的DDoS攻击。计算停止'
+                return '可是我不想动哎.jpg'
 
     if match(r'.*?\*\*', question):
         if len(question) > 10:
-            return '检测到可能的DDoS攻击。计算停止'
+            return '可是我不想动哎.jpg'
 
         overflow_fetch = findall(r'.*?\*\*(\d+)', question)
         if overflow_fetch:
             if len(overflow_fetch) > 2:
-                return '检测到可能的DDoS攻击。计算停止'
+                return '可是我不想动哎.jpg'
             else:
                 if int(overflow_fetch[0]) > 99:
-                    return '检测到可能的DDoS攻击。计算停止'
+                    return '可是我不想动哎.jpg'
                 if len(overflow_fetch) == 2 and int(overflow_fetch[1]) > 2:
-                    return '检测到可能的DDoS攻击。计算停止'
+                    return '可是我不想动哎.jpg'
 
     if match(r'.*?pow\(\d+,\d+\)', question):
         if len(question) > 10:
-            return '检测到可能的DDoS攻击。计算停止'
+            return '可是我不想动哎.jpg'
 
         if int(findall(r'.*?pow\(\d+,(\d+)\)', question)[0]) > 99:
-            return '检测到可能的DDoS攻击。计算停止'
+            return '可是我不想动哎.jpg'
 
     if match(r'.*?\\u\d+', question) or match(r'.*?\\\w{3}', question):
         return '你说你马呢（'

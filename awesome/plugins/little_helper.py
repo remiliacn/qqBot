@@ -4,7 +4,7 @@ import aiohttp
 import nonebot
 from nonebot.log import logger
 
-from Shadiao import random_services
+from Services import random_services
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.util import helper_util

@@ -1,4 +1,4 @@
-import requests, os
+import requests
 from lxml import etree
 from nonebot.log import logger
 class GetPCRNews:

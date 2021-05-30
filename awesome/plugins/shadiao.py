@@ -9,7 +9,7 @@ import nonebot
 from nonebot.message import CanceledException
 from nonebot.plugin import PluginManager
 
-from Shadiao import waifu_finder, ark_nights, shadiao, pcr_news
+from Services import waifu_finder, ark_nights, shadiao, pcr_news
 from awesome.adminControl import permission as perm
 from awesome.plugins.util.helper_util import get_downloaded_image_path, ark_helper
 from config import SUPER_USER

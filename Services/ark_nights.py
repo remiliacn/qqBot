@@ -47,11 +47,11 @@ class ArkHeadhunt:
 
     @staticmethod
     def _get_agent_dict() -> dict:
-        if not exists('Shadiao/util/agent.json'):
-            with open('Shadiao/util/agent.json', 'w+', encoding='utf8') as file:
+        if not exists('Services/util/agent.json'):
+            with open('Services/util/agent.json', 'w+', encoding='utf8') as file:
                 dump({}, file, indent=4)
 
-        with open('Shadiao/util/agent.json', 'r', encoding='utf8') as file:
+        with open('Services/util/agent.json', 'r', encoding='utf8') as file:
             agent_dict = loads(file.read())
 
         return agent_dict
@@ -133,7 +133,7 @@ class ArkHeadhunt:
         return f'干员{agent}不是{star}星或不在游戏内。'
 
     def update_content(self):
-        with open('Shadiao/util/agent.json', 'w+', encoding='utf8') as file:
+        with open('Services/util/agent.json', 'w+', encoding='utf8') as file:
             dump(self.agent_dict, file, indent=4)
 
     def clear_ups(self):

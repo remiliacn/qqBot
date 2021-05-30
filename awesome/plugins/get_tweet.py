@@ -8,7 +8,7 @@ from subprocess import Popen
 import nonebot
 from nonebot.log import logger
 
-from Shadiao.random_services import YouTubeLiveTracker
+from Services.random_services import YouTubeLiveTracker
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.tweetHelper import tweeter
@@ -263,10 +263,9 @@ async def do_youtube_update_fetch():
                         name = youtube_notify_dict[elements]['ch_name']
                         await bot.send_group_msg(
                             group_id=group_id,
-                            message=f'视频下载完毕~ [{SHARE_LINK}]\n'
-                                    '视频名称：%s\n' % (
-                                        elements
-                                    )
+                            message=f'视频下载完毕~ [OneDrive：{SHARE_LINK}]\n'
+                                    f'视频名称：{elements}\n'
+                                    f'视频将尝试上传群文件一份'
                         )
                         await bot.send_private_msg(
                             user_id=SUPER_USER,
