@@ -2,6 +2,7 @@
 
 ## 需求
 
+* Python版本为 3.7+
 * 安装requirements.txt中的所有依赖 `pip install -r requirements.txt`
 * 运行Go-CQHTTP[具体文档清参考这里](https://github.com/Mrs4s/go-cqhttp)
 * 参考[nonebot](https://github.com/nonebot/nonebot)的配置文档按需在qq_bot_core.py中配置机器人
