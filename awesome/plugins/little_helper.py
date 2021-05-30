@@ -1,13 +1,17 @@
 import time
+from datetime import datetime
 
 import aiohttp
 import nonebot
+from aiocqhttp import MessageSegment
 from nonebot.log import logger
 
 from Services import random_services
+from Services.stock import Stock
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.util import helper_util
+from config import SUPER_USER
 from qq_bot_core import user_control_module
 from youdaoService import youdao
 
@@ -24,6 +28,39 @@ async def send_help(session: nonebot.CommandSession):
         'https://github.com/remiliacn/Lingye-Bot/blob/master/README.md\n'
         '如果有新功能想要添加，请提交issue!'
     )
+
+
+@nonebot.on_command('K线', only_to_me=False)
+async def k_line(session: nonebot.CommandSession):
+    key_word = session.get(
+        'key_word',
+        prompt='请输入股票代码（未来会加入缩写等支持）！'
+    )
+
+    if not str(key_word).isdigit():
+        await session.finish('股票代码应为6位数字')
+
+    if not len(key_word) == 6:
+        await session.finish('六位啊六位！！')
+
+    stock = Stock(key_word)
+    try:
+        file_name = stock.get_kline_map()
+        if file_name:
+            await session.send(
+                MessageSegment.image(f'file:///{file_name}')
+            )
+        else:
+            await session.send('好像出问题了（')
+
+    except Exception as err:
+        await session.send('出问题了出问题了~')
+        bot = nonebot.get_bot()
+        await bot.send_private_msg(
+            user_id=SUPER_USER,
+            message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
+                    f'股票查询出错{err}, 股票代码：{key_word}'
+        )
 
 
 @nonebot.on_command('翻译', only_to_me=False)
@@ -163,6 +200,7 @@ async def can_you_be_fucking_normal(session: nonebot.CommandSession):
 @jp_to_jp_dict.args_parser
 @nico_send.args_parser
 @translate.args_parser
+@k_line.args_parser
 async def _youDaoServiceArgs(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:

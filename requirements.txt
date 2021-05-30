@@ -1,3 +1,6 @@
+china_idiom
+plotly
+kaleido
 youtube_dl
 aiohttp
 urllib3
