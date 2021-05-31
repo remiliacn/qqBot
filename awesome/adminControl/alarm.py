@@ -1,5 +1,7 @@
 from json import loads, dump
 from os.path import exists
+from os import getcwd, mkdir
+
 
 class Alarm:
     def __init__(self):
@@ -10,11 +12,14 @@ class Alarm:
 
     @staticmethod
     def _get_alarm() -> dict:
-        if exists('config/alarm.json'):
+        if not exists(f'{getcwd()}/config'):
+            mkdir(f'{getcwd()}/config')
+
+        if exists(f'{getcwd()}/config/alarm.json'):
             with open('config/alarm.json', 'r') as file:
                 return loads(file.read())
 
-        with open('config/alarm.json', 'w+') as file:
+        with open(f'{getcwd()}/config/alarm.json', 'w+') as file:
             dump({}, file, indent=4)
 
         return {}

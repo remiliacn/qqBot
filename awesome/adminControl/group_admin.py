@@ -12,6 +12,10 @@ class Shadiaoadmin:
 
         self.group_path = 'config/group.json'
         self.group_quotes_path = 'data/quotes.json'
+        if not exists(self.group_path):
+            with open(self.group_path, 'w+') as file:
+                json.dump({}, file)
+
         file = open(self.group_path, 'r+')
         fl = file.read()
         self.group_setting = json.loads(str(fl))

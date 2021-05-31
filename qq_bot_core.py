@@ -5,50 +5,54 @@ from time import sleep
 import nonebot
 from nonebot.log import logger
 
+# 如果下面这行报错，请暂时注释掉这行然后运行下面的main()
 import config
-from Services.cangku_api import CangkuApi
+
 from awesome.adminControl import alarm, user_control, setu, group_admin
 from awesome.adminControl.weeb_controller import WeebController
 
 config_file = \
-    """
-    from nonebot.default_config import *
-    
-    NICKNAME = {}
-    CONSUMER_KEY = ''    # Twitter consumer key
-    CONSUMER_SECRET = '' # Twitter Secret Token
-    ACCESS_TOKEN = ''    # Twitter Access Token
-    ACCESS_SECRET = ''   # Twitter Access Secret Token
-    
-    PIXIV_REFRESH_TOKEN = '' # Pixiv refresh token (upbit/pixivpy的issue#158有获取方式)
-    DOWNLODER_FILE_NAME = 'forDownload.py'
-    
-    ITPK_KEY = ''        # 茉莉机器人API KEY
-    ITPK_SECRET = ''     # 茉莉机器人API SECRET
-    
-    SAUCE_API_KEY = ''   # Sauce API key.
-    
-    HOST = '127.0.0.1'
-    PORT = 5700
-    SUPER_USER = 0       # 超级管理员qq号 (int)
-    
-    # 如果需要YouTube自动扒源功能可保留下面的参数，否则可以删除
-    # 删除后可移除forDownload.py文件以及do_youtube_update_fetch()方法
-    # 该方法存在于./awesome/plugins/get_tweet.py
-    
-    PATH_TO_ONEDRIVE = ''    # OneDrive盘路径，或服务器文件路径终点
-    PATH_TEMP_DOWNLOAD = ''  # 视频下载的缓存地址
-    FFMPEG_PATH = ''         # FFMPEG路径
-    SHARE_LINK = ''          # OneDrive分享地址，或服务器目录根地址。
-    
-    """
+"""
+from nonebot.default_config import *
+
+NICKNAME = {}
+CONSUMER_KEY = ''    # Twitter consumer key
+CONSUMER_SECRET = '' # Twitter Secret Token
+ACCESS_TOKEN = ''    # Twitter Access Token
+ACCESS_SECRET = ''   # Twitter Access Secret Token
+
+PIXIV_REFRESH_TOKEN = '' # Pixiv refresh token (upbit/pixivpy的issue#158有获取方式)
+DOWNLODER_FILE_NAME = 'forDownload.py'
+
+ITPK_KEY = ''        # 茉莉机器人API KEY
+ITPK_SECRET = ''     # 茉莉机器人API SECRET
+
+SAUCE_API_KEY = ''   # Sauce API key.
+
+HOST = '127.0.0.1'
+PORT = 5700
+SUPER_USER = 0       # 超级管理员qq号 (int)
+
+# 如果需要YouTube自动扒源功能可保留下面的参数，否则可以删除
+# 删除后可移除forDownload.py文件以及do_youtube_update_fetch()方法
+# 该方法存在于./awesome/plugins/get_tweet.py
+
+PATH_TO_ONEDRIVE = ''    # OneDrive盘路径，或服务器文件路径终点
+PATH_TEMP_DOWNLOAD = ''  # 视频下载的缓存地址
+FFMPEG_PATH = ''         # FFMPEG路径
+SHARE_LINK = ''          # OneDrive分享地址，或服务器目录根地址。
+
+CANGKU_USERNAME = ''
+CANGKU_PASSWORD = ''
+
+"""
 
 alarm_api = alarm.Alarm()
 user_control_module = user_control.UserControl()
 sanity_meter = setu.SetuFunction()
 admin_control = group_admin.Shadiaoadmin()
 weeb_learning = WeebController()
-cangku_api = CangkuApi()
+cangku_api = None
 
 
 def register_true():
@@ -62,17 +66,6 @@ def register_true():
 
     with open('data/started.json', 'w+') as f:
         dump({'status': True}, f, indent=4)
-
-    if not path.exists('config.py'):
-        logger.warning('No config file detected. Generating a template...')
-
-        with open('config.py', 'w+', encoding='utf-8') as file:
-            file.write(config_file)
-
-        logger.warning('Generation completed... Exiting the program. Please edit it!')
-        sleep(10)
-
-        exit(1)
 
     try:
         if not path.exists(f'{getcwd()}/data/biaoqing'):
@@ -103,6 +96,7 @@ def register_true():
 
 
 def main():
+    # 记着生成config文件后把本文件的import config去掉注释
     nonebot.init(config)
     nonebot.log.logger.setLevel('INFO')
 
@@ -116,5 +110,18 @@ def main():
 
 
 if __name__ == '__main__':
+    if not path.exists(f'{getcwd()}/config.py'):
+        logger.warning('未检测到配置文件，尝试生成模板中……')
+
+        with open('config.py', 'w+', encoding='utf-8') as file:
+            file.write(config_file)
+
+        logger.warning('模板生成完毕！请修改config.py中的参数！')
+        sleep(10)
+
+        exit(1)
+
+    from Services.cangku_api import CangkuApi
+    cangku_api = CangkuApi()
     register_true()
     main()
