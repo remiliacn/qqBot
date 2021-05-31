@@ -45,6 +45,10 @@ SHARE_LINK = ''          # OneDrive分享地址，或服务器目录根地址。
 CANGKU_USERNAME = ''
 CANGKU_PASSWORD = ''
 
+OKEX_API_KEY  = ""
+OKEX_SECRET_KEY= ""
+OKEX_PASSPHRASE = ""
+
 """
 
 alarm_api = alarm.Alarm()

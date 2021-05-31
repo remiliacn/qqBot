@@ -1,3 +1,4 @@
+import asyncio
 import time
 from datetime import datetime
 
@@ -7,7 +8,7 @@ from aiocqhttp import MessageSegment
 from nonebot.log import logger
 
 from Services import random_services
-from Services.stock import Stock
+from Services.stock import Stock, Crypto
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.util import helper_util
@@ -30,20 +31,38 @@ async def send_help(session: nonebot.CommandSession):
     )
 
 
-@nonebot.on_command('K线', only_to_me=False)
+@nonebot.on_command('虚拟货币', only_to_me=False)
+async def crypto_search(session: nonebot.CommandSession):
+    key_word = session.get(
+        'key_word',
+        prompt='请输入货币缩写！'
+    )
+
+    crypto = Crypto(key_word)
+    try:
+        file_name = crypto.get_kline()
+        if file_name:
+            await session.send(
+                MessageSegment.image(f'file:///{file_name}')
+            )
+        else:
+            await session.send(
+                f'好像出问题了（\n'
+            )
+
+    except Exception as err:
+        logger.log(f'{err} - Crypto error.')
+        await session.finish('这货币真的上架了么……')
+
+
+@nonebot.on_command('K线', aliases={'股票', '股票代码', 'k线'}, only_to_me=False)
 async def k_line(session: nonebot.CommandSession):
     key_word = session.get(
         'key_word',
-        prompt='请输入股票代码（未来会加入缩写等支持）！'
+        prompt='请输入股票代码！'
     )
 
-    if not str(key_word).isdigit():
-        await session.finish('股票代码应为6位数字')
-
-    if not len(key_word) == 6:
-        await session.finish('六位啊六位！！')
-
-    stock = Stock(key_word)
+    stock = Stock(key_word, keyword=key_word)
     try:
         file_name = stock.get_kline_map()
         if file_name:
@@ -51,7 +70,14 @@ async def k_line(session: nonebot.CommandSession):
                 MessageSegment.image(f'file:///{file_name}')
             )
         else:
-            await session.send('好像出问题了（')
+            file_name = stock.get_stock_codes()
+            await asyncio.sleep(1)
+            await session.send(
+                f'好像出问题了（\n'
+                f'灵夜机器人帮助你找到了以下备选搜索结果~\n'
+                f'[CQ:image,file=file:///{file_name}]\n'
+                f'请使用数字代码查询！'
+            )
 
     except Exception as err:
         await session.send('出问题了出问题了~')
@@ -201,6 +227,7 @@ async def can_you_be_fucking_normal(session: nonebot.CommandSession):
 @nico_send.args_parser
 @translate.args_parser
 @k_line.args_parser
+@crypto_search.args_parser
 async def _youDaoServiceArgs(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:
