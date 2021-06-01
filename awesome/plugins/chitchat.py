@@ -38,7 +38,7 @@ async def add_more_pic(session: nonebot.CommandSession):
         await session.finish('不是说了必须是其中一个了kora')
 
     key_dict = {
-        '恰柠檬': f'{os.getcwd()}/data/dl/lemon/',
+        '恰柠檬': 721829413,
         '流泪猫猫头': f'{os.getcwd()}/data/dl/useless/',
         '迫害': f'{os.getcwd()}/data/dl/pohai/',
         '辛苦了': f'{os.getcwd()}/data/dl/otsukare/',

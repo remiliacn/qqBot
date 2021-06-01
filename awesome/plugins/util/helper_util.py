@@ -10,7 +10,7 @@ from nonebot.log import logger
 HHSHMEANING = 'meaning'
 FURIGANAFUNCTION = 'furigana'
 
-def get_downloaded_image_path(response: dict, path: str):
+def download_image_to_path(response, path):
     url = response['url']
     image_response = requests.get(
         url,
@@ -22,6 +22,10 @@ def get_downloaded_image_path(response: dict, path: str):
         with open(path, 'wb') as file:
             file.write(image_response.content)
 
+    return path
+
+def get_downloaded_image_path(response: dict, path: str):
+    path = download_image_to_path(response, path)
     resp = str(MessageSegment.image(f'file:///{path}'))
     return resp
 

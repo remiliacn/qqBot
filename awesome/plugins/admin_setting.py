@@ -281,6 +281,21 @@ async def _send_answer(session: nonebot.CommandSession):
 
 
 def _simple_ai_process(question: str, ctx: dict) -> str:
+    if '你' in question:
+        if '我' in question:
+            me_word_index = [index for index, c in enumerate(question) if c == '我']
+            response = question.replace('你', ctx['sender']['nickname'])
+            temp = list(response)
+            for i in me_word_index:
+                temp[i] = '你'
+
+            response = ''.join(temp)
+            return response
+
+    elif match(r'.*?(我|吾|俺|私|本人)', question):
+        response = sub(r'(我|吾|俺|私|本人)', ctx['sender']['nickname'], question)
+        return response
+
     syntax = compile(r'[么嘛吗马][？?]?')
     syntax2 = compile(r'.*?(.*?)不\1')
 
@@ -313,13 +328,8 @@ def _simple_ai_process(question: str, ctx: dict) -> str:
         syntax_bot = compile('(bot|机器人|机械人|机屑人)')
         response = sub(syntax_bot, '人类', response)
 
-    if '你' in response:
-        for element in ('傻', '逼', '憨', '智障', 'retarded'):
-            if element in response:
-                response = response.replace('你', ctx['sender']['nickname'])
-                break
-        else:
-            response = response.replace('你', '我')
+    if '习近平' in sub(r'[\x00-\xff]+', '', question):
+        return '年轻人我劝你好自为之'
 
     return response
 
@@ -441,6 +451,9 @@ def _prefetch(question: str, user_id: int) -> str:
     if match('.*?(祈|衤|qi).*?(雨|yu)', question):
         return '不敢答，不敢答……溜了溜了w'
 
+    if match('.*?(者|主人|creator|developer|owner)', sub(r'[\x00-\xff]+', '', question)):
+        return ''
+
     if match('.*?你(几|多少?)(岁|大|年龄)', question):
         seed(time_ns())
         rand_num = randint(0, 101)
@@ -458,7 +471,7 @@ def _prefetch(question: str, user_id: int) -> str:
     if match(r'.*?(爱不爱|喜不喜欢).*?妈妈', question):
         return '答案肯定是肯定的啦~'
 
-    if '妈妈' in question:
+    if '妈妈' in question or '🐴' in question:
         return '请问你有妈妈么？:)'
 
     return ''
@@ -480,10 +493,10 @@ async def _request_api_response(question: str) -> str:
         try:
             async with aiohttp.ClientSession(timeout=timeout) as client:
                 async with client.get(
-                    f'http://i.itpk.cn/api.php?question={question}'
-                    f'&limit=7'
-                    f'&api_key={config.ITPK_KEY}'
-                    f'&api_secret={config.ITPK_SECRET}'
+                        f'http://i.itpk.cn/api.php?question={question}'
+                        f'&limit=7'
+                        f'&api_key={config.ITPK_KEY}'
+                        f'&api_secret={config.ITPK_SECRET}'
                 ) as page:
                     if not '笑话' in question:
                         response = await page.text()
@@ -589,7 +602,7 @@ async def _check_reply_keywords(message: str) -> str:
         if '搜图' in message:
             response = await _do_soutu_operation(message)
         elif '复述' in message:
-            response = await _do_message_retrieve(message)
+            response = await _do_tts_send(message)
         else:
             response = ''
     else:
@@ -598,7 +611,7 @@ async def _check_reply_keywords(message: str) -> str:
     return response
 
 
-async def _do_message_retrieve(message: str) -> str:
+async def _do_tts_send(message: str) -> str:
     reply_id = findall(r'\[CQ:reply,id=(.*?)]', message)
     bot = nonebot.get_bot()
     data = await bot.get_msg(message_id=int(reply_id[0]))
