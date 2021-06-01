@@ -14,7 +14,7 @@ from plotly.subplots import make_subplots
 from config import OKEX_API_KEY, OKEX_PASSPHRASE, OKEX_SECRET_KEY
 
 
-def text_to_image(string: str):
+async def text_to_image(string: str):
     LINE_CHAR_COUNT = 50 * 2  # 每行字符数：30个中文字符(=60英文字符)
     CHAR_SIZE = 30
     TABLE_WIDTH = 4
@@ -147,9 +147,23 @@ def do_plot(
     )
 
     # Volume graph.
+    volume_data_frame = pandas.DataFrame(volume_data)
+    ma5_volume_data = _get_moving_average_data(volume_data_frame, 5)
+    ma10_volume_data = _get_moving_average_data(volume_data_frame, 10)
+
     volume_trace = plotter.Bar(
         y=volume_data,
         marker_color=volume_color
+    )
+
+    volume_ma5_trace = plotter.Scatter(
+        y=ma5_volume_data,
+        line=dict(color='red', width=1)
+    )
+
+    volume_ma10_trace = plotter.Scatter(
+        y=ma10_volume_data,
+        line=dict(color='blue', width=1)
     )
 
     # histogram
@@ -178,6 +192,8 @@ def do_plot(
 
     # Volume graph
     plot.add_trace(volume_trace, row=2, col=1)
+    plot.add_trace(volume_ma5_trace, row=2, col=1)
+    plot.add_trace(volume_ma10_trace, row=2, col=1)
 
     # MACD graph
     plot.add_trace(histogram_graph, row=3, col=1)
@@ -283,7 +299,7 @@ class Stock:
                f'&beg={(datetime.now() - timedelta(days=120)).strftime("%Y%m%d")[0:8]}' \
                f'&end={((datetime.now()).strftime("%Y%m%d"))[0:8]}'
 
-    def get_stock_codes(self) -> str:
+    async def get_stock_codes(self) -> str:
         if self.guba_api is None:
             return ''
 
@@ -324,11 +340,11 @@ class Stock:
 
             response += '\n'
 
-        response = text_to_image(response)
+        response = await text_to_image(response)
         return response
 
-    def get_kline_map(self) -> str:
-        kline_data = self._request_for_kline_data()
+    async def get_kline_map(self) -> str:
+        kline_data = await self._request_for_kline_data()
         if not kline_data:
             return ''
 
@@ -357,7 +373,7 @@ class Stock:
         plot.write_image(file_name)
         return file_name
 
-    def _request_for_kline_data(self, iteration=False) -> list:
+    async def _request_for_kline_data(self, iteration=False) -> list:
         page = requests.get(self.kline_api)
 
         json_data = page.json()
@@ -376,7 +392,7 @@ class Stock:
                 else:
                     self.kline_api = self.get_api_link(0)
 
-                return self._request_for_kline_data(iteration=True)
+                return await self._request_for_kline_data(iteration=True)
 
             return []
 

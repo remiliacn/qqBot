@@ -1,4 +1,3 @@
-import asyncio
 import time
 from datetime import datetime
 
@@ -62,16 +61,18 @@ async def k_line(session: nonebot.CommandSession):
         prompt='请输入股票代码！'
     )
 
+    if len(key_word) < 2:
+        await session.finish('你太短了')
+
     stock = Stock(key_word, keyword=key_word)
     try:
-        file_name = stock.get_kline_map()
+        file_name = await stock.get_kline_map()
         if file_name:
             await session.send(
                 MessageSegment.image(f'file:///{file_name}')
             )
         else:
-            file_name = stock.get_stock_codes()
-            await asyncio.sleep(1)
+            file_name = await stock.get_stock_codes()
             await session.send(
                 f'好像出问题了（\n'
                 f'灵夜机器人帮助你找到了以下备选搜索结果~\n'
