@@ -85,34 +85,107 @@ def do_plot(
         high_data,
         low_data,
         stock_name,
-        volume_color
+        volume_color,
+        analyze_type='MACD'
 ):
+    plot = make_subplots(
+        rows=3, cols=1,
+        subplot_titles=(
+            f'股票名称：{stock_name}',
+            "成交量",
+            analyze_type
+        ),
+        row_heights=[0.5, 0.2, 0.3]
+    )
+
     close_data_frame = pandas.DataFrame(close_data)
     # Moving average
     ma5_data = _get_moving_average_data(close_data_frame, 5)
     ma10_data = _get_moving_average_data(close_data_frame, 10)
     ma20_data = _get_moving_average_data(close_data_frame, 20)
 
-    # MACD
-    ema_12_data = close_data_frame.ewm(span=12, adjust=False).mean()
-    ema_26_data = close_data_frame.ewm(span=26, adjust=False).mean()
+    market_will = '无法判断'
 
-    macd_data = ema_12_data - ema_26_data
-    signal = macd_data.ewm(span=9, adjust=False).mean()
+    if analyze_type == 'MACD':
+        # MACD
+        ema_12_data = close_data_frame.ewm(span=12, adjust=False).mean()
+        ema_26_data = close_data_frame.ewm(span=26, adjust=False).mean()
 
-    histogram = macd_data - signal
-    histogram = histogram.values.tolist()
-    histogram = [x for element in histogram for x in element]
-    histogram_color = ['green' if x < 0 else 'red' for x in histogram]
+        macd_data = ema_12_data - ema_26_data
+        signal = macd_data.ewm(span=9, adjust=False).mean()
 
-    plot = make_subplots(
-        rows=3, cols=1,
-        subplot_titles=(
-            f'股票名称：{stock_name}',
-            "成交量",
-            "MACD"
+        histogram = macd_data - signal
+        histogram = histogram.values.tolist()
+        histogram = [x for element in histogram for x in element]
+        histogram_color = ['green' if x < 0 else 'red' for x in histogram]
+
+        macd_data = _convert_data_frame_to_list(macd_data)
+        signal_data = _convert_data_frame_to_list(signal)
+
+        for i in range(1, len(macd_data) - 1):
+            prev_macd = round(macd_data[i - 1], 3)
+            next_macd = round(macd_data[i + 1], 3)
+
+            prev_signal = round(signal_data[i - 1], 3)
+            next_signal = round(signal_data[i + 1], 3)
+
+            if prev_macd <= prev_signal \
+                    and next_macd >= next_signal:
+                market_will = '检测到MACD金叉，买入信号'
+
+            elif prev_macd >= prev_signal \
+                    and next_macd <= next_signal:
+                market_will = '检测到MACD死叉，卖出信号'
+
+        # histogram
+        histogram_graph = plotter.Bar(
+            y=histogram,
+            marker_color=histogram_color
         )
-    )
+
+        # MACD line
+        macd_graph = plotter.Scatter(
+            y=macd_data,
+            line=dict(color='red', width=1)
+        )
+
+        # MACD signal
+        signal_line = plotter.Scatter(
+            y=signal_data,
+            line=dict(color='blue', width=1)
+        )
+
+        # MACD graph
+        plot.add_trace(histogram_graph, row=3, col=1)
+        plot.add_trace(macd_graph, row=3, col=1)
+        plot.add_trace(signal_line, row=3, col=1)
+
+    elif analyze_type == '买卖意愿':
+        high_open = [float(x) - float(y) for x, y in zip(high_data, open_data)]
+        open_low = [float(x) - float(y) for x, y in zip(open_data, low_data)]
+
+        ar_data = []
+        for idx, _ in enumerate(high_open):
+            high_open_sum = sum(high_open[0: idx + 1])
+            open_low_sum = sum(open_low[0: idx + 1])
+            ar_data.append(high_open_sum / open_low_sum * 100)
+
+        mean_data = round(
+            sum(ar_data[len(ar_data) // 2:]) / len(ar_data[len(ar_data) // 2:])
+        )
+        if ar_data[-1] < mean_data:
+            market_will = '市场意愿偏空'
+        elif ar_data[-1] == mean_data:
+            market_will = '市场意愿震荡'
+        else:
+            market_will = '市场意愿偏多'
+
+        ar_trace = plotter.Scatter(
+            y=ar_data,
+            line=dict(color='red', width=1)
+        )
+
+        plot.add_trace(ar_trace, row=3, col=1)
 
     # K-line
     candle_trace = plotter.Candlestick(
@@ -147,41 +220,9 @@ def do_plot(
     )
 
     # Volume graph.
-    volume_data_frame = pandas.DataFrame(volume_data)
-    ma5_volume_data = _get_moving_average_data(volume_data_frame, 5)
-    ma10_volume_data = _get_moving_average_data(volume_data_frame, 10)
-
     volume_trace = plotter.Bar(
         y=volume_data,
         marker_color=volume_color
-    )
-
-    volume_ma5_trace = plotter.Scatter(
-        y=ma5_volume_data,
-        line=dict(color='red', width=1)
-    )
-
-    volume_ma10_trace = plotter.Scatter(
-        y=ma10_volume_data,
-        line=dict(color='blue', width=1)
-    )
-
-    # histogram
-    histogram_graph = plotter.Bar(
-        y=histogram,
-        marker_color=histogram_color
-    )
-
-    # MACD line
-    macd_graph = plotter.Scatter(
-        y=_convert_data_frame_to_list(macd_data),
-        line=dict(color='red', width=1)
-    )
-
-    # MACD signal
-    signal_line = plotter.Scatter(
-        y=_convert_data_frame_to_list(signal),
-        line=dict(color='blue', width=1)
     )
 
     # Candlestick graph
@@ -192,13 +233,6 @@ def do_plot(
 
     # Volume graph
     plot.add_trace(volume_trace, row=2, col=1)
-    plot.add_trace(volume_ma5_trace, row=2, col=1)
-    plot.add_trace(volume_ma10_trace, row=2, col=1)
-
-    # MACD graph
-    plot.add_trace(histogram_graph, row=3, col=1)
-    plot.add_trace(macd_graph, row=3, col=1)
-    plot.add_trace(signal_line, row=3, col=1)
 
     plot.update_layout(
         {
@@ -211,7 +245,7 @@ def do_plot(
     )
 
     plot.update_layout(showlegend=False)
-    return plot
+    return plot, market_will
 
 
 class Crypto:
@@ -219,7 +253,7 @@ class Crypto:
         self.crypto = f'{crypto.upper()}-USDT'
         self.granularity = 60 * 60
 
-    def get_kline(self):
+    def get_kline(self, analyze_type='MACD'):
         spotAPI = spot.SpotAPI(
             OKEX_API_KEY,
             OKEX_SECRET_KEY,
@@ -248,18 +282,19 @@ class Crypto:
         volume_color = [
             'red' if (c - o) > 0 else 'green' for c, o in zip(close_data, open_data)
         ]
-        plot = do_plot(
+        plot, market_will = do_plot(
             open_data,
             close_data,
             volume_data,
             high_data,
             low_data,
             self.crypto,
-            volume_color
+            volume_color,
+            analyze_type
         )
         file_name = f'{getcwd()}/data/bot/stock/{int(time_ns())}.png'
         plot.write_image(file_name)
-        return file_name
+        return file_name, market_will
 
 
 class Stock:
@@ -343,10 +378,10 @@ class Stock:
         response = await text_to_image(response)
         return response
 
-    async def get_kline_map(self) -> str:
+    async def get_kline_map(self, analyze_type='MACD') -> (str, str):
         kline_data = await self._request_for_kline_data()
         if not kline_data:
-            return ''
+            return '', ''
 
         open_data = [x[1] for x in kline_data]
         close_data = [float(x[2]) for x in kline_data]
@@ -360,18 +395,19 @@ class Stock:
         # Volume
         volume_data = [int(x[5]) for x in kline_data]
 
-        plot = do_plot(
+        plot, market_will = do_plot(
             open_data,
             close_data,
             volume_data,
             high_data,
             low_data,
             self.stock_name,
-            volume_color
+            volume_color,
+            analyze_type
         )
         file_name = f'{getcwd()}/data/bot/stock/{int(time_ns())}.png'
         plot.write_image(file_name)
-        return file_name
+        return file_name, market_will
 
     async def _request_for_kline_data(self, iteration=False) -> list:
         page = requests.get(self.kline_api)
@@ -405,8 +441,3 @@ class Stock:
             # [['2021-05-28', '89.81', '90.58', '95.00', '88.86', '527020', '4870749696.00', '6.95', '2.51', '2.22', '4.84']
 
         return []
-
-
-if __name__ == '__main__':
-    c = Stock('234567', keyword='d')
-    print(c.get_stock_codes())
