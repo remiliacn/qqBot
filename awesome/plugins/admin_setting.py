@@ -414,7 +414,8 @@ def _math_fetch(question: str, user_id: int) -> str:
         return f'运算结果是：{answer:.2f}' \
                '\n我算的对吧~'
     else:
-        return ''
+        return f'计算结果：{answer}\n' \
+               f'请注意，本次计算已被汇报。'
 
 
 def _is_float(content: str) -> bool:

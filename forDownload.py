@@ -202,7 +202,7 @@ def download_video(video_id: str, name: str, groupID, enable: bool):
             logger.warning('Moving video to: ' + video_path)
             shutil.move(video_path_temp, video_path)
 
-            upload_status(name, videoTitle_temp, video_id, groupID, retcode=0)
+            upload_status(name, video_title, video_id, groupID, retcode=0)
 
         except Exception as e:
             logger.warning(f'Download failed for {name}, will try again later... {e}')

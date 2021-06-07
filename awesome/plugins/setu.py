@@ -293,7 +293,7 @@ async def pixiv_send(session: nonebot.CommandSession):
             await session.send(
                 f'[CQ:reply,id={message_id}]'
                 f'Pixiv ID: {illust.id}\n'
-                f'查询关键词：{key_word}\n'
+                f'查询关键词：{" ".join(key_word)}\n'
                 f'画师：{illust["user"]["name"]}\n' +
                 f'{MessageSegment.image(f"file:///{path}")}\n' +
                 f'Download Time: {(time.time() - start_time):.2f}s'
@@ -445,7 +445,7 @@ async def sauce_helper(url):
                     if len(file_name) > 10:
                         file_name = f'{int(time.time())}.jpg'
 
-                    path = f'{getcwd()}/data/lol/{file_name}'
+                    path = f'{getcwd()}/data/pixivPic/{file_name}'
                     if not exists(path):
                         try:
                             with open(path, 'wb') as file:
