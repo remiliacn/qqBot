@@ -3,7 +3,6 @@ from datetime import datetime
 
 import aiohttp
 import nonebot
-from aiocqhttp import MessageSegment
 from nonebot.log import logger
 
 from Services import random_services
@@ -39,10 +38,11 @@ async def crypto_search(session: nonebot.CommandSession):
 
     crypto = Crypto(key_word)
     try:
-        file_name = crypto.get_kline()
+        file_name, market_will = crypto.get_kline()
         if file_name:
             await session.send(
-                MessageSegment.image(f'file:///{file_name}')
+                f'[CQ:image,file=file:///{file_name}]\n'
+                f'{market_will}'
             )
         else:
             await session.send(
@@ -66,10 +66,11 @@ async def k_line(session: nonebot.CommandSession):
 
     stock = Stock(key_word, keyword=key_word)
     try:
-        file_name = await stock.get_kline_map()
+        file_name, market_will = await stock.get_kline_map()
         if file_name:
             await session.send(
-                MessageSegment.image(f'file:///{file_name}')
+                f'[CQ:image,file=file:///{file_name}]' +
+                f'{market_will}'
             )
         else:
             file_name = await stock.get_stock_codes()
