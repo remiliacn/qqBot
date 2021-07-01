@@ -557,9 +557,16 @@ async def send_answer(session: nonebot.NLPSession):
     if 'group_id' not in ctx:
         return
 
+
+
     group_id = ctx['group_id']
     user_id = ctx['user_id']
     message = str(ctx['raw_message'])
+
+    if match(r'.*?哼{2,}啊+', message):
+        await session.send('别臭了别臭了！孩子要臭傻了')
+        return
+
 
     auto_reply = _do_auto_reply_retrieve(user_id, group_id, message)
     if auto_reply:

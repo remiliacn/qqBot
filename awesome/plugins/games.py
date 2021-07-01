@@ -1,6 +1,7 @@
 import asyncio
+import datetime
 from random import randint, seed, choice
-from time import time_ns
+from time import time_ns, time
 
 import china_idiom as idiom
 import nonebot
@@ -261,6 +262,10 @@ async def russianRoulette(session: nonebot.CommandSession):
         rand_num = randint(low, high)
         if rand_num > 10:
             rand_num = 10
+
+        if 0 < datetime.datetime.now().hour < 4:
+            rand_num = 60 * 6
+            await session.send('晚安')
 
         await bot.set_group_ban(group_id=id_num, user_id=user_id, duration=60 * rand_num)
 
