@@ -6,6 +6,7 @@ import nonebot
 from nonebot.log import logger
 
 from Services import random_services
+from Services.keylol_update import KeylolFreeGame
 from Services.stock import Stock, Crypto
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao import sanity_meter
@@ -27,6 +28,13 @@ async def send_help(session: nonebot.CommandSession):
         'https://github.com/remiliacn/Lingye-Bot/blob/master/README.md\n'
         '如果有新功能想要添加，请提交issue!'
     )
+
+
+@nonebot.on_command('免费游戏', only_to_me=False)
+async def get_free_game(session: nonebot.CommandSession):
+    keylol = KeylolFreeGame()
+    keylol.get_update()
+    await session.send(keylol.get_free_game_list())
 
 
 @nonebot.on_command('虚拟货币', only_to_me=False)
