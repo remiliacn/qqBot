@@ -3,7 +3,7 @@ from json import loads
 from math import *
 from os import getcwd
 from random import randint, seed
-from re import findall, match, sub, compile
+from re import findall, match, sub, compile, fullmatch
 from time import time, time_ns
 from typing import Union
 
@@ -544,29 +544,26 @@ async def _deleteAIResponse(session: nonebot.CommandSession):
 
 @nonebot.on_command('语料查询', only_to_me=False)
 async def getAnswerInfo(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    if get_privilege(ctx['user_id'], perm.WHITELIST):
+    context = session.ctx.copy()
+    if get_privilege(context['user_id'], perm.WHITELIST):
         keyWord = session.get('keyWord', prompt='请输入需要查询的预料关键词')
         await session.send(user_control_module.get_response_info(keyWord))
 
 
 @nonebot.on_natural_language(only_to_me=False, only_short_message=True)
-async def send_answer(session: nonebot.NLPSession):
+async def natural_language_proc(session: nonebot.NLPSession):
     seed(time_ns())
-    ctx = session.ctx.copy()
-    if 'group_id' not in ctx:
+    context = session.ctx.copy()
+    if 'group_id' not in context:
         return
 
-
-
-    group_id = ctx['group_id']
-    user_id = ctx['user_id']
-    message = str(ctx['raw_message'])
+    group_id = context['group_id']
+    user_id = context['user_id']
+    message = str(context['raw_message'])
 
     if match(r'.*?哼{2,}啊+', message):
         await session.send('别臭了别臭了！孩子要臭傻了')
         return
-
 
     auto_reply = _do_auto_reply_retrieve(user_id, group_id, message)
     if auto_reply:
@@ -574,10 +571,21 @@ async def send_answer(session: nonebot.NLPSession):
         return
 
     reply_response = await _check_reply_keywords(message)
-    if not reply_response:
+    if reply_response:
+        await session.send(reply_response)
         return
 
-    await session.send(reply_response)
+    repeat_syntax = r'^(.*?)\1+$'
+    message = message.strip()
+    if fullmatch(repeat_syntax, message):
+        word_repeat = findall(repeat_syntax, message)[0]
+        count = message.count(word_repeat)
+        if count >= 3:
+            await session.send(f'{count}个{word_repeat}')
+        return
+
+    if len(message) > 5 and message == message[::-1]:
+        await session.send('好一个回文句！')
 
 
 def _do_auto_reply_retrieve(
