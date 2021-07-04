@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 from random import randint, seed, choice
-from time import time_ns, time
+from time import time_ns
 
 import china_idiom as idiom
 import nonebot

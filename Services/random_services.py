@@ -1,17 +1,17 @@
 import json
 import os
+import random
 import re
+import time
 from datetime import datetime
-from nonebot.log import logger
 
 import aiohttp
-
-import random
 import requests
-import time
+from nonebot.log import logger
 
 with open('config/downloader_data.json', 'r') as f:
     JSON_DATA = json.loads(f.read())
+
 
 class Earthquakeinfo:
     def __init__(self):
@@ -38,8 +38,8 @@ class Earthquakeinfo:
 class YouTubeLiveTracker:
     def __init__(self, channel: str, ch_name: str):
         self.headers = {
-            'User-Agent' : 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36',
-            'Referer' : 'https://www.youtube.com/'
+            'User-Agent': 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36',
+            'Referer': 'https://www.youtube.com/'
         }
         self.base_url = f'https://www.youtube.com/channel/{channel}/live'
         self.ch_name = ch_name
@@ -54,13 +54,13 @@ class YouTubeLiveTracker:
                 content_live = re.findall(r'ytInitialPlayerResponse = ({.*?});', text)
 
                 if not content_live:
-                    json_data = {'videoDetails' : {}}
+                    json_data = {'videoDetails': {}}
                 else:
                     content_live = content_live[0]
                     try:
                         json_data = json.loads(content_live)
                     except json.JSONDecodeError:
-                        json_data = {'videoDetails' : {}}
+                        json_data = {'videoDetails': {}}
 
                 self.json_data = json_data
 
@@ -162,11 +162,12 @@ class YouTubeLiveTracker:
 
                 return 1, ''
 
-        #if not live
+        # if not live
         else:
             # self.get_upcoming_status()
             await self.get_live_details()
-            if 'upcomingID' not in json_data[self.ch_name] or self.new_video_id != json_data[self.ch_name]['upcomingID']:
+            if 'upcomingID' not in json_data[self.ch_name] or self.new_video_id != json_data[self.ch_name][
+                'upcomingID']:
                 json_data[self.ch_name]['upcomingID'] = self.new_video_id
                 with open(f'{os.getcwd()}/config/downloader.json', 'w+', encoding='utf8') as file:
                     json.dump(json_data, file, indent=4)

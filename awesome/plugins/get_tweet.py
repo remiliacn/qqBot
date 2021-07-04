@@ -21,6 +21,7 @@ get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
 tweet = tweeter.tweeter()
 
+
 @nonebot.on_command('推特数据', only_to_me=False)
 async def get_tweet_data(session: nonebot.CommandSession):
     response = f'截止到{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n' \
@@ -227,7 +228,6 @@ async def _async_youtube_live(ch_name, json_data):
                         group_id=json_data[ch_name]['qqGroup'],
                         message=f'{ch_name} 直播间内容更新！\n{update_info}'
                     )
-
 
                     await bot.send_private_msg(
                         user_id=SUPER_USER,

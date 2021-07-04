@@ -2,15 +2,14 @@ import re
 from datetime import datetime, timedelta
 from os import getcwd
 from time import time_ns
-from PIL import Image, ImageDraw, ImageFont
-
-import Services.okex.spot_api as spot
 
 import pandas
 import plotly.graph_objects as plotter
 import requests
+from PIL import Image, ImageDraw, ImageFont
 from plotly.subplots import make_subplots
 
+import Services.okex.spot_api as spot
 from config import OKEX_API_KEY, OKEX_PASSPHRASE, OKEX_SECRET_KEY
 
 

@@ -1,6 +1,6 @@
 import json
-import re
 import os
+import re
 
 import requests
 from aiocqhttp import MessageSegment
@@ -9,6 +9,7 @@ from nonebot.log import logger
 
 HHSHMEANING = 'meaning'
 FURIGANAFUNCTION = 'furigana'
+
 
 def download_image_to_path(response, path):
     url = response['url']
@@ -24,10 +25,12 @@ def download_image_to_path(response, path):
 
     return path
 
+
 def get_downloaded_image_path(response: dict, path: str):
     path = download_image_to_path(response, path)
     resp = str(MessageSegment.image(f'file:///{path}'))
     return resp
+
 
 class HhshCache:
     def __init__(self):
@@ -99,39 +102,41 @@ def ark_helper(args: list) -> str:
 
     return ''
 
-def send_message_with_mini_program(title: str, content: list, image=None, action: list=None) -> str:
+
+def send_message_with_mini_program(title: str, content: list, image=None, action: list = None) -> str:
     data = {
-      "app": "com.tencent.miniapp",
-      "desc": "",
-      "view": "notification",
-      "ver": "1.0.0.11",
-      "prompt": "[又有lsp在搜图]",
-      "appID": "",
-      "sourceName": "",
-      "actionData": "",
-      "actionData_A": "",
-      "sourceUrl": "",
-      "meta": {
-        "notification": {
-          "appInfo": {
-            "appName": "",
-            "appType": 4,
-            "appid": 1109659848,
-            "iconUrl": image if image is not None else ""
-          },
-          "data": content,
-          "title": title,
-          "button": action if action is not None else [],
-          "emphasis_keyword": ""
-        }
-      },
-      "text": "",
-      "sourceAd": ""
+        "app": "com.tencent.miniapp",
+        "desc": "",
+        "view": "notification",
+        "ver": "1.0.0.11",
+        "prompt": "[又有lsp在搜图]",
+        "appID": "",
+        "sourceName": "",
+        "actionData": "",
+        "actionData_A": "",
+        "sourceUrl": "",
+        "meta": {
+            "notification": {
+                "appInfo": {
+                    "appName": "",
+                    "appType": 4,
+                    "appid": 1109659848,
+                    "iconUrl": image if image is not None else ""
+                },
+                "data": content,
+                "title": title,
+                "button": action if action is not None else [],
+                "emphasis_keyword": ""
+            }
+        },
+        "text": "",
+        "sourceAd": ""
     }
 
     result = json.dumps(data)
     result = result.replace('&', '&amp;').replace(',', '&#44;').replace('[', '&#91;').replace(']', '&#93;')
     return f'[CQ:json,data={result}]'
+
 
 def anime_reverse_search_response(response_data: dict) -> str:
     if 'est_time' in response_data:
@@ -154,8 +159,8 @@ def anime_reverse_search_response(response_data: dict) -> str:
 
 def send_as_xml_message(
         brief: str, title: str, summary: str,
-        url: str=None, image: str=None,
-        source: str=None
+        url: str = None, image: str = None,
+        source: str = None
 ):
     message = f"""
     <?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
@@ -176,4 +181,3 @@ def send_as_xml_message(
     </msg>
     """
     return f'[CQ:xml,data={message}]'
-

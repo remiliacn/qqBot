@@ -41,6 +41,7 @@ async def do_joke_flatter(session: nonebot.CommandSession):
     user_id = ctx['user_id']
     await session.send(flatter_api.get_flatter_result(user_id))
 
+
 @nonebot.on_command('清空语录', only_to_me=False)
 async def clear_group_quotes(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -52,6 +53,7 @@ async def clear_group_quotes(session: nonebot.CommandSession):
         await session.finish('Done!')
 
     await session.finish('啊这……群号不对啊……')
+
 
 @nonebot.on_command('你群语录', aliases=('你组语录', '语录'), only_to_me=False)
 async def get_group_quotes(session: nonebot.CommandSession):
@@ -83,6 +85,7 @@ async def add_group_quotes(session: nonebot.CommandSession):
             await session.finish(f'已添加！（当前总语录条数：{admin_control.get_group_quote_count(ctx["group_id"])})')
     else:
         await session.finish('啊这……')
+
 
 @nonebot.on_command('图片识别', only_to_me=False)
 async def ocr_image_test(session: nonebot.CommandSession):
@@ -129,6 +132,7 @@ async def send_voice_message(session: nonebot.CommandSession):
     text = re.sub('\[CQ:.*?\]', '', message)
     text = re.sub('祈.*?雨', f'{ctx["sender"]["nickname"]}', text)
     await session.send(f'[CQ:tts,text={text}]')
+
 
 @nonebot.message_preprocessor
 async def message_preprocessing(_: nonebot.NoneBot, event: aiocqhttp.event, __: PluginManager):
@@ -207,6 +211,7 @@ async def teach_you_weeb_shit(session: nonebot.CommandSession):
     else:
         await session.finish('已检测到该词条存在，将拒绝添加。')
 
+
 @nonebot.on_command('决定怪话', only_to_me=False)
 async def decision_on_weeb_shit(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -227,6 +232,7 @@ async def decision_on_weeb_shit(session: nonebot.CommandSession):
         await session.finish('完成！')
 
     await session.finish('添加失败（uuid不存在或重复添加语录）')
+
 
 @nonebot.on_command('你群有多色', only_to_me=False)
 async def get_setu_stat(session: nonebot.CommandSession):
@@ -358,6 +364,7 @@ async def up_ten_polls(session: nonebot.CommandSession):
         )
     )
 
+
 @nonebot.on_command('帮我做选择', only_to_me=False)
 async def do_mcq(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -375,6 +382,7 @@ async def do_mcq(session: nonebot.CommandSession):
         answer += f'{chr(random.randint(65, 68))}'
 
     await session.send(answer + '。')
+
 
 @nonebot.on_command('方舟up重置', aliases='方舟UP重置', only_to_me=False)
 async def reset_ark_up(session: nonebot.CommandSession):
@@ -520,7 +528,6 @@ async def av_validator(session: nonebot.CommandSession):
         sanity_meter.set_user_data(ctx['user_id'], 'yanche')
 
     await session.finish(await validator.get_content())
-
 
 
 @add_ark_op.args_parser

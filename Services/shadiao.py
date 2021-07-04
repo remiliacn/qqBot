@@ -8,13 +8,14 @@ import aiohttp
 import nonebot
 import requests
 
-#临时图库，在网站不可用的时候使用里面的图片。
-#github : remiliacn
+# 临时图库，在网站不可用的时候使用里面的图片。
+# github : remiliacn
 
 INFO_NOT_AVAILABLE = "信息暂不可用"
 headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36"
 }
+
 
 class flatter:
     def __init__(self):
@@ -37,6 +38,7 @@ class flatter:
             return random.choice(flatter_list).replace('${name}', f'[CQ:at,qq={name}]')
 
         return '暂无数据！'
+
 
 class ShadiaoAPI:
     def __init__(self):
@@ -144,7 +146,7 @@ class Avalidator:
                     page = requests.get(self.torrent_url + urls[0], timeout=10)
                 except Exception as err:
                     return f'连接出错 {err}'
-                    
+
                 tor = re.findall(r'<div id="deteails">(.*?)</div>', page.text)
                 if not tor:
                     tor = '暂不可用'
@@ -158,4 +160,3 @@ class Avalidator:
                    f'磁链：{tor}'
 
         return f'未查到与番号"{self.product_number}"相关的内容。'
-

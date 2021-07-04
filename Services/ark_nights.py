@@ -33,10 +33,12 @@ class ArknightsPity:
     def reset_offset(self, group_id):
         self.sanity_poll_dict[group_id] = 0
 
+
 class ArkHeadhunt:
     """
     Init data for arknights headhunt simulator.
     """
+
     def __init__(self, times=1):
         self.times = times
         self.count = 0
@@ -113,7 +115,7 @@ class ArkHeadhunt:
 
         return random_agent
 
-    def set_up(self, agent : str, star : Union[int, str], is_second_up=False):
+    def set_up(self, agent: str, star: Union[int, str], is_second_up=False):
         if isinstance(star, int):
             star = str(star)
 
@@ -209,7 +211,6 @@ class ArkHeadhunt:
                 element = elements
             response += str(element) + '星干员： %s\n' % self.random_agent[idx]
 
-
         if 5 not in self.random_class and 6 not in self.random_class:
             congrats = '哈↑哈↓紫气东来'
 
@@ -225,6 +226,7 @@ class ArkHeadhunt:
 
         response += '本次寻访获得了%d个六星干员，%s' % (six_star, congrats)
         return response
+
 
 # Test
 if __name__ == '__main__':

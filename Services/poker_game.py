@@ -1,4 +1,7 @@
-import random, time
+import random
+import time
+
+
 class Pokergame:
     def __init__(self):
         self.playerDict = {}
@@ -20,7 +23,6 @@ class Pokergame:
 
         if groupID not in self.playerGroupList:
             self.playerGroupList[groupID] = []
-
 
         if userID not in self.playerDict[groupID]:
             self.playerGroupList[groupID].append(point)

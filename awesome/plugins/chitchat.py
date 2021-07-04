@@ -1,8 +1,9 @@
-import nonebot
 import os
 import random
 import re
 import time
+
+import nonebot
 
 from awesome.adminControl import permission as perm
 from awesome.plugins.util.helper_util import get_downloaded_image_path
@@ -21,9 +22,11 @@ class Votekick:
         self.vote_kick_dict[qq_num] += 1
         return self.vote_kick_dict[qq_num]
 
+
 vote_kick_controller = Votekick()
 
-get_privilege = lambda x, y : user_control_module.get_user_privilege(x, y)
+get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
+
 
 @nonebot.on_command('添加图片', only_to_me=False)
 async def add_more_pic(session: nonebot.CommandSession):
@@ -59,20 +62,23 @@ async def add_more_pic(session: nonebot.CommandSession):
 
     await session.finish('你发的smjb玩意……')
 
+
 @nonebot.on_command('?', aliases='？', only_to_me=False)
-async def change_question_mark(session : nonebot.CommandSession):
+async def change_question_mark(session: nonebot.CommandSession):
     await session.send('¿?¿?')
 
+
 @nonebot.on_command('你好', only_to_me=False)
-async def send_hello_world(session : nonebot.CommandSession):
+async def send_hello_world(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if get_privilege(ctx['user_id'], perm.OWNER):
         await session.send('妈妈好~')
     else:
         await session.send('你好呀~' + ctx['sender']['nickname'])
 
+
 @nonebot.on_command('内鬼', aliases='有没有内鬼', only_to_me=False)
-async def nei_gui_response(session : nonebot.CommandSession):
+async def nei_gui_response(session: nonebot.CommandSession):
     random.seed(time.time_ns())
     rand_num = random.randint(0, 50)
     ctx = session.ctx.copy()
@@ -85,9 +91,10 @@ async def nei_gui_response(session : nonebot.CommandSession):
     else:
         await session.send('一切安全！开始交易！')
 
+
 @nonebot.on_command('生草', only_to_me=False)
-async def vtuber_audio(session : nonebot.CommandSession):
-    key_word : str = session.get_optional('key_word')
+async def vtuber_audio(session: nonebot.CommandSession):
+    key_word: str = session.get_optional('key_word')
     if key_word is None:
         file = await get_random_file(f'{os.getcwd()}/data/dl/audio')
     elif '盘子' in key_word:
@@ -105,6 +112,7 @@ async def vtuber_audio(session : nonebot.CommandSession):
 
     await session.finish(f'[CQ:record,file=file:///{file}]')
 
+
 @vtuber_audio.args_parser
 async def _(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
@@ -115,43 +123,51 @@ async def _(session: nonebot.CommandSession):
 
     session.state[session.current_key] = stripped_arg
 
+
 @nonebot.on_command('我什么都不行', aliases={'什么都不行', '都不行', '不行', '流泪猫猫头'}, only_to_me=False)
-async def useless_send(session : nonebot.CommandSession):
+async def useless_send(session: nonebot.CommandSession):
     file = await get_random_file(f'{os.getcwd()}/data/dl/useless')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
+
 @nonebot.on_command('威胁', only_to_me=False)
-async def threat_send(session : nonebot.CommandSession):
+async def threat_send(session: nonebot.CommandSession):
     file = await get_random_file(f'{os.getcwd()}/data/dl/weixie')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
+
 @nonebot.on_command('恰柠檬', aliases='吃柠檬', only_to_me=False)
-async def lemon_send(session : nonebot.CommandSession):
+async def lemon_send(session: nonebot.CommandSession):
     file = await get_random_file(f'{os.getcwd()}/data/dl/lemon')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
+
 @nonebot.on_command('迫害', only_to_me=False)
-async def send_pohai(session : nonebot.CommandSession):
+async def send_pohai(session: nonebot.CommandSession):
     file = await get_random_file(f'{os.getcwd()}/data/dl/pohai')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
+
 @nonebot.on_command('不愧是你', aliases='bukui', only_to_me=False)
-async def bu_kui_send(session : nonebot.CommandSession):
+async def bu_kui_send(session: nonebot.CommandSession):
     file = await get_random_file(f'{os.getcwd()}/data/dl/bukui')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
+
 @nonebot.on_command('恰桃', aliases='恰peach', only_to_me=False)
-async def send_peach(session : nonebot.CommandSession):
+async def send_peach(session: nonebot.CommandSession):
     file = await get_random_file(f'{os.getcwd()}/data/dl/peach')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
+
 @nonebot.on_command('社保', aliases='awsl', only_to_me=False)
-async def she_bao(session : nonebot.CommandSession):
+async def she_bao(session: nonebot.CommandSession):
     file = await get_random_file(f'{os.getcwd()}/data/dl/shebao')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
+
 @nonebot.on_command('votekick', only_to_me=False)
-async def vote_kick_person(session : nonebot.CommandSession):
+async def vote_kick_person(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     message = ctx['raw_message']
     if re.match(r'.*?CQ:at,qq=\d+', str(message)):
@@ -161,10 +177,12 @@ async def vote_kick_person(session : nonebot.CommandSession):
 
         await session.finish(f'民意说踢出[CQ:at,qq={qq_num}]的人有{vote_kick_controller.get_vote_kick(qq_num)}个')
 
+
 @nonebot.on_command('otsukare', aliases=('おつかれ', '辛苦了'), only_to_me=False)
-async def otsukare(session : nonebot.CommandSession):
+async def otsukare(session: nonebot.CommandSession):
     file = await get_random_file(f'{os.getcwd()}/data/dl/otsukare')
     await session.send(f'[CQ:image,file=file:///{file}]')
+
 
 async def get_random_file(path: str) -> str:
     if not os.path.exists(path):

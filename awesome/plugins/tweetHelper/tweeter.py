@@ -88,7 +88,6 @@ class tweeter:
         with open(self.config, 'w+', encoding='utf8') as file:
             json.dump(self.tweet_config, file, indent=4)
 
-
     async def check_update(self):
         temp_dict = {}
         diff_dict = {}
@@ -109,12 +108,11 @@ class tweeter:
                     (self.tweet_list_init[element] != temp_dict[element]):
 
                 if not (
-                    not temp_dict[element] or
-                    temp_dict[element] == '转发动态' or
-                    temp_dict[element] == self.INFO_NOT_AVAILABLE or
-                    element not in self.tweet_list_init
+                        not temp_dict[element] or
+                        temp_dict[element] == '转发动态' or
+                        temp_dict[element] == self.INFO_NOT_AVAILABLE or
+                        element not in self.tweet_list_init
                 ):
-
                     diff_dict[element] = temp_dict[element]
                     self.tweet_list_init = temp_dict
 

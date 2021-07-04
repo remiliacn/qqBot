@@ -1,9 +1,9 @@
 import base64
+import re
 import time
 from typing import Union
 
 import requests
-import re
 
 from config import CANGKU_USERNAME, CANGKU_PASSWORD
 
@@ -13,20 +13,18 @@ UNKNOWN_ERROR = '未知错误'
 OK = 'OK'
 FAILED = 'Failed'
 
+
 class CangkuResponse:
     def __init__(self, status: str, data: any, error=None):
         self.status = status
         self.data = data
         self.error = error
 
-
     def get_status(self) -> str:
         return self.status
 
-
     def get_data(self):
         return self.data
-
 
     def get_error(self):
         if self.error is not None:
@@ -53,7 +51,6 @@ class CangkuApi:
         self.auth()
         self.last_auth_time = time.time()
 
-
     def auth(self):
         _ = self.session.get(
             'https://cangku.io/login'
@@ -76,12 +73,11 @@ class CangkuApi:
             json=payload
         )
 
-
     def _get_search_results(
             self,
             query: str,
             user_id: str,
-            is_r18: bool=True
+            is_r18: bool = True
     ) -> CangkuResponse:
         search_url = self._search_api + query
         if is_r18:
@@ -100,8 +96,7 @@ class CangkuApi:
         self.temp_info[user_id] = data
         return CangkuResponse(OK, data)
 
-
-    def get_search_string(self, query: str, user_id: str, is_r18: bool=True) -> str:
+    def get_search_string(self, query: str, user_id: str, is_r18: bool = True) -> str:
         result = self._get_search_results(query, user_id, is_r18)
         # Auth may expired.
         if time.time() - self.last_auth_time > 3600:
@@ -123,7 +118,6 @@ class CangkuApi:
                 response += f'{idx + 1}. {element["title"]}\n'
 
         return response
-
 
     def get_info_by_index(self, user_id: str, index: Union[str, int]) -> CangkuResponse:
         if isinstance(index, str):
@@ -159,7 +153,6 @@ class CangkuApi:
         data_content = json_data['data']['content']
         dissect_data = self._dissect_content_data(data_content)
         return dissect_data
-
 
     @staticmethod
     def anaylze_dissected_data(data: CangkuResponse) -> str:
@@ -212,7 +205,6 @@ class CangkuApi:
 
         return response
 
-
     @staticmethod
     def _dissect_content_data(content: str) -> CangkuResponse:
         if 'dlbox' not in content:
@@ -240,4 +232,3 @@ class CangkuApi:
             info_dict[key] = value
 
         return CangkuResponse(OK, info_dict)
-

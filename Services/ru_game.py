@@ -1,4 +1,6 @@
-import random, time
+import random
+import time
+
 
 class Russianroulette:
     def __init__(self):
@@ -18,7 +20,7 @@ class Russianroulette:
             "theLowerBound": 1,
             "theHighestBound": 6,
             "theLastDeath": 1,
-            "playerDict" : {}
+            "playerDict": {}
         }
 
     def add_player_in(self, group_id, user_id):
