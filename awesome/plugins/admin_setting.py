@@ -527,9 +527,18 @@ async def delete_ai_response(session: nonebot.CommandSession):
         await session.send('您无权删除语料。')
 
 
+@nonebot.on_command('语料查询', only_to_me=False)
+async def get_answer_info(session: nonebot.CommandSession):
+    context = session.ctx.copy()
+    if get_privilege(context['user_id'], perm.WHITELIST):
+        keyWord = session.get('key_word', prompt='请输入需要查询的预料关键词')
+        await session.send(user_control_module.get_response_info(keyWord))
+
+
 @delete_ai_response.args_parser
 @add_monitor_word.args_parser
 @add_blacklist_word.args_parser
+@get_answer_info.args_parser
 async def _deleteAIResponse(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:
@@ -540,14 +549,6 @@ async def _deleteAIResponse(session: nonebot.CommandSession):
     if not stripped_arg:
         session.pause('啊？要我删什么？')
     session.state[session.current_key] = stripped_arg
-
-
-@nonebot.on_command('语料查询', only_to_me=False)
-async def getAnswerInfo(session: nonebot.CommandSession):
-    context = session.ctx.copy()
-    if get_privilege(context['user_id'], perm.WHITELIST):
-        keyWord = session.get('keyWord', prompt='请输入需要查询的预料关键词')
-        await session.send(user_control_module.get_response_info(keyWord))
 
 
 @nonebot.on_natural_language(only_to_me=False, only_short_message=True)
