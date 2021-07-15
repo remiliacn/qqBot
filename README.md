@@ -25,32 +25,40 @@
 建议进行以下设置：
 ```python3
 from nonebot.default_config import *
-
+    
 NICKNAME = {}
+CONSUMER_KEY = ''    # Twitter consumer key
+CONSUMER_SECRET = '' # Twitter Secret Token
+ACCESS_TOKEN = ''    # Twitter Access Token
+ACCESS_SECRET = ''   # Twitter Access Secret Token
 
-consumer_key = '' # twitter API consumer key
-consumer_secret = '' # twitter API consumer secret
-access_token = '' # twitter API access token
-access_secret = '' # twitter API access secret
+PIXIV_REFRESH_TOKEN = '' # Pixiv refresh token (upbit/pixivpy的issue#158有获取方式)
+DOWNLODER_FILE_NAME = 'forDownload.py'
 
-sauce_nao_API_key = '' # Generate your API key from here: https://saucenao.com/user.php?page=search-api
+ITPK_KEY = ''        # 茉莉机器人API KEY
+ITPK_SECRET = ''     # 茉莉机器人API SECRET
 
-user_name = '' # Pixiv login username
-password = '' # Pixiv login password
-
-downloader = 'forDownload.py'
-path_export = ''                # OneDrive path for downloaded video.
-path_temp = ''                  # Temp saving path for downloaded video.
-ffmpeg_path = ''                # If ffmpeg is not in $path, here should be set.
-share_link = ''                 # OneDrive share link.
-
-SUPER_USER = 0 # Report will be sent to this qq.
-
-itpk_key = '' # 茉莉机器人API key
-itpk_secret = '' # 茉莉机器人API secret
+SAUCE_API_KEY = ''   # Sauce API key.
 
 HOST = '127.0.0.1'
 PORT = 5700
+SUPER_USER = 0       # 超级管理员qq号 (int)
+
+# 如果需要YouTube自动扒源功能可保留下面的参数，否则可以删除
+# 删除后可移除forDownload.py文件以及do_youtube_update_fetch()方法
+# 该方法存在于./awesome/plugins/get_tweet.py
+
+PATH_TO_ONEDRIVE = ''    # OneDrive盘路径，或服务器文件路径终点
+PATH_TEMP_DOWNLOAD = ''  # 视频下载的缓存地址
+FFMPEG_PATH = ''         # FFMPEG路径
+SHARE_LINK = ''          # OneDrive分享地址，或服务器目录根地址。
+
+CANGKU_USERNAME = ''
+CANGKU_PASSWORD = ''
+
+OKEX_API_KEY = ""
+OKEX_SECRET_KEY = ""
+OKEX_PASSPHRASE = ""
 ```
 
 在配置后可能会出现部分文件缺失的情况，请按需删除不需要的参数。（因为有些功能是为某些群的需求特供的，所以可能不适合大部分用户）
