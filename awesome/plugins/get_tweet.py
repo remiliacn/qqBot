@@ -322,7 +322,7 @@ async def do_youtube_update_fetch():
                     nonebot.logger.warning('Something went wrong %s' % e)
 
         empty_dict = {}
-        with open('E:/Python/qqBot/config/YouTubeNotify.json', 'w+') as f:
+        with open('config/YouTubeNotify.json', 'w+') as f:
             json.dump(empty_dict, f, indent=4)
 
         file.close()
