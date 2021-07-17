@@ -108,13 +108,11 @@ async def pixiv_send(session: nonebot.CommandSession):
 
     ctx = session.ctx.copy()
     message_id = ctx['message_id']
-    if get_privilege(ctx['user_id'], perm.BANNED):
-        return
 
     group_id = ctx['group_id'] if 'group_id' in ctx else -1
     user_id = ctx['user_id']
     if 'group_id' in ctx and not get_privilege(user_id, perm.OWNER):
-        if admin_control.get_data(ctx['group_id'], 'banned'):
+        if admin_control.get_data(group_id, 'banned'):
             await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
 
     sanity = -1
@@ -136,10 +134,8 @@ async def pixiv_send(session: nonebot.CommandSession):
         if group_id not in sanity_meter.remind_dict or not sanity_meter.remind_dict[group_id]:
             sanity_meter.set_remid_dict(group_id, True)
             await session.finish(
-                '您已经理智丧失了，不能再查了哟~（小提示：指令理智查询可以帮您查看本群还剩多少理智）'
+                '差不多得了嗷'
             )
-
-        return
 
     if not admin_control.get_if_authed():
         pixiv_api.set_auth(
@@ -156,13 +152,9 @@ async def pixiv_send(session: nonebot.CommandSession):
         multiplier = sanity_meter.get_bad_word_dict()[key_word]
         doMultiply = True
         if multiplier > 0:
-            await session.send(
-                f'该查询关键词在黑名单中，危机合约模式已开启：本次色图搜索将{multiplier}倍消耗理智'
-            )
-
             if multiplier * 2 > 400:
                 sanity_meter.set_user_data(user_id, 'ban_count')
-                if sanity_meter.get_user_data_by_tag(user_id, 'ban_count') >= 2:
+                if sanity_meter.get_user_data_by_tag(user_id, 'ban_count') >= 3:
                     user_control_module.set_user_privilege(user_id, 'BANNED', True)
                     await session.send(f'用户{user_id}已被封停机器人使用权限')
                     bot = nonebot.get_bot()
@@ -180,7 +172,6 @@ async def pixiv_send(session: nonebot.CommandSession):
                         message=f'User {user_id} triggered protection mechanism. Keyword = {key_word}'
                     )
 
-                del bot
                 return
         else:
             await session.send(
@@ -195,7 +186,11 @@ async def pixiv_send(session: nonebot.CommandSession):
             sanity_meter.set_xp_data(key_word)
 
     elif '色图' in key_word:
-        await session.finish(MessageSegment.image(f'file:///{getcwd()}/data/dl/others/QQ图片20191013212223.jpg'))
+        await session.finish(
+            MessageSegment.image(
+                f'file:///{getcwd()}/data/dl/others/QQ图片20191013212223.jpg'
+            )
+        )
 
     elif '屑bot' in key_word:
         await session.finish('你屑你🐴呢')
@@ -232,9 +227,7 @@ async def pixiv_send(session: nonebot.CommandSession):
     if 'error' in json_result:
         admin_control.set_if_authed(False)
         try:
-
             pixiv_api.auth(refresh_token=PIXIV_REFRESH_TOKEN)
-            await session.send('新的P站匿名访问链接已建立……')
             admin_control.set_if_authed(True)
 
         except pixivpy3.PixivError as err:
@@ -242,20 +235,9 @@ async def pixiv_send(session: nonebot.CommandSession):
             return
 
     if '{user=' in key_word:
-        key_word = re.findall(r'{user=(.*?)}', key_word)
-        if key_word:
-            key_word = key_word[0]
-        else:
-            await session.send('未找到该用户。')
-            return
-
-        json_user = pixiv_api.search_user(word=key_word, sort="popular_desc")
-        if json_user.user_previews:
-            user_id = json_user.user_previews[0].user.id
-            json_result = pixiv_api.user_illusts(user_id)
-        else:
-            await session.send(f"{key_word}无搜索结果或图片过少……")
-            return
+        return_result = _get_image_data_from_username(key_word)
+        if isinstance(return_result, str):
+            await session.finish(return_result)
 
     else:
         json_result = pixiv_api.search_illust(word=key_word, sort="popular_desc")
@@ -272,7 +254,7 @@ async def pixiv_send(session: nonebot.CommandSession):
         if is_r18:
             sanity_meter.drain_sanity(
                 group_id=group_id,
-                sanity=2 if not doMultiply else 2 * multiplier
+                sanity=3 if not doMultiply else 3 * multiplier
             )
         else:
             sanity_meter.drain_sanity(
@@ -319,19 +301,24 @@ async def pixiv_send(session: nonebot.CommandSession):
 
     else:
         if not monitored:
-            await session.send('我找到色图了！\n但是我发给我主人了_(:зゝ∠)_')
-            await bot.send_private_msg(user_id=SUPER_USER,
-                                       message=f"图片来自：{nickname}\n"
-                                               f"来自群：{group_id}\n"
-                                               f"查询关键词：{key_word}\n" +
-                                               f'Pixiv ID: {illust.id}\n' +
-                                               f'{MessageSegment.image(f"file:///{path}")}\n' +
-                                               f'Download Time: {(time.time() - start_time):.2f}s'
-                                       )
+            await session.send(
+                f'[CQ:reply,id={message_id}]'
+                '由于图片不太健全，所以只能发给主人了。'
+            )
+            await bot.send_private_msg(
+                user_id=SUPER_USER,
+                message=f"图片来自：{nickname}\n"
+                        f"来自群：{group_id}\n"
+                        f"查询关键词：{key_word}\n" +
+                        f'Pixiv ID: {illust.id}\n' +
+                        f'{MessageSegment.image(f"file:///{path}")}\n' +
+                        f'Download Time: {(time.time() - start_time):.2f}s'
+            )
 
-    sanity_meter.set_usage(group_id, 'setu')
     if 'group_id' in ctx:
-        sanity_meter.set_user_data(user_id, 'setu')
+        sanity_meter.set_usage(group_id, 'setu')
+
+    sanity_meter.set_user_data(user_id, 'setu')
 
     if monitored and not get_privilege(user_id, perm.OWNER):
         await bot.send_private_msg(
@@ -341,6 +328,22 @@ async def pixiv_send(session: nonebot.CommandSession):
                     f'Pixiv ID: {illust.id}\n'
                     '关键字在监控中' + f'[CQ:image,file=file:///{path}]'
         )
+
+
+def _get_image_data_from_username(key_word: str):
+    key_word = re.findall(r'{user=(.*?)}', key_word)
+    if key_word:
+        key_word = key_word[0]
+    else:
+        return '未找到该用户。'
+
+    json_user = pixiv_api.search_user(word=key_word, sort="popular_desc")
+    if json_user.user_previews:
+        user_id = json_user.user_previews[0].user.id
+        json_result = pixiv_api.user_illusts(user_id)
+        return json_result
+    else:
+        return f"{key_word}无搜索结果或图片过少……"
 
 
 async def download_image(illust):
@@ -366,7 +369,7 @@ async def download_image(illust):
                 async with session.get(image_url) as response:
                     with open(path, 'wb') as out_file:
                         while True:
-                            chunk = await response.content.read(1024 ** 3)
+                            chunk = await response.content.read(1024 ** 4)
                             if not chunk:
                                 break
                             out_file.write(chunk)

@@ -551,7 +551,7 @@ async def _deleteAIResponse(session: nonebot.CommandSession):
     session.state[session.current_key] = stripped_arg
 
 
-@nonebot.on_natural_language(only_to_me=False, only_short_message=True)
+@nonebot.on_natural_language(only_to_me=False, only_short_message=False)
 async def natural_language_proc(session: nonebot.NLPSession):
     seed(time_ns())
     context = session.ctx.copy()
