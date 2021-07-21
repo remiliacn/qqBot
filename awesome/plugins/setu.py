@@ -13,7 +13,7 @@ from aiocqhttp import MessageSegment
 from awesome.adminControl import permission as perm
 from awesome.plugins.util.helper_util import anime_reverse_search_response
 from config import SUPER_USER, SAUCE_API_KEY, PIXIV_REFRESH_TOKEN
-from qq_bot_core import sanity_meter, user_control_module, admin_control, alarm_api, cangku_api
+from qq_bot_core import sanity_meter, user_control_module, admin_control, cangku_api
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 pixiv_api = pixivpy3.ByPassSniApi()
@@ -100,17 +100,13 @@ async def delete_black_list_group(session: nonebot.CommandSession):
 
 @nonebot.on_command('色图', aliases='来张色图', only_to_me=False)
 async def pixiv_send(session: nonebot.CommandSession):
-    if alarm_api.get_alarm():
-        await session.finish(
-            '警报已升起！请等待解除！\n'
-            f'{alarm_api.get_info()}'
-        )
-
     ctx = session.ctx.copy()
     message_id = ctx['message_id']
 
     group_id = ctx['group_id'] if 'group_id' in ctx else -1
+    allow_r18 = admin_control.get_data(group_id, 'R18')
     user_id = ctx['user_id']
+
     if 'group_id' in ctx and not get_privilege(user_id, perm.OWNER):
         if admin_control.get_data(group_id, 'banned'):
             await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
@@ -250,6 +246,13 @@ async def pixiv_send(session: nonebot.CommandSession):
     sanity_meter.track_keyword(key_word)
     illust = random.choice(json_result.illusts)
     is_r18 = illust.sanity_level == 6
+    if not allow_r18:
+        for i in range(10):
+            illust = random.choice(json_result.illusts)
+            is_r18 = illust.sanity_level == 6
+            if not is_r18:
+                break
+
     if not monitored:
         if is_r18:
             sanity_meter.drain_sanity(
@@ -288,7 +291,7 @@ async def pixiv_send(session: nonebot.CommandSession):
             await session.send('悲，屑TX不收我图。')
             return
 
-    elif is_r18 and (group_id == -1 or admin_control.get_data(group_id, 'R18')):
+    elif is_r18 and (group_id == -1 or allow_r18):
         await session.send(
             f'[CQ:reply,id={message_id}]'
             f'芜湖~好图来了ww\n'
@@ -300,20 +303,19 @@ async def pixiv_send(session: nonebot.CommandSession):
         )
 
     else:
-        if not monitored:
-            await session.send(
-                f'[CQ:reply,id={message_id}]'
-                '由于图片不太健全，所以只能发给主人了。'
-            )
-            await bot.send_private_msg(
-                user_id=SUPER_USER,
-                message=f"图片来自：{nickname}\n"
-                        f"来自群：{group_id}\n"
-                        f"查询关键词：{key_word}\n" +
-                        f'Pixiv ID: {illust.id}\n' +
-                        f'{MessageSegment.image(f"file:///{path}")}\n' +
-                        f'Download Time: {(time.time() - start_time):.2f}s'
-            )
+        await session.send(
+            f'[CQ:reply,id={message_id}]'
+            '由于图片不太健全，所以只能发给主人了。'
+        )
+        await bot.send_private_msg(
+            user_id=SUPER_USER,
+            message=f"图片来自：{nickname}\n"
+                    f"来自群：{group_id}\n"
+                    f"查询关键词：{key_word}\n" +
+                    f'Pixiv ID: {illust.id}\n' +
+                    f'{MessageSegment.image(f"file:///{path}")}\n' +
+                    f'Download Time: {(time.time() - start_time):.2f}s'
+        )
 
     if 'group_id' in ctx:
         sanity_meter.set_usage(group_id, 'setu')
@@ -533,10 +535,10 @@ async def cangku_search(session: nonebot.CommandSession):
     key_word = str(session.get('key_word', prompt='请输入关键字进行查询')).lower()
     ctx = session.ctx.copy()
     if 'group_id' not in ctx:
-        is_r18 = True
+        allow_r18 = True
     else:
         group_id = ctx['group_id']
-        is_r18 = admin_control.get_data(group_id, 'R18')
+        allow_r18 = admin_control.get_data(group_id, 'R18')
 
     user_id = ctx['user_id']
     user_id = str(user_id)
@@ -544,7 +546,7 @@ async def cangku_search(session: nonebot.CommandSession):
     search_result = cangku_api.get_search_string(
         key_word,
         user_id=user_id,
-        is_r18=is_r18
+        is_r18=allow_r18
     )
     index = session.get(
         'index_name',

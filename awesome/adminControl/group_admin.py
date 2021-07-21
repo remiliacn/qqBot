@@ -1,4 +1,5 @@
 import json
+import re
 from os.path import exists
 from random import choice
 from typing import Union
@@ -21,6 +22,7 @@ class Shadiaoadmin:
         self.group_setting = json.loads(str(fl))
 
         self.group_quotes = self._get_group_quotes()
+        self.make_a_json(self.group_quotes_path)
 
     def _get_group_quotes(self) -> dict:
         group_quotes = {}
@@ -30,6 +32,19 @@ class Shadiaoadmin:
         else:
             with open(self.group_quotes_path, 'r', encoding='utf-8') as file:
                 group_quotes = json.loads(file.read())
+
+            for element in group_quotes:
+                if group_quotes[element]:
+                    removed_list = []
+                    for quote in group_quotes[element]:
+                        file_name = re.match(r'.*?file=file:///(.*?)\]', quote).groups()[0]
+                        if not exists(file_name):
+                            removed_list.append(quote)
+
+                        print(file_name)
+
+                    for idx in removed_list:
+                        group_quotes[element].remove(idx)
 
         return group_quotes
 

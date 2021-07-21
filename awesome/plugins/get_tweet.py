@@ -12,7 +12,6 @@ from Services.random_services import YouTubeLiveTracker
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao import sanity_meter
 from awesome.plugins.tweetHelper import tweeter
-from bilibiliService import bilibili_topic
 from config import SUPER_USER, DOWNLODER_FILE_NAME, SHARE_LINK, PATH_TO_ONEDRIVE
 from qq_bot_core import alarm_api
 from qq_bot_core import user_control_module
@@ -375,20 +374,6 @@ async def do_bilibili_live_fetch():
 """
 
 
-@nonebot.on_command('b站话题', aliases={'B站话题', 'btopic'}, only_to_me=False)
-async def get_bilibili_topic(session: nonebot.CommandSession):
-    key_word = session.get('key_word', prompt='要什么的话题呢？')
-    await session.send('如果动态内容有图片的话这可能会花费一大段时间。。请稍后……')
-    topic = bilibili_topic.BilibiliTopic(topic=key_word)
-    response = topic.get_content()
-    if response != '':
-        await session.send(response)
-        return
-
-    await session.send('emmm, 好像没有内容？要不换个话题试试？')
-
-
-@get_bilibili_topic.args_parser
 @get_new_tweet_by_ch_name.args_parser
 @add_new_tweeter_function.args_parser
 @remove_tweet_following.args_parser
