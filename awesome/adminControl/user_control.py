@@ -1,9 +1,11 @@
 import json
 from os.path import exists
 from typing import Union
+
 from awesome.adminControl.permission import *
 
 USER_T = Union[OWNER, ADMIN, WHITELIST, BANNED]
+
 
 def _init_data(path: str) -> dict:
     if exists(path):

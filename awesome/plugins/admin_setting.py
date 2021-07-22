@@ -38,12 +38,12 @@ async def lower_alarm(session: nonebot.CommandSession):
 
 @nonebot.on_command('添加监控词', only_to_me=False)
 async def add_monitor_word(session: nonebot.CommandSession):
-    keyWord = session.get('keyWord', prompt='要加什么进来呢？')
+    key_word = session.get('key_word', prompt='要加什么进来呢？')
     ctx = session.ctx.copy()
     if not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish('您无权使用本命令')
 
-    sanity_meter.set_new_xp(keyWord)
+    sanity_meter.set_new_xp(key_word)
     await session.finish('Done!')
 
 
@@ -54,13 +54,13 @@ async def add_blacklist_word(session: nonebot.CommandSession):
     if not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish('您无权使用本命令')
 
-    keyWords = key_word.split()
+    key_words = key_word.split()
 
-    if len(keyWords) != 2:
+    if len(key_words) != 2:
         await session.finish('参数有误。应为！添加拉黑词 关键词 理智消耗倍数')
 
     try:
-        sanity_meter.add_bad_word_dict(keyWords[0], int(keyWords[1]))
+        sanity_meter.add_bad_word_dict(key_words[0], int(key_words[1]))
         await session.finish('Done!')
     except ValueError:
         await session.finish('第二输入非数字。')
@@ -189,7 +189,7 @@ async def add_ai_real_response(session: nonebot.CommandSession):
 
 
 @nonebot.on_command('问题', only_to_me=False)
-async def sendAnswer(session: nonebot.CommandSession):
+async def send_answer(session: nonebot.CommandSession):
     start_time = time()
     question = session.get('question', prompt='啊？你要问我什么？')
     question = str(question).lower()
@@ -266,7 +266,7 @@ async def sendAnswer(session: nonebot.CommandSession):
                 )
 
 
-@sendAnswer.args_parser
+@send_answer.args_parser
 async def _send_answer(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:
@@ -499,7 +499,7 @@ async def _request_api_response(question: str) -> str:
                         f'&api_key={config.ITPK_KEY}'
                         f'&api_secret={config.ITPK_SECRET}'
                 ) as page:
-                    if not '笑话' in question:
+                    if '笑话' not in question:
                         response = await page.text()
                         response = response.replace("\ufeff", "")
                     else:
@@ -531,15 +531,15 @@ async def delete_ai_response(session: nonebot.CommandSession):
 async def get_answer_info(session: nonebot.CommandSession):
     context = session.ctx.copy()
     if get_privilege(context['user_id'], perm.WHITELIST):
-        keyWord = session.get('key_word', prompt='请输入需要查询的预料关键词')
-        await session.send(user_control_module.get_response_info(keyWord))
+        key_word = session.get('key_word', prompt='请输入需要查询的预料关键词')
+        await session.send(user_control_module.get_response_info(key_word))
 
 
 @delete_ai_response.args_parser
 @add_monitor_word.args_parser
 @add_blacklist_word.args_parser
 @get_answer_info.args_parser
-async def _deleteAIResponse(session: nonebot.CommandSession):
+async def _delete_ai_response(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:
         if stripped_arg:
@@ -633,7 +633,7 @@ async def _do_tts_send(message: str) -> str:
     bot = nonebot.get_bot()
     data = await bot.get_msg(message_id=int(reply_id[0]))
     message = data['content']
-    message = sub('\[CQ.*?\]', '', message)
+    message = sub(r'\[CQ.*?]', '', message)
 
     return f'[CQ:tts,text={message}]'
 

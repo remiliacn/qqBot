@@ -37,11 +37,9 @@ class Shadiaoadmin:
                 if group_quotes[element]:
                     removed_list = []
                     for quote in group_quotes[element]:
-                        file_name = re.match(r'.*?file=file:///(.*?)\]', quote).groups()[0]
+                        file_name = re.match(r'.*?file=file:///(.*?)]', quote).groups()[0]
                         if not exists(file_name):
                             removed_list.append(quote)
-
-                        print(file_name)
 
                     for idx in removed_list:
                         group_quotes[element].remove(idx)
@@ -84,7 +82,7 @@ class Shadiaoadmin:
         self.group_quotes[group_id].clear()
         self.make_a_json(self.group_quotes_path)
         return True
-    
+
     def get_group_quote_count(self, group_id: Union[int, str]):
         if isinstance(group_id, int):
             group_id = str(group_id)
@@ -107,22 +105,16 @@ class Shadiaoadmin:
         self.group_setting[group_id][tag] = stat
         self.make_a_json('config/group.json')
 
-    def get_data(self, group_id, tag):
+    def get_data(self, group_id, tag, default_if_none=True):
         if isinstance(group_id, int):
             group_id = str(group_id)
 
         if group_id not in self.group_setting:
             self.group_setting[group_id] = {}
-            if tag != 'exempt':
-                self.group_setting[group_id][tag] = True
-            else:
-                self.group_setting[group_id][tag] = False
-
-            self.make_a_json('config/group.json')
 
         if tag not in self.group_setting[group_id]:
             if tag != 'exempt':
-                self.group_setting[group_id][tag] = True
+                self.group_setting[group_id][tag] = default_if_none
             else:
                 self.group_setting[group_id][tag] = False
 

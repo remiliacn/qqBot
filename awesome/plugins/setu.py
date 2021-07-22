@@ -278,7 +278,7 @@ async def pixiv_send(session: nonebot.CommandSession):
             await session.send(
                 f'[CQ:reply,id={message_id}]'
                 f'Pixiv ID: {illust.id}\n'
-                f'查询关键词：{" ".join(key_word)}\n'
+                f'查询关键词：{key_word}\n'
                 f'画师：{illust["user"]["name"]}\n' +
                 f'{MessageSegment.image(f"file:///{path}")}\n' +
                 f'Download Time: {(time.time() - start_time):.2f}s'

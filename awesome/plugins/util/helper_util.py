@@ -67,15 +67,15 @@ class HhshCache:
             return self.furigana_dict[query]
 
 
-class translation:
+class Translation:
     def __init__(self):
         self.dest = 'zh-cn'
         self.announc = False
         self.INFO_NOT_AVAILABLE = '翻译出错了呢'
 
-    def getTranslationResult(self, sentence):
+    def get_translation_result(self, sentence):
         sentence = str(sentence)
-        syntax = re.compile('\[CQ.*?\]')
+        syntax = re.compile(r'\[CQ.*?]')
         sentence = re.sub(syntax, '', sentence)
         translator = Translator()
 
@@ -169,14 +169,14 @@ def send_as_xml_message(
         brief="{brief}" sourceMsgId="0" url="{url if url is not None else 'https://www.example.com'}" 
         flag="0" adverSign="0" multiMsgFlag="0"
     >
-	    <item layout="2" advertiser_id="0" aid="0">
+        <item layout="2" advertiser_id="0" aid="0">
             <picture cover="{image if image is not None else ''}" />
             <title>{title}</title>
             <summary>{summary}</summary>
-	    </item>
-	    <source 
-	        name="{source if source is not None else '官方认证消息'}" 
-	        icon="https://qzs.qq.com/ac/qzone_v5/client/auth_icon.png" action="" appid="-1" 
+        </item>
+        <source 
+            name="{source if source is not None else '官方认证消息'}" 
+            icon="https://qzs.qq.com/ac/qzone_v5/client/auth_icon.png" action="" appid="-1" 
         />
     </msg>
     """

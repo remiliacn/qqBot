@@ -101,7 +101,7 @@ async def k_line(session: nonebot.CommandSession):
 
 @nonebot.on_command('翻译', only_to_me=False)
 async def translate(session: nonebot.CommandSession):
-    trans = helper_util.translation()
+    trans = helper_util.Translation()
     ctx = session.ctx.copy()
     if user_control_module.get_user_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
@@ -110,7 +110,7 @@ async def translate(session: nonebot.CommandSession):
     get_result = ''
 
     try:
-        get_result = trans.getTranslationResult(sentence=key_word)
+        get_result = trans.get_translation_result(sentence=key_word)
     except Exception as e:
         logger.warning('翻译出错！%s' % e)
         await session.finish('翻译出错了！请重试！')
