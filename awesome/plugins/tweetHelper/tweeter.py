@@ -23,7 +23,7 @@ except Exception as e:
     logger.error("getTweet init failed %s" % e)
 
 
-class tweeter:
+class Tweeter:
     def __init__(self):
         self.path = 'E:/twitterPic/'
         self.config = 'config/tweet.json'

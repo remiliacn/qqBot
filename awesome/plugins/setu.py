@@ -114,7 +114,7 @@ async def pixiv_send(session: nonebot.CommandSession):
     sanity = -1
     monitored = False
     multiplier = 1
-    doMultiply = False
+    do_multiply = False
 
     if group_id in sanity_meter.get_sanity_dict():
         sanity = sanity_meter.get_sanity(group_id)
@@ -146,7 +146,7 @@ async def pixiv_send(session: nonebot.CommandSession):
 
     if key_word in sanity_meter.get_bad_word_dict():
         multiplier = sanity_meter.get_bad_word_dict()[key_word]
-        doMultiply = True
+        do_multiply = True
         if multiplier > 0:
             if multiplier * 2 > 400:
                 sanity_meter.set_user_data(user_id, 'ban_count')
@@ -158,7 +158,6 @@ async def pixiv_send(session: nonebot.CommandSession):
                         user_id=SUPER_USER,
                         message=f'User {user_id} has been banned for triggering prtection. Keyword = {key_word}'
                     )
-
 
                 else:
                     await session.send('本次黑名单搜索已触发群保护机制，下次触发将会导致所有功能禁用。')
@@ -257,12 +256,12 @@ async def pixiv_send(session: nonebot.CommandSession):
         if is_r18:
             sanity_meter.drain_sanity(
                 group_id=group_id,
-                sanity=3 if not doMultiply else 3 * multiplier
+                sanity=3 if not do_multiply else 3 * multiplier
             )
         else:
             sanity_meter.drain_sanity(
                 group_id=group_id,
-                sanity=1 if not doMultiply else 1 * multiplier
+                sanity=1 if not do_multiply else 1 * multiplier
             )
 
     start_time = time.time()

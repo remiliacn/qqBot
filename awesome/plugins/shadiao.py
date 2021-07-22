@@ -98,7 +98,7 @@ async def ocr_image_test(session: nonebot.CommandSession):
         await session.finish('无图片哼啊啊啊啊~')
 
     ocr_response = await bot.ocr_image(image=has_image[0])
-    if not 'texts' in ocr_response:
+    if 'texts' not in ocr_response:
         await session.finish('识别失败！')
 
     if not ocr_response['texts']:
@@ -129,7 +129,7 @@ async def send_voice_message(session: nonebot.CommandSession):
     else:
         message = ''.join(args[1:])
 
-    text = re.sub('\[CQ:.*?\]', '', message)
+    text = re.sub(r'\[CQ:.*?]', '', message)
     text = re.sub('祈.*?雨', f'{ctx["sender"]["nickname"]}', text)
     await session.send(f'[CQ:tts,text={text}]')
 
@@ -418,21 +418,21 @@ async def stat_player(session: nonebot.CommandSession):
     get_stat = lambda key, lis: lis[key] if key in lis else 0
     ctx = session.ctx.copy()
     user_id = ctx['user_id']
-    statDict = sanity_meter.get_user_data(user_id)
-    if not statDict:
+    stat_dict = sanity_meter.get_user_data(user_id)
+    if not stat_dict:
         await session.send(f'[CQ:at,qq={user_id}]还没有数据哦~')
     else:
-        poker_win = get_stat('poker', statDict)
-        six_star_pull = get_stat('six_star_pull', statDict)
-        yanche = get_stat('yanche', statDict)
-        setu_stat = get_stat('setu', statDict)
-        question = get_stat('question', statDict)
-        unlucky = get_stat('only_four_three', statDict)
-        same = get_stat('hit_xp', statDict)
-        zc = get_stat('zc', statDict)
-        chp = get_stat('chp', statDict)
-        roulette = get_stat('roulette', statDict)
-        horse_race = get_stat('horse_race', statDict)
+        poker_win = get_stat('poker', stat_dict)
+        six_star_pull = get_stat('six_star_pull', stat_dict)
+        yanche = get_stat('yanche', stat_dict)
+        setu_stat = get_stat('setu', stat_dict)
+        question = get_stat('question', stat_dict)
+        unlucky = get_stat('only_four_three', stat_dict)
+        same = get_stat('hit_xp', stat_dict)
+        zc = get_stat('zc', stat_dict)
+        chp = get_stat('chp', stat_dict)
+        roulette = get_stat('roulette', stat_dict)
+        horse_race = get_stat('horse_race', stat_dict)
 
         await session.send(f'用户[CQ:at,qq={user_id}]：\n' +
                            (f'比大小赢得{poker_win}次\n' if poker_win != 0 else '') +
@@ -547,7 +547,7 @@ async def _(session: nonebot.CommandSession):
 
 
 @nonebot.on_command('嘴臭一个', aliases=('骂我', '你再骂', '小嘴抹蜜', '嘴臭一下', '机器人骂我'), only_to_me=False)
-async def zuiChou(session: nonebot.CommandSession):
+async def zui_chou(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
 
     if get_privilege(ctx['user_id'], perm.BANNED):
@@ -591,8 +591,8 @@ async def zuiChou(session: nonebot.CommandSession):
 
     msg = str(ctx['raw_message'])
 
-    if re.match(r'.*?\[CQ:at,qq=.*?\]', msg):
-        qq = re.findall(r'\[CQ:at,qq=(.*?)\]', msg)[0]
+    if re.match(r'.*?\[CQ:at,qq=.*?]', msg):
+        qq = re.findall(r'\[CQ:at,qq=(.*?)]', msg)[0]
         if qq != "all":
             if not get_privilege(qq, perm.ADMIN):
                 await session.finish(f"[CQ:at,qq={int(qq)}] {text}")
@@ -628,8 +628,8 @@ async def cai_hong_pi(session: nonebot.CommandSession):
 
     do_tts = '语音' in msg
 
-    if re.match(r'.*?\[CQ:at,qq=.*?\]', msg):
-        qq = re.findall(r'\[CQ:at,qq=(.*?)\]', msg)[0]
+    if re.match(r'.*?\[CQ:at,qq=.*?]', msg):
+        qq = re.findall(r'\[CQ:at,qq=(.*?)]', msg)[0]
         if qq != "all":
             if not do_tts:
                 await session.send(f"[CQ:at,qq={int(qq)}] {text}")

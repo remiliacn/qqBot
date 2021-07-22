@@ -18,7 +18,7 @@ from qq_bot_core import user_control_module
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
-tweet = tweeter.tweeter()
+tweet = tweeter.Tweeter()
 
 
 @nonebot.on_command('推特数据', only_to_me=False)

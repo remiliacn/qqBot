@@ -184,15 +184,15 @@ async def nico_send(session: nonebot.CommandSession):
     if user_control_module.get_user_privilege(ctx['user_id'], perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
-    keyWord = session.get('keyWord', prompt='歪？我的关键字呢？')
-    api = youdao.Nicowiki(keyWord=keyWord)
+    key_word = session.get('key_word', prompt='歪？我的关键字呢？')
+    api = youdao.Nicowiki(keyWord=key_word)
     await session.send(api.__str__())
     if 'group_id' in ctx:
         sanity_meter.set_user_data(ctx['user_id'], 'nico')
 
 
 @nonebot.on_command('反码', only_to_me=False)
-async def reverseCode(session: nonebot.CommandSession):
+async def reverse_code(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     key_word = ctx['raw_message']
     message_list = key_word.split()
@@ -204,16 +204,16 @@ async def reverseCode(session: nonebot.CommandSession):
     if_group = False
     if 'group_id' in ctx:
         if_group = True
-        idNum = ctx['group_id']
+        id_num = ctx['group_id']
     else:
-        idNum = ctx['user_id']
+        id_num = ctx['user_id']
 
     bot = nonebot.get_bot()
 
     if if_group:
-        await bot.send_msg(message_type='group', group_id=idNum, message=key_word, auto_escape=True)
+        await bot.send_msg(message_type='group', group_id=id_num, message=key_word, auto_escape=True)
     else:
-        await bot.send_msg(message_type='private', user_id=idNum, message=key_word, auto_escape=True)
+        await bot.send_msg(message_type='private', user_id=id_num, message=key_word, auto_escape=True)
 
 
 @nonebot.on_command('好好说话', only_to_me=False)
@@ -238,7 +238,7 @@ async def can_you_be_fucking_normal(session: nonebot.CommandSession):
 @translate.args_parser
 @k_line.args_parser
 @crypto_search.args_parser
-async def _youDaoServiceArgs(session: nonebot.CommandSession):
+async def _you_dao_service_args(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:
         if stripped_arg:
@@ -254,7 +254,9 @@ async def hhsh(entry: str) -> str:
         return cache.get_result(entry, HHSHMEANING)
 
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                      'AppleWebKit/537.36 (KHTML, like Gecko) '
+                      'Chrome/81.0.4044.138 Safari/537.36',
         'Origin': 'https://lab.magiconch.com',
         'referer': 'https://lab.magiconch.com/nbnhhsh/'
     }
