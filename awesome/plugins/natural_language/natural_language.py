@@ -1,9 +1,13 @@
+import asyncio
+import re
 from datetime import datetime
 from random import seed, randint
 from re import fullmatch, findall, match, sub
 from time import time_ns
 from typing import Union
 
+import jieba
+import jieba.posseg as pos
 import nonebot
 from loguru import logger
 
@@ -12,6 +16,7 @@ from awesome.adminControl import permission as perm
 from awesome.plugins.setu.setu import sauce_helper
 from awesome.plugins.util.helper_util import anime_reverse_search_response
 from qq_bot_core import admin_control, user_control_module
+from ..util import search_helper
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
@@ -45,6 +50,48 @@ async def natural_language_proc(session: nonebot.NLPSession):
     fetch_result = _repeat_and_palindrome_fetch(message)
     if fetch_result:
         await session.send(fetch_result)
+
+    fetch_result = await _check_if_asking_definition(message)
+    if fetch_result:
+        sleep_time = len(fetch_result) // 25
+        await asyncio.sleep(sleep_time)
+        await session.send(fetch_result)
+
+
+async def _check_if_asking_definition(message: str) -> str:
+    keyword_regex = r'(.*?)是个?(什么|啥)'
+    if re.match(keyword_regex, message):
+        logger.success('hit asking definition.')
+        if randint(0, 10) < 5:
+            logger.success('hit random chance.')
+            extracted_keyword = re.findall(keyword_regex, message)
+
+            if not extracted_keyword:
+                return ''
+
+            key_word = extracted_keyword[0][0]
+            logger.info(f'first pass keyword: {key_word}')
+            if len(key_word) > 4:
+                try:
+                    _ = pos.cut(key_word)
+                    jieba.enable_paddle()
+                    words = pos.cut(key_word, use_paddle=True)
+                    words = [(word, flag) for word, flag in words if 'n' in flag or flag in ('PER', 'LOC', 'ORG')]
+
+                    if not words:
+                        return ''
+
+                    key_word = words[-1][0]
+                    key_word = re.sub(r'[，。、；’【】！￥…（）《》？：”“‘]', '', key_word)
+                except Exception as err:
+                    logger.warning(err)
+                    return ''
+
+            logger.info(f'second pass keyword: {key_word}')
+            result = await search_helper.get_definition(key_word)
+            return result
+
+    return ''
 
 
 def _repeat_and_palindrome_fetch(message: str) -> str:

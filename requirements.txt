@@ -44,3 +44,4 @@ Werkzeug
 wsproto==0.15.0
 PixivPy==3.5.9
 loguru~=0.5.3
+jieba
