@@ -5,6 +5,7 @@ from time import time_ns
 from typing import Union
 
 import nonebot
+from loguru import logger
 
 import config
 from awesome.adminControl import permission as perm
@@ -124,7 +125,7 @@ async def _do_soutu_operation(message: str) -> str:
         for idx, element in enumerate(has_image):
             image = await bot.get_image(file=element)
             url = image['url']
-            nonebot.logger.info(f'URL extracted: {url}')
+            logger.info(f'URL extracted: {url}')
             try:
                 response_data = await sauce_helper(url)
                 if not response_data:

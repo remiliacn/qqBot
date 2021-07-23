@@ -6,7 +6,7 @@ from datetime import datetime
 from subprocess import Popen
 
 import nonebot
-from nonebot.log import logger
+from loguru import logger
 
 from Services.random_services import YouTubeLiveTracker
 from awesome.adminControl import permission as perm
@@ -318,7 +318,7 @@ async def do_youtube_update_fetch():
                 try:
                     await bot.send_private_msg(user_id=SUPER_USER, message=f'源下载失败{elements}')
                 except Exception as e:
-                    nonebot.logger.warning('Something went wrong %s' % e)
+                    logger.warning('Something went wrong %s' % e)
 
         empty_dict = {}
         with open('config/YouTubeNotify.json', 'w+') as f:
@@ -343,8 +343,10 @@ async def do_tweet_update_fetch():
             else:
                 message = f'=== {ch_name}发了一条推 ===\n' + message
 
-            nonebot.logger.warning(f'发现新推！来自{ch_name}:\n'
-                                   f'{message}')
+            logger.warning(
+                f'发现新推！来自{ch_name}:\n'
+                f'{message}'
+            )
 
             for element in group_id_list:
                 sanity_meter.set_user_data(0, 'tweet', 1, True)

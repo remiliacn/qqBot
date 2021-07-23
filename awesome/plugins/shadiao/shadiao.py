@@ -6,6 +6,7 @@ import time
 import aiocqhttp.event
 import aiohttp
 import nonebot
+from loguru import logger
 from nonebot.message import CanceledException
 from nonebot.plugin import PluginManager
 
@@ -156,7 +157,7 @@ async def send_waifu(session: nonebot.CommandSession):
     if not path:
         await session.send(message)
     else:
-        nonebot.logger.info(f'Get waifu pic: {path}')
+        logger.info(f'Get waifu pic: {path}')
         await session.send(f'[CQ:image,file=file:///{path}]\n{message}')
 
 
@@ -568,7 +569,7 @@ async def zui_chou(session: nonebot.CommandSession):
 
         except Exception as err:
             await session.send('骂不出来了！')
-            nonebot.logger.warning(f'Request to nmsl API failed. {err}')
+            logger.warning(f'Request to nmsl API failed. {err}')
             return
 
     elif rand_num > 10:
@@ -581,7 +582,7 @@ async def zui_chou(session: nonebot.CommandSession):
 
         except Exception as err:
             await session.send('骂不出来了！')
-            nonebot.logger.warning(f'Request to nmsl API failed. {err}')
+            logger.warning(f'Request to nmsl API failed. {err}')
             return
 
     else:
@@ -621,7 +622,7 @@ async def cai_hong_pi(session: nonebot.CommandSession):
 
     except Exception as err:
         await session.send('拍马蹄上了_(:зゝ∠)_')
-        nonebot.logger.warning(f'Reqeust to chp API failed, {err}')
+        logger.warning(f'Reqeust to chp API failed, {err}')
         return
 
     msg = str(ctx['raw_message'])

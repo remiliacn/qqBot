@@ -8,6 +8,7 @@ from time import time, time_ns
 
 import aiohttp
 import nonebot
+from loguru import logger
 
 import config
 from awesome.adminControl import permission as perm
@@ -246,7 +247,7 @@ async def send_answer(session: nonebot.CommandSession):
             )
 
         else:
-            nonebot.logger.info(msg="It is not a normal question.")
+            logger.info("It is not a normal question.")
             ai_process = _simple_ai_process(question, ctx)
             if question == ai_process:
                 response = await _request_api_response(question)
@@ -405,7 +406,7 @@ def _math_fetch(question: str, user_id: int) -> str:
         )
 
     except Exception as err:
-        nonebot.logger.warning(f'This is not a math question.{str(err)}')
+        logger.warning(f'This is not a math question.{str(err)}')
         return ''
 
     if _is_float(answer):
@@ -422,7 +423,7 @@ def _is_float(content: str) -> bool:
         return True
 
     except Exception as err:
-        nonebot.logger.warning(f'Not number: {err}')
+        logger.warning(f'Not number: {err}')
         return False
 
 
@@ -485,7 +486,7 @@ async def _request_api_response(question: str) -> str:
                     response = await page.text()
 
         except Exception as err:
-            nonebot.logger.warning(err)
+            logger.warning(err)
             response = '我还不太会回答这个问题哦！不如换种问法？'
 
     else:
@@ -506,7 +507,7 @@ async def _request_api_response(question: str) -> str:
                         response = str(data['content']).replace('\r', '')
 
         except Exception as err:
-            nonebot.logger.warning(err)
+            logger.warning(err)
             response = '我还不太会回答这个问题哦！不如换种问法？'
 
     return response

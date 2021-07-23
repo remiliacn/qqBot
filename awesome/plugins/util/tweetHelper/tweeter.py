@@ -6,7 +6,7 @@ import time
 
 import requests
 import twitter
-from nonebot.log import logger
+from loguru import logger
 
 import config
 
@@ -91,7 +91,6 @@ class Tweeter:
     async def check_update(self):
         temp_dict = {}
         diff_dict = {}
-        logger.info(f'Original: {self.tweet_list_init}')
         tasks = []
         for ch_name in self.tweet_config:
             tasks.append(self._check_update_helper(ch_name))
@@ -116,7 +115,6 @@ class Tweeter:
                     diff_dict[element] = temp_dict[element]
                     self.tweet_list_init = temp_dict
 
-        logger.info(f'Changed: {self.tweet_list_init}')
         return diff_dict
 
     async def _check_update_helper(self, ch_name) -> dict:

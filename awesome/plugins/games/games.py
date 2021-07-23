@@ -160,7 +160,7 @@ async def pao_tuan_shai_zi(session: nonebot.CommandSession):
         await session.finish('扔这么多干嘛，爬')
 
     max_val = int(args[1])
-    result_list = [randint(1, max_val + 1) for _ in range(throw_times)]
+    result_list = [randint(1, max_val) for _ in range(throw_times)]
     result_sum = sum(result_list)
 
     await session.finish(

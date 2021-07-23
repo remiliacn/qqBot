@@ -6,7 +6,7 @@ import sys
 
 import requests
 import youtube_dl
-from nonebot.log import logger
+from loguru import logger
 
 from config import FFMPEG_PATH, PATH_TEMP_DOWNLOAD, PATH_TO_ONEDRIVE
 

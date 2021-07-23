@@ -3,7 +3,7 @@ from datetime import datetime
 
 import aiohttp
 import nonebot
-from nonebot.log import logger
+from loguru import logger
 
 from Services import random_services
 from Services.keylol_update import KeylolFreeGame
@@ -58,7 +58,7 @@ async def crypto_search(session: nonebot.CommandSession):
             )
 
     except Exception as err:
-        logger.log(f'{err} - Crypto error.')
+        logger.warning(f'{err} - Crypto error.')
         await session.finish('这货币真的上架了么……')
 
 

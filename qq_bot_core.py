@@ -103,7 +103,7 @@ def register_true():
 def main():
     # 记着生成config文件后把本文件的import config去掉注释
     nonebot.init(config)
-    nonebot.log.logger.setLevel('INFO')
+    nonebot.log.logger.setLevel('WARNING')
 
     nonebot.load_plugins(
         path.join(path.dirname(__file__), 'awesome', 'plugins'),
