@@ -1,9 +1,10 @@
 from json import loads, dump
 from os.path import exists
 
+
 class SetuFunction:
     def __init__(self):
-        self.max_sanity = 30
+        self.max_sanity = 10
         self.sanity_dict = {}
         self.happy_hours = False
         self.remind_dict = {}
@@ -46,12 +47,12 @@ class SetuFunction:
     def get_bad_word_dict(self) -> dict:
         return self.setu_config['bad_words']
 
-    def add_bad_word_dict(self, keyWord, multiplier):
+    def add_bad_word_dict(self, key_word, multiplier):
         if multiplier == 1:
-            if keyWord in self.setu_config['bad_words']:
-                del self.setu_config['bad_words'][keyWord]
+            if key_word in self.setu_config['bad_words']:
+                del self.setu_config['bad_words'][key_word]
         else:
-            self.setu_config['bad_words'][keyWord] = multiplier
+            self.setu_config['bad_words'][key_word] = multiplier
 
     def _init_bad_word(self):
         if exists(self.setu_config_path):
@@ -66,14 +67,12 @@ class SetuFunction:
             with open(self.setu_config_path, 'w+') as f:
                 dump({'bad_words': {}}, f, indent=4)
 
-
-
     def get_monitored_keywords(self) -> dict:
         return self.stat_dict['xp']
 
-    def set_new_xp(self, keyWord):
-        if keyWord not in self.stat_dict['xp']:
-            self.stat_dict['xp'][keyWord] = 0
+    def set_new_xp(self, key_word):
+        if key_word not in self.stat_dict['xp']:
+            self.stat_dict['xp'][key_word] = 0
 
     def _get_user_data(self):
         if exists(self.config_file):
@@ -158,12 +157,10 @@ class SetuFunction:
         group_id = str(group_id)
         if group_id not in self.stat_dict:
             self.stat_dict[group_id] = {
-                "setu" : 0,
-                "yanche" : 0,
-                "pulls" : {
-
-                },
-                "pull" : 0
+                "setu": 0,
+                "yanche": 0,
+                "pulls": {},
+                "pull": 0
             }
 
         if tag == 'setu' or tag == 'yanche':
@@ -171,7 +168,7 @@ class SetuFunction:
 
         elif tag == 'pulls':
             if '3' in self.stat_dict[group_id][tag] or '4' in self.stat_dict[group_id][tag] \
-                or '5' in self.stat_dict[group_id][tag] or '6' in self.stat_dict[group_id][tag]:
+                    or '5' in self.stat_dict[group_id][tag] or '6' in self.stat_dict[group_id][tag]:
 
                 self.stat_dict[group_id]['pulls']['3'] += data['3']
                 self.stat_dict[group_id]['pulls']['4'] += data['4']
@@ -199,7 +196,8 @@ class SetuFunction:
         if self.updated:
             sorted_item = self.ordered_stat
         else:
-            sorted_item = sorted(self.stat_dict.items(), key=lambda x : x[1]["setu"] if 'setu' in x[1] else 0, reverse=True)
+            sorted_item = sorted(self.stat_dict.items(), key=lambda x: x[1]["setu"] if 'setu' in x[1] else 0,
+                                 reverse=True)
             self.ordered_stat = sorted_item
             self.updated = True
 
@@ -211,15 +209,16 @@ class SetuFunction:
                 break
 
         if rank != -1:
-            rankTemp = rank - 1
+            rank_temp = rank - 1
             if rank == 1:
-                delta = abs(sorted_item[rankTemp][1]['setu'] - sorted_item[rankTemp + 1][1]['setu'])
+                delta = abs(sorted_item[rank_temp][1]['setu'] - sorted_item[rank_temp + 1][1]['setu'])
             else:
-                delta = abs(sorted_item[rankTemp - 1][1]['setu'] - sorted_item[rankTemp][1]['setu'])
+                delta = abs(sorted_item[rank_temp - 1][1]['setu'] - sorted_item[rank_temp][1]['setu'])
 
-        pullsDict = self.stat_dict[group_id]['pulls']
-        return times, rank, self.stat_dict[group_id]['yanche'] if 'yanche' in self.stat_dict[group_id] else -1, \
-               delta, pullsDict, self.stat_dict[group_id]['pull']
+        pulls_dict = self.stat_dict[group_id]['pulls']
+        return times, rank, \
+               self.stat_dict[group_id]['yanche'] if 'yanche' in self.stat_dict[group_id] else -1, \
+               delta, pulls_dict, self.stat_dict[group_id]['pull']
 
     def set_remid_dict(self, group_id, stats):
         self.remind_dict[group_id] = stats

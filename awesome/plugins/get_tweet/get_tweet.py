@@ -10,8 +10,8 @@ from nonebot.log import logger
 
 from Services.random_services import YouTubeLiveTracker
 from awesome.adminControl import permission as perm
-from awesome.plugins.shadiao import sanity_meter
-from awesome.plugins.tweetHelper import tweeter
+from awesome.plugins.shadiao.shadiao import sanity_meter
+from awesome.plugins.util.tweetHelper import tweeter
 from config import SUPER_USER, DOWNLODER_FILE_NAME, SHARE_LINK, PATH_TO_ONEDRIVE
 from qq_bot_core import alarm_api
 from qq_bot_core import user_control_module

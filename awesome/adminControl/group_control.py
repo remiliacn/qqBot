@@ -4,6 +4,26 @@ from os.path import exists
 from random import choice
 from typing import Union
 
+# Tag list meaning hint.
+TAG_LIST = {
+    'recall': {
+        'description': '是否拦截撤回',
+        'default': False
+    },
+    'banned': {
+        'description': '是否不接受该群的指令',
+        'default': False
+    },
+    'exempt': {
+        'description': '是否使用闪照',
+        'default': True
+    },
+    'R18': {
+        'description': '是否允许R18内容',
+        'default': False
+    }
+}
+
 
 class Shadiaoadmin:
     def __init__(self):
@@ -33,6 +53,7 @@ class Shadiaoadmin:
             with open(self.group_quotes_path, 'r', encoding='utf-8') as file:
                 group_quotes = json.loads(file.read())
 
+            # Remove quote if the image does not exist anymore.
             for element in group_quotes:
                 if group_quotes[element]:
                     removed_list = []
@@ -95,17 +116,21 @@ class Shadiaoadmin:
 
         return len(self.group_quotes[group_id])
 
-    def set_data(self, group_id, tag, stat):
+    def set_group_permission(self, group_id, tag, stat, global_setting=False):
         if isinstance(group_id, int):
             group_id = str(group_id)
 
         if group_id not in self.group_setting:
             self.group_setting[group_id] = {}
 
-        self.group_setting[group_id][tag] = stat
+        if not global_setting:
+            self.group_setting[group_id][tag] = stat
+        else:
+            self.group_setting['global'][tag] = stat
+
         self.make_a_json('config/group.json')
 
-    def get_data(self, group_id, tag, default_if_none=True):
+    def get_group_permission(self, group_id, tag, default_if_none=True):
         if isinstance(group_id, int):
             group_id = str(group_id)
 

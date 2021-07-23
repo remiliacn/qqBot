@@ -78,7 +78,7 @@ async def set_black_list_group(session: nonebot.CommandSession):
     if get_privilege(ctx['user_id'], perm.WHITELIST):
         group_id = session.get('group_id', prompt='请输入要禁用的qq群')
         try:
-            admin_control.set_data(group_id, 'banned', True)
+            admin_control.set_group_permission(group_id, 'banned', True)
         except ValueError:
             await session.finish('这不是数字啊kora')
 
@@ -91,7 +91,7 @@ async def delete_black_list_group(session: nonebot.CommandSession):
     if get_privilege(ctx['user_id'], perm.WHITELIST):
         group_id = session.get('group_id', prompt='请输入要禁用的qq群')
         try:
-            admin_control.set_data(group_id, 'banned', False)
+            admin_control.set_group_permission(group_id, 'banned', False)
         except ValueError:
             await session.finish('emmm没找到哦~')
 
@@ -104,11 +104,11 @@ async def pixiv_send(session: nonebot.CommandSession):
     message_id = ctx['message_id']
 
     group_id = ctx['group_id'] if 'group_id' in ctx else -1
-    allow_r18 = admin_control.get_data(group_id, 'R18')
+    allow_r18 = admin_control.get_group_permission(group_id, 'R18')
     user_id = ctx['user_id']
 
     if 'group_id' in ctx and not get_privilege(user_id, perm.OWNER):
-        if admin_control.get_data(group_id, 'banned'):
+        if admin_control.get_group_permission(group_id, 'banned'):
             await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
 
     sanity = -1
@@ -140,7 +140,7 @@ async def pixiv_send(session: nonebot.CommandSession):
         )
         admin_control.set_if_authed(True)
 
-    is_exempt = admin_control.get_data(group_id, 'exempt') if group_id != -1 else False
+    is_exempt = admin_control.get_group_permission(group_id, 'exempt') if group_id != -1 else False
 
     key_word = str(session.get('key_word', prompt='请输入一个关键字进行查询')).lower()
 
@@ -537,7 +537,7 @@ async def cangku_search(session: nonebot.CommandSession):
         allow_r18 = True
     else:
         group_id = ctx['group_id']
-        allow_r18 = admin_control.get_data(group_id, 'R18')
+        allow_r18 = admin_control.get_group_permission(group_id, 'R18')
 
     user_id = ctx['user_id']
     user_id = str(user_id)

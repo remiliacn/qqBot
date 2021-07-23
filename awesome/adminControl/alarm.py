@@ -1,6 +1,6 @@
 from json import loads, dump
-from os.path import exists
 from os import getcwd, mkdir
+from os.path import exists
 
 
 class Alarm:
@@ -24,7 +24,7 @@ class Alarm:
 
         return {}
 
-    def set_alarm(self, alarm : dict):
+    def set_alarm(self, alarm: dict):
         self.trigger += 1
         if not self.global_alarm:
             if self.trigger >= 3:

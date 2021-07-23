@@ -9,7 +9,7 @@ from Services import random_services
 from Services.keylol_update import KeylolFreeGame
 from Services.stock import Stock, Crypto
 from awesome.adminControl import permission as perm
-from awesome.plugins.shadiao import sanity_meter
+from awesome.plugins.shadiao.shadiao import sanity_meter
 from awesome.plugins.util import helper_util
 from config import SUPER_USER
 from qq_bot_core import user_control_module

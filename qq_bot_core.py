@@ -8,7 +8,7 @@ from nonebot.log import logger
 # 如果下面这行报错，请暂时注释掉这行然后运行下面的main()
 import config
 from Services.cangku_api import CangkuApi
-from awesome.adminControl import alarm, user_control, setu, group_admin
+from awesome.adminControl import alarm, user_control, setu, group_control
 from awesome.adminControl.weeb_controller import WeebController
 
 config_file = \
@@ -54,7 +54,7 @@ config_file = \
 alarm_api = alarm.Alarm()
 user_control_module = user_control.UserControl()
 sanity_meter = setu.SetuFunction()
-admin_control = group_admin.Shadiaoadmin()
+admin_control = group_control.Shadiaoadmin()
 weeb_learning = WeebController()
 
 cangku_api = CangkuApi()

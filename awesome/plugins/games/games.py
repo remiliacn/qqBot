@@ -8,8 +8,10 @@ import nonebot
 
 from Services import poker_game, ru_game
 from awesome.adminControl import permission as perm
-from awesome.plugins.admin_setting import get_privilege
-from awesome.plugins.shadiao import admin_control, sanity_meter
+from awesome.plugins.shadiao.shadiao import admin_control, sanity_meter
+from qq_bot_core import user_control_module
+
+get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
 
 class Storer:
@@ -49,12 +51,12 @@ class Storer:
             return info
 
 
-class horseRacing:
-    def __init__(self, userGuess: str):
-        self.userGuess = userGuess
-        self.winningGoal = 7
-        self.actualWinner = -1
-        self.addingDict = {
+class Horseracing:
+    def __init__(self, user_guess: str):
+        self.user_guess = user_guess
+        self.winning_goal = 7
+        self.actual_winner = -1
+        self.adding_dict = {
             "正在勇往直前！": 6,
             "正在一飞冲天！": 4,
             "提起马蹄子就继续往前冲冲冲": 4,
@@ -70,7 +72,7 @@ class horseRacing:
             "终于打起勇气，往前走了……三步": 3,
         }
 
-        self.subtractingDict = {
+        self.subtracting_dict = {
             "被地上的沥青的颜色吓傻了！止步不前": 0,
             '被電マplay啦！爽的倒退了2步！': -2,
             "打假赛往反方向跑了！": -3,
@@ -87,13 +89,13 @@ class horseRacing:
             "决定在原地玩会儿日麻": 0,
         }
 
-        self.horseList = [0, 0, 0, 0, 0, 0]
-        self.responseList = []
+        self.horse_list = [0, 0, 0, 0, 0, 0]
+        self.response_list = []
 
-    def ifPlay(self):
+    def if_play(self):
         try:
-            temp = int(self.userGuess)
-            if temp > len(self.horseList):
+            temp = int(self.user_guess)
+            if temp > len(self.horse_list):
                 return False
 
         except ValueError:
@@ -101,41 +103,41 @@ class horseRacing:
 
         return True
 
-    def ifWin(self):
-        for idx, elements in enumerate(self.horseList):
-            if elements >= self.winningGoal:
-                self.actualWinner = str(idx + 1)
+    def if_win(self):
+        for idx, elements in enumerate(self.horse_list):
+            if elements >= self.winning_goal:
+                self.actual_winner = str(idx + 1)
                 return True
 
         return False
 
-    def whoWin(self):
-        return self.actualWinner
+    def who_win(self):
+        return self.actual_winner
 
-    def getPlayResult(self):
-        self.responseList.clear()
+    def get_play_result(self):
+        self.response_list.clear()
         resp = ""
         i = 0
-        for idx, elements in enumerate(self.horseList):
+        for idx, elements in enumerate(self.horse_list):
             if randint(0, 5) >= 2:
-                thisChoice = choice(list(self.addingDict))
-                self.horseList[idx] += self.addingDict[thisChoice]
-                self.responseList.append(str(i + 1) + "号马, " + thisChoice)
+                this_choice = choice(list(self.adding_dict))
+                self.horse_list[idx] += self.adding_dict[this_choice]
+                self.response_list.append(str(i + 1) + "号马, " + this_choice)
 
             else:
-                thisChoice = choice(list(self.subtractingDict))
-                self.horseList[idx] += self.subtractingDict[thisChoice]
-                self.responseList.append(str(i + 1) + "号马, " + thisChoice)
+                this_choice = choice(list(self.subtracting_dict))
+                self.horse_list[idx] += self.subtracting_dict[this_choice]
+                self.response_list.append(str(i + 1) + "号马, " + this_choice)
 
             i += 1
 
-        for elements in self.responseList:
+        for elements in self.response_list:
             resp += elements + "\n"
 
         return resp
 
-    def playerWin(self):
-        if self.actualWinner == self.userGuess:
+    def player_win(self):
+        if self.actual_winner == self.user_guess:
             return True
 
         return False
@@ -146,10 +148,11 @@ GLOBAL_STORE = Storer()
 game = ru_game.Russianroulette()
 
 
-@nonebot.on_command('1d100', patterns='\d+[dD]\d+', only_to_me=False)
+@nonebot.on_command('1d100', patterns=r'\d+[dD]\d+', only_to_me=False)
 async def pao_tuan_shai_zi(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     message_id = ctx['message_id']
+
     raw_message = ctx['raw_message'].split()[0][1:].lower()
     args = raw_message.split('d')
     throw_times = int(args[0])
@@ -158,48 +161,37 @@ async def pao_tuan_shai_zi(session: nonebot.CommandSession):
 
     max_val = int(args[1])
     result_list = [randint(1, max_val + 1) for _ in range(throw_times)]
-    expected_list = [randint(1, max_val + 1) for _ in range(throw_times)]
     result_sum = sum(result_list)
-    expect = sum(expected_list)
 
-    if expect == result_sum:
-        result = '差一点就成成功了呀！'
-    elif expect > result_sum:
-        if result_sum / expect > 0.9:
-            result = '大失败！'
-        else:
-            result = '失败力！'
-    else:
-        if expect / result_sum > 0.9:
-            result = '大成功！'
-        else:
-            result = '成功！'
-
-    await session.finish(f'[CQ:reply,id={message_id}]结果：{result}')
+    await session.finish(
+        f'[CQ:reply,id={message_id}]'
+        f'筛子结果为：{", ".join([str(x) for x in result_list])}\n'
+        f'筛子结果总和为：{result_sum}'
+    )
 
 
 @nonebot.on_command('赛马', only_to_me=False)
-async def horseRace(session: nonebot.CommandSession):
+async def horse_race(session: nonebot.CommandSession):
     winner = session.get('winner', prompt='请输入一个胜方编号进行猜测（1-6）')
-    race = horseRacing(winner)
+    race = Horseracing(winner)
     ctx = session.ctx.copy()
     user_id = ctx['user_id']
 
-    if race.ifPlay():
-        while not race.ifWin():
-            await session.send(race.getPlayResult())
+    if race.if_play():
+        while not race.if_win():
+            await session.send(race.get_play_result())
             await asyncio.sleep(2)
 
-        if race.playerWin():
+        if race.player_win():
             await session.send("恭喜你猜赢啦！")
             if 'group_id' in ctx:
                 sanity_meter.set_user_data(user_id, 'horse_race')
 
         else:
-            await session.send(f"啊哦~猜输了呢！其实是{race.whoWin()}号赢了哦")
+            await session.send(f"啊哦~猜输了呢！其实是{race.who_win()}号赢了哦")
 
 
-@horseRace.args_parser
+@horse_race.args_parser
 async def _(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:
@@ -214,13 +206,13 @@ async def _(session: nonebot.CommandSession):
 
 
 @nonebot.on_command('轮盘赌', only_to_me=False)
-async def russianRoulette(session: nonebot.CommandSession):
+async def russian_roulette(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     id_num = ctx['group_id'] if 'group_id' in ctx else ctx['user_id']
     user_id = ctx['user_id']
 
     if 'group_id' in ctx:
-        if admin_control.get_data(ctx['group_id'], 'banned'):
+        if admin_control.get_group_permission(ctx['group_id'], 'banned'):
             await session.send('已设置禁止该群的娱乐功能。如果确认这是错误的话，请联系bot制作者')
             return
     else:
@@ -245,7 +237,10 @@ async def russianRoulette(session: nonebot.CommandSession):
                                '本应中枪几率为：%.2f' % (1 / (7 - death) * 100))
             return
 
-        await session.send(f'[CQ:reply,id={message_id}]boom！你死了。这是第{death}枪，理论几率为：{(1 / (7 - death) * 100):.2f}%')
+        await session.send(
+            f'[CQ:reply,id={message_id}]boom！你死了。这是第{death}枪，'
+            f'理论几率为：{(1 / (7 - death) * 100):.2f}%'
+        )
         sanity_meter.set_user_data(user_id, 'roulette')
 
         bot = nonebot.get_bot()
@@ -314,7 +309,7 @@ async def the_poker_game(session: nonebot.CommandSession):
     user_id = ctx['user_id']
 
     if 'group_id' in ctx:
-        if admin_control.get_data(ctx['group_id'], 'banned'):
+        if admin_control.get_group_permission(ctx['group_id'], 'banned'):
             await session.send('已设置禁止该群的娱乐功能。如果确认这是错误的话，请联系bot制作者')
             return
 
