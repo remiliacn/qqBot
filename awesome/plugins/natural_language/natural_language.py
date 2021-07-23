@@ -16,6 +16,7 @@ from awesome.adminControl import permission as perm
 from awesome.plugins.setu.setu import sauce_helper
 from awesome.plugins.util.helper_util import anime_reverse_search_response
 from qq_bot_core import admin_control, user_control_module
+from ..little_helper.little_helper import hhsh, cache
 from ..util import search_helper
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
@@ -69,29 +70,45 @@ async def _check_if_asking_definition(message: str) -> str:
             if not extracted_keyword:
                 return ''
 
-            key_word = extracted_keyword[0][0]
-            logger.info(f'first pass keyword: {key_word}')
-            if len(key_word) > 4:
+            sentence = extracted_keyword[0][0]
+            logger.info(f'first pass keyword: {sentence}')
+            if len(sentence) > 4:
                 try:
-                    _ = pos.cut(key_word)
-                    jieba.enable_paddle()
-                    words = pos.cut(key_word, use_paddle=True)
-                    words = [(word, flag) for word, flag in words if 'n' in flag or flag in ('PER', 'LOC', 'ORG')]
-
-                    if not words:
-                        return ''
-
-                    key_word = words[-1][0]
-                    key_word = re.sub(r'[，。、；’【】！￥…（）《》？：”“‘]', '', key_word)
+                    key_word = _extract_keyword_from_sentence(sentence)
                 except Exception as err:
                     logger.warning(err)
                     return ''
+            else:
+                key_word = sentence
 
             logger.info(f'second pass keyword: {key_word}')
-            result = await search_helper.get_definition(key_word)
+            result = cache.get_result(key_word, 'WIKIPEDIA')
+            if not result:
+                result = await search_helper.get_definition(key_word)
+                if result:
+                    cache.store_result(key_word, result, 'WIKIPEDIA')
+                if not result and key_word.isalpha():
+                    result = await hhsh(key_word)
+
             return result
 
     return ''
+
+
+def _extract_keyword_from_sentence(key_word: str) -> str:
+    _ = pos.cut(key_word)
+    jieba.enable_paddle()
+
+    # 添加“是”这个指示词帮助分词选定最后一个名词
+    words = pos.cut(key_word + '是', use_paddle=True)
+    words = [(word, flag) for word, flag in words if 'n' in flag or flag in ('PER', 'LOC', 'ORG')]
+
+    if not words:
+        return ''
+
+    key_word = words[-1][0]
+    key_word = re.sub(r'[，。、；’【】！￥…（）《》？：”“‘]', '', key_word)
+    return key_word
 
 
 def _repeat_and_palindrome_fetch(message: str) -> str:

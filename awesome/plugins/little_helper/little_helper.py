@@ -283,6 +283,9 @@ async def hhsh(entry: str) -> str:
             return result + json_data[0]['inputting'][0]
         except KeyError:
             return '这……我也不懂啊草，能不能好好说话（'
+    except Exception as err:
+        logger.debug(f'hhsh err: {err}')
+        return ''
 
     cache.store_result(entry, result, HHSHMEANING)
     return result

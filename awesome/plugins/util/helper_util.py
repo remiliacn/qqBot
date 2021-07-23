@@ -9,6 +9,7 @@ from nonebot.log import logger
 
 HHSHMEANING = 'meaning'
 FURIGANAFUNCTION = 'furigana'
+WIKIPEDIA = 'WIKIPEDIA'
 
 
 def download_image_to_path(response, path):
@@ -36,6 +37,7 @@ class HhshCache:
     def __init__(self):
         self.meaning_dict = {}  # str : str
         self.furigana_dict = {}
+        self.wikipedia_dict = {}
 
     def check_exist(self, query, function):
         if function == HHSHMEANING:
@@ -44,27 +46,42 @@ class HhshCache:
         if function == FURIGANAFUNCTION:
             return query in self.furigana_dict
 
-    def store_result(self, query: str, meaning: str, function: (HHSHMEANING or FURIGANAFUNCTION)):
-        if function == HHSHMEANING:
-            if len(self.meaning_dict) > 100:
-                first_key = next(iter(self.meaning_dict))
-                del self.meaning_dict[first_key]
+    @staticmethod
+    def _check_and_delete_first_key(d: dict) -> None:
+        if len(d) > 100:
+            first_key = next(iter(d))
+            del d[first_key]
 
+    def store_result(
+            self,
+            query: str,
+            meaning: str,
+            function: (HHSHMEANING or FURIGANAFUNCTION or WIKIPEDIA)
+    ):
+        if function == HHSHMEANING:
+            self._check_and_delete_first_key(self.meaning_dict)
             self.meaning_dict[query] = meaning
 
         elif function == FURIGANAFUNCTION:
-            if len(self.furigana_dict) > 100:
-                first_key = next(iter(self.furigana_dict))
-                del self.furigana_dict[first_key]
-
+            self._check_and_delete_first_key(self.furigana_dict)
             self.furigana_dict[query] = meaning
 
+        elif function == WIKIPEDIA:
+            self._check_and_delete_first_key(self.wikipedia_dict)
+            self.wikipedia_dict[query] = meaning
+
     def get_result(self, query, function):
+        def _get_result_if_exists(d: dict, q: str) -> str:
+            return d[q] if q in d else ''
+
         if function == HHSHMEANING:
-            return self.meaning_dict[query]
+            return _get_result_if_exists(self.meaning_dict, query)
 
         if function == FURIGANAFUNCTION:
-            return self.furigana_dict[query]
+            return _get_result_if_exists(self.furigana_dict, query)
+
+        if function == WIKIPEDIA:
+            return _get_result_if_exists(self.wikipedia_dict, query)
 
 
 class Translation:
