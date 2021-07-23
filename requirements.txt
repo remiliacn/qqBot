@@ -4,10 +4,10 @@ china_idiom
 plotly~=4.14.3
 kaleido
 youtube_dl
-aiohttp~=3.6.2
-urllib3~=1.25.10
+aiohttp>=3.7.4
+urllib3>=1.26.5
 twitter
-lxml~=4.5.2
+lxml>=4.6.3
 googletrans~=3.0.0
 python-twitter
 requests~=2.24.0
