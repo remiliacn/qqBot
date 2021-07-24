@@ -12,7 +12,7 @@ from Services.random_services import YouTubeLiveTracker
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao.shadiao import sanity_meter
 from awesome.plugins.util.tweetHelper import tweeter
-from config import SUPER_USER, DOWNLODER_FILE_NAME, SHARE_LINK, PATH_TO_ONEDRIVE
+from config import SUPER_USER, DOWNLODER_FILE_NAME, PATH_TO_ONEDRIVE
 from qq_bot_core import alarm_api
 from qq_bot_core import user_control_module
 
@@ -260,12 +260,6 @@ async def do_youtube_update_fetch():
                     try:
                         group_id = int(youtube_notify_dict[elements]['group_id'])
                         name = youtube_notify_dict[elements]['ch_name']
-                        await bot.send_group_msg(
-                            group_id=group_id,
-                            message=f'视频下载完毕~ [OneDrive：{SHARE_LINK}]\n'
-                                    f'视频名称：{elements}\n'
-                                    f'视频将尝试上传群文件一份'
-                        )
                         await bot.send_private_msg(
                             user_id=SUPER_USER,
                             message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}]'

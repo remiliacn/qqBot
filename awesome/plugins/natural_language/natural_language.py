@@ -113,10 +113,11 @@ def _extract_keyword_from_sentence(key_word: str) -> str:
 
 def _repeat_and_palindrome_fetch(message: str) -> str:
     repeat_syntax = r'^(.*?)\1+$'
+    rand_chance = randint(0, 10)
     if fullmatch(repeat_syntax, message):
         word_repeat = findall(repeat_syntax, message)[0]
         count = message.count(word_repeat)
-        if count >= 3:
+        if count >= 3 and rand_chance < 4:
             return f'{count}个{word_repeat}'
         return ''
 

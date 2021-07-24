@@ -13,7 +13,6 @@ from awesome.plugins.shadiao.shadiao import sanity_meter
 from awesome.plugins.util import helper_util
 from config import SUPER_USER
 from qq_bot_core import user_control_module
-from youdaoService import youdao
 
 cache = helper_util.HhshCache()
 
@@ -99,40 +98,6 @@ async def k_line(session: nonebot.CommandSession):
         )
 
 
-@nonebot.on_command('翻译', only_to_me=False)
-async def translate(session: nonebot.CommandSession):
-    trans = helper_util.Translation()
-    ctx = session.ctx.copy()
-    if user_control_module.get_user_privilege(ctx['user_id'], perm.BANNED):
-        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
-
-    key_word = session.get('key_word', prompt='翻译的内容呢？')
-    get_result = ''
-
-    try:
-        get_result = trans.get_translation_result(sentence=key_word)
-    except Exception as e:
-        logger.warning('翻译出错！%s' % e)
-        await session.finish('翻译出错了！请重试！')
-
-    await session.send('以下来自于谷歌翻译的结果，仅供参考：\n%s' % get_result)
-
-
-@nonebot.on_command('日语词典', only_to_me=False)
-async def get_you_dao_service(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    if user_control_module.get_user_privilege(ctx['user_id'], perm.BANNED):
-        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
-
-    key_word = session.get('key_word', prompt='词呢！词呢！！KORA！！！')
-    if key_word != '':
-        you = youdao.Youdaodict(keyWord=key_word)
-        await session.send('以下是%s的查询结果\n%s' % (key_word, you.explain_to_string()))
-
-    else:
-        await session.send('...')
-
-
 @nonebot.on_command('最新地震', only_to_me=False)
 async def send_earth_quake_info(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -142,53 +107,6 @@ async def send_earth_quake_info(session: nonebot.CommandSession):
     earth_quake_api_new = random_services.Earthquakeinfo()
     new_earthquake_info = earth_quake_api_new.get_newest_info()
     await session.send(new_earthquake_info)
-
-
-@nonebot.on_command('日日释义', only_to_me=False)
-async def jp_to_jp_dict(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    if user_control_module.get_user_privilege(ctx['user_id'], perm.BANNED):
-        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
-
-    key_word = session.get('key_word', prompt='请输入一个关键字！')
-    goo_api = None
-    try:
-        goo_api = youdao.Goodict(keyWord=key_word)
-    except Exception as e:
-        logger.warning('something went wrong in jptojpdict %s' % e)
-        await session.finish('悲！连接出错惹')
-
-    result, okay_or_not = goo_api.get_title_string()
-    if okay_or_not:
-        number = session.get('number', prompt='%s\n请输入要查询的部分的序号！' % result)
-        try:
-            number = int(number)
-        except ValueError:
-            await session.send('序号出错！')
-            return
-
-        goo_api.get_list(index=number)
-        result = goo_api.get_explaination()
-        await session.send('你查询的关键字%s的结果如下：\n%s' % (key_word, result))
-
-    else:
-        await session.send('出大错惹！！尝试新算法中……')
-        goo_api.get_list(index=0, page='exception')
-        result = goo_api.get_explaination()
-        await session.send('你查询的关键字%s的结果如下：\n%s' % (key_word, result))
-
-
-@nonebot.on_command('释义nico', only_to_me=False)
-async def nico_send(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    if user_control_module.get_user_privilege(ctx['user_id'], perm.BANNED):
-        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
-
-    key_word = session.get('key_word', prompt='歪？我的关键字呢？')
-    api = youdao.Nicowiki(keyWord=key_word)
-    await session.send(api.__str__())
-    if 'group_id' in ctx:
-        sanity_meter.set_user_data(ctx['user_id'], 'nico')
 
 
 @nonebot.on_command('反码', only_to_me=False)
@@ -232,10 +150,6 @@ async def can_you_be_fucking_normal(session: nonebot.CommandSession):
 
 
 @can_you_be_fucking_normal.args_parser
-@get_you_dao_service.args_parser
-@jp_to_jp_dict.args_parser
-@nico_send.args_parser
-@translate.args_parser
 @k_line.args_parser
 @crypto_search.args_parser
 async def _you_dao_service_args(session: nonebot.CommandSession):
