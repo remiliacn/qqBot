@@ -22,7 +22,7 @@ config_file = \
     ACCESS_SECRET = ''   # Twitter Access Secret Token
     
     PIXIV_REFRESH_TOKEN = '' # Pixiv refresh token (upbit/pixivpy的issue#158有获取方式)
-    DOWNLODER_FILE_NAME = 'forDownload.py'
+    DOWNLODER_FILE_NAME = 'for_download.py'
     
     ITPK_KEY = ''        # 茉莉机器人API KEY
     ITPK_SECRET = ''     # 茉莉机器人API SECRET

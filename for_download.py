@@ -13,13 +13,13 @@ from config import FFMPEG_PATH, PATH_TEMP_DOWNLOAD, PATH_TO_ONEDRIVE
 
 def main():
     if not get_status():
-        logger.warning('There is one task running.')
+        logger.debug('There is one task running.')
         return
 
     var = sys.argv
-    logger.warning(var)
+    logger.debug(var)
     if len(var) == 1:
-        logger.warning('Missing arguments!')
+        logger.debug('Missing arguments!')
         exit(1)
 
     setting = var[1]
@@ -33,14 +33,14 @@ def main():
     else:
         user_in_dict = get_config()
         if not user_in_dict:
-            logger.warning('Init failed when trying to download videos.')
+            logger.debug('Init failed when trying to download videos.')
             register_true()
             exit(-1)
 
         register_false()
         for youtube_user in user_in_dict:
             try:
-                logger.warning(f'Getting first video for: {youtube_user}')
+                logger.debug(f'Getting first video for: {youtube_user}')
                 get_first_video(
                     user_in_dict[youtube_user]['channel'],
                     youtube_user,
@@ -48,10 +48,10 @@ def main():
                     user_in_dict
                 )
             except Exception as err:
-                logger.warning(f'Unknown error occurred for {youtube_user}: {err}')
+                logger.debug(f'Unknown error occurred for {youtube_user}: {err}')
 
     if not get_status():
-        logger.warning('Exiting YouTube downloader...')
+        logger.debug('Exiting YouTube downloader...')
         register_true()
 
 
@@ -84,7 +84,7 @@ def get_config() -> dict:
     try:
         download_dict = json.loads(str(fl))
     except Exception as e:
-        logger.warning('Something went wrong when getting download config. %s' % e)
+        logger.debug('Something went wrong when getting download config. %s' % e)
         return {}
 
     return download_dict
@@ -108,7 +108,7 @@ def get_first_video(channel_id: str, name: str, group_id, user_dict: dict):
     try:
         json_data = json.loads(content)
     except Exception as err:
-        logger.warning(f'Getting video ID failed for {name}. {err}')
+        logger.debug(f'Getting video ID failed for {name}. {err}')
         return
 
     try:
@@ -118,33 +118,33 @@ def get_first_video(channel_id: str, name: str, group_id, user_dict: dict):
         first_video_outer = video_tab_inner[0]['gridRenderer']['items'][0]['gridVideoRenderer']
         first_video_id = first_video_outer['videoId']
         if 'publishedTimeText' not in first_video_outer:
-            logger.warning(f'The video is live right now for {name}')
+            logger.debug(f'The video is live right now for {name}')
             return
 
         publish_time = first_video_outer['publishedTimeText']['simpleText']
         enabled = user_dict[name]['enabled']
         if 'hours ago' not in publish_time and enabled:
-            logger.warning('Not a recent video or the video is not yet converted.')
+            logger.debug('Not a recent video or the video is not yet converted.')
             return
         else:
             if enabled:
                 time = re.findall(r'(\d+) hours ago', publish_time)
                 if time:
-                    logger.warning(f'{name} - This video is published {time[0]} hours ago')
+                    logger.debug(f'{name} - This video is published {time[0]} hours ago')
                     if int(time[0]) < 2:
-                        logger.warning('The video may not be fully converted, aborting...')
+                        logger.debug('The video may not be fully converted, aborting...')
                         return
 
     except KeyError as err:
-        logger.warning('Something has happened with %s... Error Message: %s' % (name, err))
+        logger.debug('Something has happened with %s... Error Message: %s' % (name, err))
         return
 
     video_id_temp = user_dict[name]["videoID"] if 'videoID' in user_dict[name] else ''
     if first_video_id == video_id_temp:
-        logger.warning('Download is already finished. This is the test from videoID test.')
+        logger.debug('Download is already finished. This is the test from videoID test.')
         return
 
-    logger.warning('Current Video ID is: %s' % first_video_id)
+    logger.debug('Current Video ID is: %s' % first_video_id)
     enabled = user_dict[name]['enabled']
     download_video(first_video_id, name, group_id, enabled)
 
@@ -167,12 +167,12 @@ def download_video(video_id: str, name: str, groupID, enable: bool):
 
 
     except youtube_dl.utils.ExtractorError:
-        logger.warning('Current Video is not available yet')
+        logger.debug('Current Video is not available yet')
         return
 
     video_path = PATH_TO_ONEDRIVE + name + '/' + video_title + '.mp4'
     video_path_temp = PATH_TEMP_DOWNLOAD + name + '/' + video_title + '.mp4'
-    logger.warning('Downloading in %s' % video_path_temp)
+    logger.debug('Downloading in %s' % video_path_temp)
 
     if not os.path.exists(PATH_TO_ONEDRIVE + name + '/'):
         os.makedirs(PATH_TO_ONEDRIVE + name + '/')
@@ -192,20 +192,20 @@ def download_video(video_id: str, name: str, groupID, enable: bool):
 
     # 查看是否视频已经被下载
     if not os.path.exists(video_path) and enable:
-        logger.warning(f"Missing video: {video_title}")
-        logger.warning('Download will be starting shortly.\nVideo ID: %s' % video_id)
+        logger.debug(f"Missing video: {video_title}")
+        logger.debug('Download will be starting shortly.\nVideo ID: %s' % video_id)
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([youtube_link])
 
-            logger.warning('Download is completed.\nVideo title: %s' % video_title)
-            logger.warning('Moving video to: ' + video_path)
+            logger.debug('Download is completed.\nVideo title: %s' % video_title)
+            logger.debug('Moving video to: ' + video_path)
             shutil.move(video_path_temp, video_path)
 
             upload_status(name, video_title, video_id, groupID, retcode=0)
 
         except Exception as e:
-            logger.warning(f'Download failed for {name}, will try again later... {e}')
+            logger.debug(f'Download failed for {name}, will try again later... {e}')
 
     # 如果只是提醒，则返回一个retcode=1，这个retcode在我的机器人中意味着未下载，只提醒。
     # retcode=0代表着已下载，并需要提醒
@@ -215,7 +215,7 @@ def download_video(video_id: str, name: str, groupID, enable: bool):
         upload_status(name, videoTitle_temp, video_id, groupID, retcode=1)
 
     else:
-        logger.warning('Unhandled stiuation.')
+        logger.debug('Unhandled stiuation.')
 
 
 def upload_status(ch_name: str, video_name: str, video_id: str, group_id, retcode: int):

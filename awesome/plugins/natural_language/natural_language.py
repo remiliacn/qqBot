@@ -1,6 +1,7 @@
 import asyncio
 import re
 from datetime import datetime
+from os import getcwd
 from random import seed, randint
 from re import fullmatch, findall, match, sub
 from time import time_ns
@@ -14,7 +15,7 @@ from loguru import logger
 import config
 from awesome.adminControl import permission as perm
 from awesome.plugins.setu.setu import sauce_helper
-from awesome.plugins.util.helper_util import anime_reverse_search_response
+from awesome.plugins.util.helper_util import anime_reverse_search_response, get_downloaded_image_path
 from qq_bot_core import admin_control, user_control_module
 from ..little_helper.little_helper import hhsh, cache
 from ..util import search_helper
@@ -32,6 +33,18 @@ async def natural_language_proc(session: nonebot.NLPSession):
     group_id = context['group_id']
     user_id = context['user_id']
     message = str(context['raw_message'])
+
+    if '添加语录' in message:
+        bot = nonebot.get_bot()
+        has_image = re.findall(r'.*?\[CQ:image,file=(.*?\.image)]', message)
+        if has_image:
+            response = await bot.get_image(file=has_image[0])
+            path = get_downloaded_image_path(response, f'{getcwd()}/data/lol')
+
+            if path:
+                admin_control.add_quote(group_id, path)
+                await session.send(f'已添加！（当前总语录条数：{admin_control.get_group_quote_count(group_id)})')
+                return
 
     if match(r'.*?哼{2,}啊+', message):
         await session.send('别臭了别臭了！孩子要臭傻了')
@@ -61,7 +74,7 @@ async def natural_language_proc(session: nonebot.NLPSession):
 
 async def _check_if_asking_definition(message: str) -> str:
     keyword_regex = r'(.*?)是个?(什么|啥)'
-    if re.match(keyword_regex, message):
+    if re.match(keyword_regex, message) and '不是' not in message:
         logger.success('hit asking definition.')
         if randint(0, 10) < 5:
             logger.success('hit random chance.')

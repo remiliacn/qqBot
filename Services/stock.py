@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from os import getcwd
 from time import time_ns
 
+import aiohttp
 import pandas
 import plotly.graph_objects as plotter
 import requests
@@ -14,16 +15,16 @@ from config import OKEX_API_KEY, OKEX_PASSPHRASE, OKEX_SECRET_KEY
 
 
 async def text_to_image(string: str):
-    LINE_CHAR_COUNT = 50 * 2  # 每行字符数：30个中文字符(=60英文字符)
-    CHAR_SIZE = 30
-    TABLE_WIDTH = 4
+    line_char_count = 50 * 2  # 每行字符数：30个中文字符(=60英文字符)
+    char_size = 30
+    table_width = 4
 
     def line_break(line):
         ret = ''
         width = 0
         for char in line:
             if len(char.encode('utf8')) == 3:  # 中文
-                if LINE_CHAR_COUNT == width + 1:  # 剩余位置不够一个汉字
+                if line_char_count == width + 1:  # 剩余位置不够一个汉字
                     width = 2
                     ret += '\n' + char
                 else:  # 中文宽度加2，注意换行边界
@@ -31,7 +32,7 @@ async def text_to_image(string: str):
                     ret += char
             else:
                 if char == '\t':
-                    space_c = TABLE_WIDTH - width % TABLE_WIDTH  # 已有长度对TABLE_WIDTH取余
+                    space_c = table_width - width % table_width  # 已有长度对TABLE_WIDTH取余
                     ret += ' ' * space_c
                     width += space_c
                 elif char == '\n':
@@ -40,7 +41,7 @@ async def text_to_image(string: str):
                 else:
                     width += 1
                     ret += char
-            if width >= LINE_CHAR_COUNT:
+            if width >= line_char_count:
                 ret += '\n'
                 width = 0
         if ret.endswith('\n'):
@@ -49,10 +50,10 @@ async def text_to_image(string: str):
 
     output_str = string
     output_str = line_break(output_str)
-    d_font = ImageFont.truetype('C:/Windows/Fonts/Deng.ttf', CHAR_SIZE)
+    d_font = ImageFont.truetype('C:/Windows/Fonts/Deng.ttf', char_size)
     lines = output_str.count('\n')
 
-    image = Image.new("L", (LINE_CHAR_COUNT * CHAR_SIZE // 2, CHAR_SIZE * lines), "white")
+    image = Image.new("L", (line_char_count * char_size // 2, char_size * lines), "white")
     draw_table = ImageDraw.Draw(im=image)
     draw_table.text(xy=(0, 0), text=output_str, fill='#000000', font=d_font, spacing=4)
 
@@ -63,8 +64,8 @@ async def text_to_image(string: str):
     return file_name
 
 
-def _convert_nest_loop_to_single(l):
-    return [x for element in l for x in element]
+def _convert_nest_loop_to_single(lis):
+    return [x for element in lis for x in element]
 
 
 def _convert_data_frame_to_list(df):
@@ -253,7 +254,7 @@ class Crypto:
         self.granularity = 60 * 60
 
     def get_kline(self, analyze_type='MACD'):
-        spotAPI = spot.SpotAPI(
+        spot_api = spot.SpotAPI(
             OKEX_API_KEY,
             OKEX_SECRET_KEY,
             OKEX_PASSPHRASE,
@@ -261,7 +262,7 @@ class Crypto:
         )
 
         # get 1h k-line
-        json_data = spotAPI.get_kline(
+        json_data = spot_api.get_kline(
             instrument_id=self.crypto,
             start='',
             end='',
@@ -409,9 +410,10 @@ class Stock:
         return file_name, market_will
 
     async def _request_for_kline_data(self, iteration=False) -> list:
-        page = requests.get(self.kline_api)
+        async with aiohttp.ClientSession() as client:
+            async with client.get(self.kline_api) as page:
+                json_data = await page.json()
 
-        json_data = page.json()
         if json_data is None:
             return []
 
@@ -437,6 +439,5 @@ class Stock:
         if 'klines' in json_data:
             json_data = json_data['klines']
             return [x.split(',') for x in json_data]
-            # [['2021-05-28', '89.81', '90.58', '95.00', '88.86', '527020', '4870749696.00', '6.95', '2.51', '2.22', '4.84']
 
         return []

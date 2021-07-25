@@ -111,6 +111,11 @@ async def bulk_get_new_tweet(session: nonebot.CommandSession):
         )
 
 
+@nonebot.scheduler.scheduled_job('interval', minutes=2, misfire_grace_time=5)
+async def do_file_upload():
+    await do_youtube_update_fetch()
+
+
 @nonebot.scheduler.scheduled_job('interval', seconds=50, misfire_grace_time=5)
 async def send_tweet():
     start_time = time.time()
@@ -127,7 +132,6 @@ async def send_tweet():
     await asyncio.gather(
         do_tweet_update_fetch(),
         # do_bilibili_live_fetch(),
-        do_youtube_update_fetch(),
         fill_sanity(),
         save_stats(),
         check_youtube_live()
@@ -250,15 +254,15 @@ async def do_youtube_update_fetch():
     logger.info('Checking for video updates...')
     file = open('config/YouTubeNotify.json')
     fl = file.read()
-    import json
+
     youtube_notify_dict = json.loads(str(fl))
     if youtube_notify_dict:
         bot = nonebot.get_bot()
         for elements in youtube_notify_dict:
             if not youtube_notify_dict[elements]['status']:
                 if youtube_notify_dict[elements]['retcode'] == 0:
+                    group_id = int(youtube_notify_dict[elements]['group_id'])
                     try:
-                        group_id = int(youtube_notify_dict[elements]['group_id'])
                         name = youtube_notify_dict[elements]['ch_name']
                         await bot.send_private_msg(
                             user_id=SUPER_USER,
@@ -266,32 +270,18 @@ async def do_youtube_update_fetch():
                                     f'Video is now available for group {group_id}\n'
                                     f'Video title: {elements}'
                         )
-                        try:
-                            logger.info(f'Uploading video: {elements}')
-                            await bot.upload_group_file(
-                                group_id=group_id,
-                                file=f"{PATH_TO_ONEDRIVE}{name}/{elements}.mp4",
-                                name=f"{elements}.mp4"
-                            )
-                        except Exception as err:
-                            await bot.send_private_msg(
-                                user_id=SUPER_USER,
-                                message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}]'
-                                        f'上传群文件失败{err}\n'
-                                        f'Video title: {elements}'
-                            )
-
-                            if 'retcode=100' in str(err):
-                                await bot.send_group_msg(
-                                    group_id=group_id,
-                                    message='尝试上传群文件失败。请检查群空间是否足够'
-                                )
+                        logger.info(f'Uploading video: {elements}')
+                        await bot.upload_group_file(
+                            group_id=group_id,
+                            file=f"{PATH_TO_ONEDRIVE}{name}/{elements}.mp4",
+                            name=f"{elements}.mp4"
+                        )
 
                     except Exception as err:
-                        await bot.send_private_msg(
-                            user_id=SUPER_USER,
-                            message=f'发送扒源信息到组失败{err}\n'
-                                    f'组号：{youtube_notify_dict[elements]["group_id"]}'
+                        logger.warning(f'扒源error：{err}')
+                        await bot.send_group_msg(
+                            group_id=group_id,
+                            message=f'视频上传失败，请检查群空间是否足够。'
                         )
 
                 elif youtube_notify_dict[elements]['retcode'] == 1:
@@ -314,11 +304,10 @@ async def do_youtube_update_fetch():
                 except Exception as e:
                     logger.warning('Something went wrong %s' % e)
 
+        file.close()
         empty_dict = {}
         with open('config/YouTubeNotify.json', 'w+') as f:
             json.dump(empty_dict, f, indent=4)
-
-        file.close()
 
 
 async def do_tweet_update_fetch():

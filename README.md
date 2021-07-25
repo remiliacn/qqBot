@@ -23,35 +23,36 @@
 
 # Config
 建议进行以下设置：
+
 ```python3
 from nonebot.default_config import *
-    
+
 NICKNAME = {}
-CONSUMER_KEY = ''    # Twitter consumer key
-CONSUMER_SECRET = '' # Twitter Secret Token
-ACCESS_TOKEN = ''    # Twitter Access Token
-ACCESS_SECRET = ''   # Twitter Access Secret Token
+CONSUMER_KEY = ''  # Twitter consumer key
+CONSUMER_SECRET = ''  # Twitter Secret Token
+ACCESS_TOKEN = ''  # Twitter Access Token
+ACCESS_SECRET = ''  # Twitter Access Secret Token
 
-PIXIV_REFRESH_TOKEN = '' # Pixiv refresh token (upbit/pixivpy的issue#158有获取方式)
-DOWNLODER_FILE_NAME = 'forDownload.py'
+PIXIV_REFRESH_TOKEN = ''  # Pixiv refresh token (upbit/pixivpy的issue#158有获取方式)
+DOWNLODER_FILE_NAME = 'for_download.py'
 
-ITPK_KEY = ''        # 茉莉机器人API KEY
-ITPK_SECRET = ''     # 茉莉机器人API SECRET
+ITPK_KEY = ''  # 茉莉机器人API KEY
+ITPK_SECRET = ''  # 茉莉机器人API SECRET
 
-SAUCE_API_KEY = ''   # Sauce API key.
+SAUCE_API_KEY = ''  # Sauce API key.
 
 HOST = '127.0.0.1'
 PORT = 5700
-SUPER_USER = 0       # 超级管理员qq号 (int)
+SUPER_USER = 0  # 超级管理员qq号 (int)
 
 # 如果需要YouTube自动扒源功能可保留下面的参数，否则可以删除
 # 删除后可移除forDownload.py文件以及do_youtube_update_fetch()方法
 # 该方法存在于./awesome/plugins/get_tweet.py
 
-PATH_TO_ONEDRIVE = ''    # OneDrive盘路径，或服务器文件路径终点
+PATH_TO_ONEDRIVE = ''  # OneDrive盘路径，或服务器文件路径终点
 PATH_TEMP_DOWNLOAD = ''  # 视频下载的缓存地址
-FFMPEG_PATH = ''         # FFMPEG路径
-SHARE_LINK = ''          # OneDrive分享地址，或服务器目录根地址。
+FFMPEG_PATH = ''  # FFMPEG路径
+SHARE_LINK = ''  # OneDrive分享地址，或服务器目录根地址。
 
 CANGKU_USERNAME = ''
 CANGKU_PASSWORD = ''
