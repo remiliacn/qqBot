@@ -55,7 +55,7 @@ async def natural_language_proc(session: nonebot.NLPSession):
         await session.send(auto_reply)
         return
 
-    reply_response = await _check_reply_keywords(message)
+    reply_response = await _check_reply_keywords(message, session.self_id)
     if reply_response:
         await session.send(reply_response)
         return
@@ -71,11 +71,27 @@ async def natural_language_proc(session: nonebot.NLPSession):
         await asyncio.sleep(sleep_time)
         await session.send(fetch_result)
 
+    if admin_control.get_group_permission(group_id, 'flash', default_if_none=False):
+        fetch_flash_image = await _get_flash_image_entry(message)
+        if fetch_flash_image:
+            await session.send(f'已拦截到闪照~\n'
+                               f'[CQ:image,file={fetch_flash_image}]')
+
+
+async def _get_flash_image_entry(message: str) -> str:
+    if re.match(r'.*?\[CQ:image,type=flash', message):
+        logger.debug('Flash image found.')
+        has_image = findall(r'file=(.*?\.image)', message)
+        logger.debug(f'Flash image: {has_image}')
+        if has_image:
+            return has_image[0]
+    return ''
+
 
 async def _check_if_asking_definition(message: str) -> str:
     keyword_regex = r'(.*?)是个?(什么|啥)'
     if re.match(keyword_regex, message) and '不是' not in message:
-        logger.success('hit asking definition.')
+        logger.success(f'hit asking definition. {message}')
         if randint(0, 10) < 5:
             logger.success('hit random chance.')
             extracted_keyword = re.findall(keyword_regex, message)
@@ -165,18 +181,32 @@ def _do_auto_reply_retrieve(
     return ''
 
 
-async def _check_reply_keywords(message: str) -> str:
+async def _check_reply_keywords(message: str, self_id: int) -> str:
     if '[CQ:reply' in message:
         if '搜图' in message:
             response = await _do_soutu_operation(message)
         elif '复述' in message:
             response = await _do_tts_send(message)
+        elif '撤' in message:
+            await _do_delete_msg(message, self_id)
+            response = ''
         else:
             response = ''
     else:
         response = ''
 
     return response.strip()
+
+
+async def _do_delete_msg(message: str, self_id):
+    bot = nonebot.get_bot()
+    reply_id = findall(r'\[CQ:reply,id=(.*?)]', message)[0]
+    message_info = await bot.get_msg(message_id=int(reply_id))
+
+    if message_info['sender']['user_id'] != self_id:
+        return
+
+    await bot.delete_msg(message_id=int(reply_id))
 
 
 async def _do_tts_send(message: str) -> str:

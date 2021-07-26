@@ -3,7 +3,24 @@ from aiocqhttp import MessageSegment
 
 from awesome.adminControl.permission import OWNER
 from awesome.plugins.admin_setting.admin_setting import get_privilege
+from awesome.plugins.util.helper_util import set_group_permission
 from qq_bot_core import admin_control
+
+
+@nonebot.on_command('antiflash', only_to_me=False)
+async def anti_flash_setting(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    if not get_privilege(ctx['user_id'], OWNER):
+        return
+
+    if 'group_id' not in ctx:
+        return
+
+    group_id = ctx['group_id']
+    arg = session.current_arg
+    set_group_permission(arg, group_id, 'flash')
+
+    await session.finish('Done')
 
 
 @nonebot.on_command('antirecall', only_to_me=False)
@@ -17,10 +34,8 @@ async def anti_recall_setting(session: nonebot.CommandSession):
 
     group_id = ctx['group_id']
     arg = session.current_arg
-    if '开' in arg:
-        admin_control.set_group_permission(group_id=group_id, tag='recall', stat=True)
-    else:
-        admin_control.set_group_permission(group_id=group_id, tag='recall', stat=False)
+
+    set_group_permission(arg, group_id, 'recall')
 
     await session.finish('Done')
 

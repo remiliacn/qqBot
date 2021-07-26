@@ -9,7 +9,7 @@ from Services import random_services
 from Services.keylol_update import KeylolFreeGame
 from Services.stock import Stock, Crypto
 from awesome.adminControl import permission as perm
-from awesome.plugins.shadiao.shadiao import sanity_meter
+from awesome.plugins.shadiao.shadiao import setu_control
 from awesome.plugins.util import helper_util
 from config import SUPER_USER
 from qq_bot_core import user_control_module
@@ -143,7 +143,7 @@ async def can_you_be_fucking_normal(session: nonebot.CommandSession):
     try:
         await session.send(await hhsh(key_word) + '\n本次查询耗时： %.2fs' % (time.time() - start_time))
         if 'group_id' in ctx:
-            sanity_meter.set_user_data(ctx['user_id'], 'hhsh')
+            setu_control.set_user_data(ctx['user_id'], 'hhsh')
 
     except Exception as e:
         logger.debug('Something went wrong %s' % e)

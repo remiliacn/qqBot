@@ -17,6 +17,14 @@ class SetuFunction:
         self.setu_config = {}
         self._init_bad_word()
 
+    def get_setu_usage(self) -> int:
+        total = 0
+        for element in self.stat_dict:
+            personal_stat = self.stat_dict[element]
+            total += personal_stat['setu'] if 'setu' in personal_stat else 0
+
+        return total
+
     def track_keyword(self, key_word):
         if 'keyword' not in self.setu_config:
             self.setu_config['keyword'] = {}
@@ -251,7 +259,7 @@ class SetuFunction:
     def make_a_json(self, file_name):
         if file_name == 'config/stats.json':
             with open(file_name, 'w+', encoding='utf-8') as f:
-                dump(self.stat_dict, f, indent=4)
+                dump(self.stat_dict, f, indent=4, ensure_ascii=False)
         elif file_name == 'config/setu.json':
             with open(file_name, 'w+', encoding='utf-8') as f:
-                dump(self.setu_config, f, indent=4)
+                dump(self.setu_config, f, indent=4, ensure_ascii=False)

@@ -1,21 +1,28 @@
-import requests, json, os, re
+import json
+import os
+import re
+
+import requests
 
 headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                  "AppleWebKit/537.36 (KHTML, like Gecko) "
+                  "Chrome/75.0.3770.142 Safari/537.36"
 }
 
 
 class BilibiliDynamic:
     def __init__(self, uuid):
         self.uid = uuid
-        self.baseUrl = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history?visitor_uid=0&host_uid=%s&offset_dynamic_id=0' % uuid
-        self.contentDict = self._getDict()
-        self.lastContent = self._getLastContent()
-        self.dynamicPictures = self._getDynamicPictures()
+        self.base_url = 'https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/' \
+                        'space_history?visitor_uid=0&host_uid=%s&offset_dynamic_id=0' % uuid
+        self.content_dict = self._get_dict()
+        self.last_content = self._get_last_content()
+        self.dynamic_pictures = self._get_dynamic_pictures()
 
-    def _getDict(self) -> dict:
+    def _get_dict(self) -> dict:
         try:
-            page = requests.get(self.baseUrl, headers=headers).content.decode('utf-8')
+            page = requests.get(self.base_url, headers=headers).content.decode('utf-8')
         except Exception as e:
             print('Error occurred when getting dynamic %s' % e)
             return {'-1': ''}
@@ -26,47 +33,47 @@ class BilibiliDynamic:
 
         return json.loads(json_data['data']['cards'][0]['card'])
 
-    def _getLastContent(self):
+    def _get_last_content(self):
         response = ''
 
-        if '-1' in self.contentDict:
+        if '-1' in self.content_dict:
             response += 'emmmm这个uid为%d的人好像没有发布任何动态呢' % self.uid
 
-        elif 'videos' in self.contentDict and self.contentDict['videos'] >= 1:
-            response += '发布了一个视频，标题为：%s' % self.contentDict['title']
+        elif 'videos' in self.content_dict and self.content_dict['videos'] >= 1:
+            response += '发布了一个视频，标题为：%s' % self.content_dict['title']
 
-        elif 'intro' in self.contentDict and len(self.contentDict['intro']) > 0:
-            response += '发布了一个音乐作品：标题为:%s' % self.contentDict['title']
+        elif 'intro' in self.content_dict and len(self.content_dict['intro']) > 0:
+            response += '发布了一个音乐作品：标题为:%s' % self.content_dict['title']
 
-        elif 'sketch' in self.contentDict and len(self.contentDict['sketch']) != 0:
-            response += '发布了一个企划，标题为:%s' % self.contentDict['sketch']['title']
+        elif 'sketch' in self.content_dict and len(self.content_dict['sketch']) != 0:
+            response += '发布了一个企划，标题为:%s' % self.content_dict['sketch']['title']
 
-        elif 'content' in self.contentDict['item']:
-            content = self.contentDict['item']['content']
+        elif 'content' in self.content_dict['item']:
+            content = self.content_dict['item']['content']
             response += content
-            originContent = self._getOriginDict()
-            if originContent != '':
-                if 'item' in originContent and 'description' in originContent['item']:
-                    response += '\n转发的原文：\n' + originContent['item']['description']
-                elif 'title' in originContent:
-                    response += '\n转发的视频标题：\n' + originContent['title']
+            origin_content = self._get_origin_dict()
+            if origin_content != '':
+                if 'item' in origin_content and 'description' in origin_content['item']:
+                    response += '\n转发的原文：\n' + origin_content['item']['description']
+                elif 'title' in origin_content:
+                    response += '\n转发的视频标题：\n' + origin_content['title']
                 else:
-                    response += '\n转发的原文：\n' + originContent['item']['content']
+                    response += '\n转发的原文：\n' + origin_content['item']['content']
 
         else:
-            if 'description' in self.contentDict['item']:
-                response += self.contentDict['item']['description']
+            if 'description' in self.content_dict['item']:
+                response += self.content_dict['item']['description']
             else:
-                response += self.contentDict['item']['content']
+                response += self.content_dict['item']['content']
 
         if response == '':
             response += 'emmmm这个uid为%d的人好像没有发布任何动态呢' % self.uid
         return response
 
-    def _getDynamicPictures(self):
+    def _get_dynamic_pictures(self):
         img_path = []
         try:
-            pictures = self.contentDict['item']['pictures']
+            pictures = self.content_dict['item']['pictures']
         except KeyError:
             return img_path
 
@@ -75,31 +82,31 @@ class BilibiliDynamic:
             filepath = 'E:/bilibiliPic/'
             try:
                 response = requests.get(img_src, headers=headers, timeout=15)
-                pictureName = re.findall(r'\w+\.[jpgnif]{3}', img_src)[0]
+                picture_name = re.findall(r'\w+\.[jpgnif]{3}', img_src)[0]
                 response.raise_for_status()
-                fileName = filepath + pictureName
-                if not os.path.exists(fileName):
-                    with open(fileName, 'wb') as f:
+                file_name = filepath + picture_name
+                if not os.path.exists(file_name):
+                    with open(file_name, 'wb') as f:
                         f.write(response.content)
 
-                img_path.append(fileName)
+                img_path.append(file_name)
 
             except Exception as e:
                 print('Error occurred when getting picture %s' % e)
 
         return img_path
 
-    def _getOriginDict(self) -> dict:
+    def _get_origin_dict(self) -> dict:
         try:
-            return json.loads(self.contentDict['origin'])
+            return json.loads(self.content_dict['origin'])
         except KeyError:
             return {}
 
-    def getLastContent(self):
-        if not self.dynamicPictures:
-            return self.lastContent
+    def get_last_content(self):
+        if not self.dynamic_pictures:
+            return self.last_content
 
-        for elements in self.dynamicPictures:
-            self.lastContent += '[CQ:image,file=file:///%s]' % elements
+        for elements in self.dynamic_pictures:
+            self.last_content += '[CQ:image,file=file:///%s]' % elements
 
-        return self.lastContent
+        return self.last_content

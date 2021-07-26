@@ -1,15 +1,27 @@
 import json
 import os
 import re
+from typing import Union
 
 import requests
 from aiocqhttp import MessageSegment
 from googletrans import Translator
 from nonebot.log import logger
 
+from qq_bot_core import admin_control
+
 HHSHMEANING = 'meaning'
 FURIGANAFUNCTION = 'furigana'
 WIKIPEDIA = 'WIKIPEDIA'
+
+
+def set_group_permission(message: str, group_id: Union[str, int], tag: str) -> bool:
+    if '开' in message:
+        admin_control.set_group_permission(group_id=group_id, tag=tag, stat=True)
+        return True
+
+    admin_control.set_group_permission(group_id=group_id, tag=tag, stat=False)
+    return False
 
 
 def download_image_to_path(response, path):

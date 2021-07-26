@@ -1,7 +1,8 @@
-from nonebot.log import logger as logging
-from os import getcwd
 import re
+from os import getcwd
+
 import requests
+from nonebot.log import logger as logging
 from urllib3 import HTTPSConnectionPool
 
 

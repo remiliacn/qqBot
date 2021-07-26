@@ -12,10 +12,10 @@ from nonebot.plugin import PluginManager
 
 from Services import waifu_finder, ark_nights, shadiao, pcr_news
 from awesome.adminControl import permission as perm
-from awesome.plugins.util.helper_util import get_downloaded_image_path, ark_helper
+from awesome.plugins.util.helper_util import get_downloaded_image_path, ark_helper, set_group_permission
 from config import SUPER_USER
 from qq_bot_core import admin_control
-from qq_bot_core import user_control_module, sanity_meter, weeb_learning
+from qq_bot_core import user_control_module, setu_control, weeb_learning
 
 pcr_api = pcr_news.GetPCRNews()
 arknights_api = ark_nights.ArkHeadhunt(times=10)
@@ -241,7 +241,7 @@ async def get_setu_stat(session: nonebot.CommandSession):
     if 'group_id' not in ctx:
         await session.finish('本功能是群组功能')
 
-    times, rank, yanche, delta, ark_stat, ark_pull = sanity_meter.get_usage(ctx['group_id'])
+    times, rank, yanche, delta, ark_stat, ark_pull = setu_control.get_usage(ctx['group_id'])
     setu_notice = f'自统计功能实装以来，你组查了{times}次色图！' \
                   f'{"位居色图查询排行榜的第" + str(rank) + "！" if rank != -1 else ""}\n' \
                   f'距离第{2 if rank == 1 else rank - 1}位相差{delta}次搜索！\n'
@@ -260,11 +260,11 @@ async def start_happy_hours(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     id_num = str(ctx['user_id'])
     if get_privilege(id_num, perm.OWNER):
-        if sanity_meter.happy_hours:
-            sanity_meter.happy_hours = False
+        if setu_control.happy_hours:
+            setu_control.happy_hours = False
             await session.finish('已设置关闭快乐时光')
 
-        sanity_meter.happy_hours = not sanity_meter.happy_hours
+        setu_control.happy_hours = not setu_control.happy_hours
         await session.finish('已设置打开快乐时光')
 
     else:
@@ -284,14 +284,10 @@ async def set_r18(session: nonebot.CommandSession):
         id_num = -1
 
     setting = session.get('stats', prompt='请设置开启或关闭')
-    if '开' in setting:
-        admin_control.set_group_permission(id_num, 'R18', True)
-        resp = '开启'
-    else:
-        admin_control.set_group_permission(id_num, 'R18', False)
-        resp = '关闭'
 
-    await session.finish('Done! 已设置%s' % resp)
+    set_group_permission(setting, id_num, 'R18')
+
+    await session.finish('Done!')
 
 
 @nonebot.on_command('掉落查询', only_to_me=False)
@@ -329,11 +325,11 @@ async def ten_polls(session: nonebot.CommandSession):
         }
 
         if six_star_count == 0 and five_star_count == 0:
-            sanity_meter.set_user_data(ctx['user_id'], 'only_four_three')
+            setu_control.set_user_data(ctx['user_id'], 'only_four_three')
 
-        sanity_meter.set_usage(group_id=ctx['group_id'], tag='pulls', data=data)
-        sanity_meter.set_usage(group_id=ctx['group_id'], tag='pull')
-        sanity_meter.set_user_data(ctx['user_id'], 'six_star_pull', six_star_count)
+        setu_control.set_usage(group_id=ctx['group_id'], tag='pulls', data=data)
+        setu_control.set_usage(group_id=ctx['group_id'], tag='pull')
+        setu_control.set_user_data(ctx['user_id'], 'six_star_pull', six_star_count)
 
     qq_num = ctx['user_id']
     await session.send(
@@ -364,6 +360,21 @@ async def up_ten_polls(session: nonebot.CommandSession):
             args[-1] == '-1'
         )
     )
+
+
+@nonebot.on_command('方舟限定', only_to_me=False)
+async def set_limited_arknights(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    if not get_privilege(ctx['user_id'], perm.OWNER):
+        return
+
+    arg = session.current_arg
+    if '开' in arg:
+        arknights_api.set_if_banner_limited(True)
+    else:
+        arknights_api.set_if_banner_limited(False)
+
+    await session.finish('Done')
 
 
 @nonebot.on_command('帮我做选择', only_to_me=False)
@@ -419,7 +430,7 @@ async def stat_player(session: nonebot.CommandSession):
     get_stat = lambda key, lis: lis[key] if key in lis else 0
     ctx = session.ctx.copy()
     user_id = ctx['user_id']
-    stat_dict = sanity_meter.get_user_data(user_id)
+    stat_dict = setu_control.get_user_data(user_id)
     if not stat_dict:
         await session.send(f'[CQ:at,qq={user_id}]还没有数据哦~')
     else:
@@ -453,7 +464,7 @@ async def stat_player(session: nonebot.CommandSession):
 
 @nonebot.on_command('统计xp', only_to_me=False)
 async def get_xp_stat_data(session: nonebot.CommandSession):
-    xp_stat = sanity_meter.get_xp_data()
+    xp_stat = setu_control.get_xp_data()
     response = ''
     for item, keys in xp_stat.items():
         response += f'关键词：{item} --> Hit: {keys}\n'
@@ -525,8 +536,8 @@ async def av_validator(session: nonebot.CommandSession):
     validator = shadiao.Avalidator(text=key_word)
     await validator.get_page_text()
     if 'group_id' in ctx:
-        sanity_meter.set_usage(ctx['group_id'], tag='yanche')
-        sanity_meter.set_user_data(ctx['user_id'], 'yanche')
+        setu_control.set_usage(ctx['group_id'], tag='yanche')
+        setu_control.set_user_data(ctx['user_id'], 'yanche')
 
     await session.finish(await validator.get_content())
 
@@ -555,7 +566,7 @@ async def zui_chou(session: nonebot.CommandSession):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     if 'group_id' in ctx:
-        sanity_meter.set_user_data(ctx['user_id'], 'zc')
+        setu_control.set_user_data(ctx['user_id'], 'zc')
 
     random.seed(time.time_ns())
     rand_num = random.randint(0, 100)
@@ -611,7 +622,7 @@ async def cai_hong_pi(session: nonebot.CommandSession):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     if 'group_id' in ctx:
-        sanity_meter.set_user_data(ctx['user_id'], 'chp')
+        setu_control.set_user_data(ctx['user_id'], 'chp')
 
     try:
         async with aiohttp.ClientSession(timeout=timeout) as client:

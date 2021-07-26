@@ -96,13 +96,13 @@ class ArkHeadhunt:
         random.seed(time.time_ns())
         for elements in self.random_class:
             random_int = random.randint(0, 100)
-            if elements == 6 and 'sixSecondaryUp' in self.agent_dict and self.agent_dict['sixSecondaryUp']:
+            if self.agent_dict['limited'] and elements == 6:
                 if random_int < 70:
                     random_agent.append(random.choice(self.agent_dict[f'UP6']))
                 else:
                     # 30%中的五倍权值爆率。
                     second_random = random.randint(0, len(self.agent_dict['6']))
-                    if second_random < 5:
+                    if second_random < 5 and 'sixSecondaryUp' in self.agent_dict and self.agent_dict['sixSecondaryUp']:
                         random_agent.append(random.choice(self.agent_dict['sixSecondaryUp']))
                     else:
                         random_agent.append(random.choice(self.agent_dict['6']))
@@ -114,6 +114,10 @@ class ArkHeadhunt:
                     random_agent.append(random.choice(self.agent_dict[str(elements)]))
 
         return random_agent
+
+    def set_if_banner_limited(self, setting=False):
+        self.agent_dict['limited'] = setting
+        self.update_content()
 
     def set_up(self, agent: str, star: Union[int, str], is_second_up=False):
         if isinstance(star, int):
@@ -136,13 +140,15 @@ class ArkHeadhunt:
 
     def update_content(self):
         with open('Services/util/agent.json', 'w+', encoding='utf8') as file:
-            dump(self.agent_dict, file, indent=4)
+            dump(self.agent_dict, file, indent=4, ensure_ascii=False)
 
     def clear_ups(self):
         self.agent_dict['UP3'] = []
         self.agent_dict['UP4'] = []
         self.agent_dict['UP5'] = []
         self.agent_dict['UP6'] = []
+
+        self.agent_dict['limited'] = False
 
         if 'sixSecondaryUp' in self.agent_dict:
             self.agent_dict['sixSecondaryUp'] = []

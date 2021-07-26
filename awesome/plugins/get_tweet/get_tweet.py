@@ -10,7 +10,7 @@ from loguru import logger
 
 from Services.random_services import YouTubeLiveTracker
 from awesome.adminControl import permission as perm
-from awesome.plugins.shadiao.shadiao import sanity_meter
+from awesome.plugins.shadiao.shadiao import setu_control
 from awesome.plugins.util.tweetHelper import tweeter
 from config import SUPER_USER, DOWNLODER_FILE_NAME, PATH_TO_ONEDRIVE
 from qq_bot_core import alarm_api
@@ -24,7 +24,7 @@ tweet = tweeter.Tweeter()
 @nonebot.on_command('推特数据', only_to_me=False)
 async def get_tweet_data(session: nonebot.CommandSession):
     response = f'截止到{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n' \
-               f'机器人共跟推：{sanity_meter.get_global_stat()["tweet"]}次'
+               f'机器人共跟推：{setu_control.get_global_stat()["tweet"]}次'
 
     await session.send(response)
 
@@ -168,8 +168,8 @@ def get_status():
 
 
 async def save_stats():
-    sanity_meter.make_a_json('config/stats.json')
-    sanity_meter.make_a_json('config/setu.json')
+    setu_control.make_a_json('config/stats.json')
+    setu_control.make_a_json('config/setu.json')
 
 
 async def check_youtube_live():
@@ -244,10 +244,10 @@ async def _async_youtube_live(ch_name, json_data):
 
 async def fill_sanity():
     logger.info('Filling sanity...')
-    if sanity_meter.happy_hours:
-        sanity_meter.fill_sanity(sanity=5)
+    if setu_control.happy_hours:
+        setu_control.fill_sanity(sanity=5)
     else:
-        sanity_meter.fill_sanity(sanity=1)
+        setu_control.fill_sanity(sanity=1)
 
 
 async def do_youtube_update_fetch():
@@ -332,7 +332,7 @@ async def do_tweet_update_fetch():
             )
 
             for element in group_id_list:
-                sanity_meter.set_user_data(0, 'tweet', 1, True)
+                setu_control.set_user_data(0, 'tweet', 1, True)
                 await bot.send_group_msg(group_id=element,
                                          message=message)
                 await bot.send_private_msg(

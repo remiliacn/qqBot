@@ -8,7 +8,7 @@ import nonebot
 
 from Services import poker_game, ru_game
 from awesome.adminControl import permission as perm
-from awesome.plugins.shadiao.shadiao import admin_control, sanity_meter
+from awesome.plugins.shadiao.shadiao import admin_control, setu_control
 from qq_bot_core import user_control_module
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
@@ -185,7 +185,7 @@ async def horse_race(session: nonebot.CommandSession):
         if race.player_win():
             await session.send("恭喜你猜赢啦！")
             if 'group_id' in ctx:
-                sanity_meter.set_user_data(user_id, 'horse_race')
+                setu_control.set_user_data(user_id, 'horse_race')
 
         else:
             await session.send(f"啊哦~猜输了呢！其实是{race.who_win()}号赢了哦")
@@ -241,7 +241,7 @@ async def russian_roulette(session: nonebot.CommandSession):
             f'[CQ:reply,id={message_id}]boom！你死了。这是第{death}枪，'
             f'理论几率为：{(1 / (7 - death) * 100):.2f}%'
         )
-        sanity_meter.set_user_data(user_id, 'roulette')
+        setu_control.set_user_data(user_id, 'roulette')
 
         bot = nonebot.get_bot()
         if id_num == user_id:
@@ -348,7 +348,7 @@ async def the_poker_game(session: nonebot.CommandSession):
                                f"{player_one_card}。\n"
                                f"玩家[CQ:at,qq={response}]获胜！")
 
-            sanity_meter.set_user_data(response, 'poker')
+            setu_control.set_user_data(response, 'poker')
 
         poker.clear_result(str(ctx['group_id']))
 

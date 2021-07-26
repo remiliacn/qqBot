@@ -53,7 +53,7 @@ config_file = \
 
 alarm_api = alarm.Alarm()
 user_control_module = user_control.UserControl()
-sanity_meter = setu.SetuFunction()
+setu_control = setu.SetuFunction()
 admin_control = group_control.Shadiaoadmin()
 weeb_learning = WeebController()
 

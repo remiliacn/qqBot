@@ -32,16 +32,16 @@ class Tweeter:
         self.tweet_list_init = {}
         self.tweet_config = self._get_tweet_config()
 
-        # self.live_stat = {}
-        # self.live_stat = self.get_live_room_info()
-
-        for ch_name in self.tweet_config:
-            if self.tweet_config[ch_name]['enabled']:
-                if self.tweet_config[ch_name]['screen_name'] == '_':
-                    continue
-
-                resp_text = self.get_time_line_from_screen_name(screen_name=self.tweet_config[ch_name]['screen_name'])
-                self.tweet_list_init[ch_name] = resp_text
+        # # self.live_stat = {}
+        # # self.live_stat = self.get_live_room_info()
+        #
+        # for ch_name in self.tweet_config:
+        #     if self.tweet_config[ch_name]['enabled']:
+        #         if self.tweet_config[ch_name]['screen_name'] == '_':
+        #             continue
+        #
+        #         resp_text = self.get_time_line_from_screen_name(screen_name=self.tweet_config[ch_name]['screen_name'])
+        #         self.tweet_list_init[ch_name] = resp_text
 
     def get_tweet_config(self) -> dict:
         return self.tweet_config

@@ -5,9 +5,12 @@ from nonebot.log import logger
 
 class GetPCRNews:
     def __init__(self):
-        self.base_url = 'https://api.biligame.com/news/list?gameExtensionId=267&positionId=2&typeId=4&pageNum=1&pageSize=5'
+        self.base_url = 'https://api.biligame.com/news/' \
+                        'list?gameExtensionId=267&positionId=2&typeId=4&pageNum=1&pageSize=5'
         self.headers = {
-            'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.129 Safari/537.36"
+            'User-Agent': "Mozilla/5.0 (Windows NT 10.0;"
+                          " Win64; x64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/81.0.4044.129 Safari/537.36"
         }
         self.info_not_available = '无搜索结果，请检查物品名是否存在国服PCR'
 

@@ -12,7 +12,7 @@ from loguru import logger
 
 import config
 from awesome.adminControl import permission as perm
-from awesome.plugins.shadiao.shadiao import sanity_meter
+from awesome.plugins.shadiao.shadiao import setu_control
 from awesome.plugins.util.helper_util import get_downloaded_image_path
 from qq_bot_core import alarm_api
 from qq_bot_core import user_control_module
@@ -42,7 +42,7 @@ async def add_monitor_word(session: nonebot.CommandSession):
     if not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish('您无权使用本命令')
 
-    sanity_meter.set_new_xp(key_word)
+    setu_control.set_new_xp(key_word)
     await session.finish('Done!')
 
 
@@ -59,7 +59,7 @@ async def add_blacklist_word(session: nonebot.CommandSession):
         await session.finish('参数有误。应为！添加拉黑词 关键词 理智消耗倍数')
 
     try:
-        sanity_meter.add_bad_word_dict(key_words[0], int(key_words[1]))
+        setu_control.add_bad_word_dict(key_words[0], int(key_words[1]))
         await session.finish('Done!')
     except ValueError:
         await session.finish('第二输入非数字。')
@@ -196,7 +196,7 @@ async def send_answer(session: nonebot.CommandSession):
     if get_privilege(ctx['user_id'], perm.BANNED):
         await session.finish()
 
-    sanity_meter.set_user_data(ctx['user_id'], 'question')
+    setu_control.set_user_data(ctx['user_id'], 'question')
 
     if match('.*?你.*?(名字|叫什么|是谁|什么东西)', question):
         await session.finish(
