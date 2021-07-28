@@ -219,7 +219,7 @@ async def russian_roulette(session: nonebot.CommandSession):
         await session.finish('这是群组游戏！')
 
     if id_num not in game.game_dict:
-        game.setUpDictByGroup(id_num)
+        game.set_up_dict_by_group(id_num)
 
     if user_id not in game.game_dict[id_num]["playerDict"]:
         game.add_player_in(group_id=id_num, user_id=user_id)

@@ -13,11 +13,13 @@ import requests
 
 INFO_NOT_AVAILABLE = "信息暂不可用"
 headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                  "AppleWebKit/537.36 (KHTML, like Gecko) "
+                  "Chrome/75.0.3770.142 Safari/537.36"
 }
 
 
-class flatter:
+class Flatter:
     def __init__(self):
         self.flatter_path = 'data/flatter.json'
         self.flatter_dict = self._get_flatter_dict()
@@ -131,10 +133,10 @@ class Avalidator:
             else:
                 source = str(source[0]).replace('http://', '').replace('https://', '').replace('.', '点')
 
-            torrentURL = self.torrent_url + f'/torrent-list/{self.product_number}'
+            torrent_url = self.torrent_url + f'/torrent-list/{self.product_number}'
 
             try:
-                async with self._client.get(torrentURL) as page:
+                async with self._client.get(torrent_url) as page:
                     urls = re.findall('<a href="(/torrent/.*?)"', await page.text())
             except Exception as e:
                 return f'连接出错: {e}'

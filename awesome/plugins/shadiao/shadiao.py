@@ -37,7 +37,7 @@ OCR_DICT = {
 
 @nonebot.on_command('吹我', only_to_me=False)
 async def do_joke_flatter(session: nonebot.CommandSession):
-    flatter_api = shadiao.flatter()
+    flatter_api = shadiao.Flatter()
     ctx = session.ctx.copy()
     user_id = ctx['user_id']
     await session.send(flatter_api.get_flatter_result(user_id))

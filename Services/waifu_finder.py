@@ -5,7 +5,9 @@ import requests
 from nonebot.log import logger
 
 headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                  " AppleWebKit/537.36 (KHTML, like Gecko)"
+                  " Chrome/75.0.3770.142 Safari/537.36"
 }
 
 
@@ -63,8 +65,3 @@ class WaifuFinder:
                % self._youtuber_name[
                    random.randint(0, len(self._youtuber_name) - 1)
                ]
-
-
-if __name__ == '__main__':
-    waifu = WaifuFinder()
-    print(waifu.get_image())

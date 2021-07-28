@@ -9,13 +9,13 @@ class Russianroulette:
         }
         self.notified = False
 
-    def changeNotification(self, stats):
+    def change_notification(self, stats):
         self.notified = stats
 
-    def ifNotified(self):
+    def if_notified(self):
         return self.notified
 
-    def setUpDictByGroup(self, user_id):
+    def set_up_dict_by_group(self, user_id):
         self.game_dict[user_id] = {
             "theLowerBound": 1,
             "theHighestBound": 6,
@@ -32,11 +32,11 @@ class Russianroulette:
     def get_play_time_with_user_id(self, group_id, user_id):
         return self.game_dict[group_id]["playerDict"][user_id]
 
-    def pullTrigger(self, group_id):
+    def pull_trigger(self, group_id):
         self.game_dict[group_id]["theLowerBound"] += 1
         self.game_dict[group_id]["theLastDeath"] += 1
 
-    def getRestBullets(self, group_id):
+    def get_rest_bullets(self, group_id):
         return self.game_dict[group_id]["theHighestBound"] - self.game_dict[group_id]["theLowerBound"]
 
     def reset_gun(self, group_id):
@@ -47,9 +47,9 @@ class Russianroulette:
         self.game_dict[group_id]["theLowerBound"] = 1
 
     def get_death(self, group_id):
-        lastDeath = self.game_dict[group_id]["theLastDeath"]
+        last_death = self.game_dict[group_id]["theLastDeath"]
         self.reset_gun(group_id)
-        return lastDeath
+        return last_death
 
     def get_result(self, group_id):
         random.seed(time.time_ns())
@@ -57,5 +57,5 @@ class Russianroulette:
         if draw >= 6:
             return True
 
-        self.pullTrigger(group_id)
+        self.pull_trigger(group_id)
         return False
