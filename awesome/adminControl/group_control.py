@@ -90,7 +90,7 @@ class Shadiaoadmin:
 
         return choice(self.group_quotes[group_id])
 
-    def combine_group_quote(self, *args) -> bool:
+    def combine_group_quote(self, args) -> bool:
         group_id_collection = [str(x) for x in args]
         for idx, group_id in enumerate(group_id_collection):
             if group_id not in self.group_quotes:
@@ -98,7 +98,8 @@ class Shadiaoadmin:
             if idx != 0:
                 quote_for_group = self.group_quotes[group_id]
                 for element in quote_for_group:
-                    self.group_quotes[group_id_collection[0]].append(element)
+                    if element not in self.group_quotes[group_id_collection[0]]:
+                        self.group_quotes[group_id_collection[0]].append(element)
         return True
 
     def clear_group_quote(self, group_id: Union[int, str]):
