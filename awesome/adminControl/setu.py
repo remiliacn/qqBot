@@ -104,10 +104,36 @@ class SetuFunction:
     def get_xp_data(self) -> dict:
         return self.stat_dict['xp']
 
+    def set_user_pixiv(self, user_id, pixiv_id) -> bool:
+        if isinstance(user_id, int):
+            user_id = str(user_id)
+
+        if isinstance(pixiv_id, str):
+            if not pixiv_id.isdigit():
+                return False
+
+            pixiv_id = int(pixiv_id)
+
+        if user_id not in self.stat_dict['users']:
+            self.stat_dict['users'][user_id] = {}
+
+        self.stat_dict['users'][user_id]['pixiv_id'] = pixiv_id
+        return True
+
+    def get_user_pixiv(self, user_id) -> int:
+        if isinstance(user_id, int):
+            user_id = str(user_id)
+
+        try:
+            return self.stat_dict['users'][user_id]['pixiv_id']
+        except KeyError:
+            return -1
+
     def set_user_data(
             self,
             user_id,
             tag: str,
+            keyword=None,
             hit_marks=1,
             is_global=False
     ):
@@ -130,13 +156,41 @@ class SetuFunction:
 
         else:
             user_dict = self.stat_dict['users'][user_id]
-            if tag not in user_dict:
-                self.stat_dict['users'][user_id][tag] = hit_marks
+            if tag != 'user_xp':
+                if tag not in user_dict:
+                    self.stat_dict['users'][user_id][tag] = hit_marks
+                else:
+                    self.stat_dict['users'][user_id][tag] += hit_marks
             else:
-                self.stat_dict['users'][user_id][tag] += hit_marks
+                if 'user_xp' not in user_dict:
+                    self.stat_dict['users'][user_id][tag] = {}
+
+                if keyword not in self.stat_dict['users'][user_id][tag]:
+                    self.stat_dict['users'][user_id][tag][keyword] = 0
+
+                self.stat_dict['users'][user_id][tag][keyword] += hit_marks
 
     def get_global_stat(self):
         return self.stat_dict['global']
+
+    def get_user_xp(self, user_id) -> str:
+        if isinstance(user_id, int):
+            user_id = str(user_id)
+
+        try:
+            user_xp_dict = self.stat_dict['users'][user_id]['user_xp']
+        except KeyError:
+            return '暂无数据'
+
+        user_xp_first = sorted(
+            user_xp_dict.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        if not user_xp_first:
+            return '暂无数据'
+
+        return user_xp_first[0]
 
     def get_user_data_by_tag(self, user_id, tag: str):
         if isinstance(user_id, int):

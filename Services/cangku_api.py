@@ -48,7 +48,6 @@ class CangkuApi:
         self.temp_info = {}
 
         self.session = requests.Session()
-        self.auth()
         self.last_auth_time = time.time()
 
     def auth(self):
@@ -79,6 +78,9 @@ class CangkuApi:
             user_id: str,
             is_r18: bool = True
     ) -> CangkuResponse:
+        self.auth()
+        self.last_auth_time = time.time()
+
         search_url = self._search_api + query
         if is_r18:
             page = self.session.get(search_url, headers=self.headers)
@@ -210,7 +212,7 @@ class CangkuApi:
         if 'dlbox' not in content:
             return CangkuResponse(FAILED, {}, error='No dlbox.')
 
-        search = re.findall(r'\[dlbox (.*?)\]', content)
+        search = re.findall(r'\[dlbox (.*?)]', content)
         if not search:
             return CangkuResponse(FAILED, {}, error='Dlbox not legal.')
 
