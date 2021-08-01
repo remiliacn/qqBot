@@ -247,7 +247,7 @@ async def pixiv_send(session: nonebot.CommandSession):
         if is_r18:
             setu_control.drain_sanity(
                 group_id=group_id,
-                sanity=3 if not do_multiply else 3 * multiplier
+                sanity=3 if not do_multiply else 2 * multiplier
             )
         else:
             setu_control.drain_sanity(
@@ -344,21 +344,9 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
 
     group_id = ctx['group_id'] if 'group_id' in ctx else -1
-
-    if group_id in setu_control.get_sanity_dict():
-        sanity = setu_control.get_sanity(group_id)
-    else:
-        sanity = setu_control.get_max_sanity()
-        setu_control.set_sanity(group_id, setu_control.get_max_sanity())
-
     if group_id != -1 and not get_privilege(ctx['user_id'], perm.OWNER):
         if admin_control.get_group_permission(group_id, 'banned'):
             await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
-
-    if sanity <= 0:
-        if group_id not in setu_control.remind_dict or not setu_control.remind_dict[group_id]:
-            setu_control.set_remid_dict(group_id, True)
-            await session.finish('差不多得了嗷')
 
     requester_qq = ctx['user_id']
     warn, sanity = _sanity_check(group_id, requester_qq)
@@ -392,11 +380,16 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
     message_id = ctx['message_id']
     xp_result = setu_control.get_user_xp(request_search_qq)
     if isinstance(xp_result, str) and not has_id:
-        await session.finish(f'[CQ:reply,id={message_id}]\n' + xp_result)
+        await session.finish(
+            f'[CQ:reply,id={message_id}]\n' + xp_result +
+            '\n你知道么~你可以使用你的p站uid丢人了（不是w\n'
+            '使用方式：!设置P站 P站数字ID \n'
+            '（进入自己的仪表盘(dashboard)后，右键查看源代码，ctrl+f搜索user_id，你会看到后面跟着一串数字）'
+        )
 
     result = await get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq, request_search_qq)
     setu_control.drain_sanity(group_id)
-    await session.finish(f'[CQ:reply,id={message_id}]\n{result}')
+    await session.finish(f'[CQ:reply,id={message_id}]{result}')
 
 
 async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq, request_search_qq) -> str:
@@ -435,11 +428,11 @@ async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq
     response += f'TA最喜欢的关键词是{xp_result[0]}，已经查询了{xp_result[1]}次。' if not isinstance(xp_result, str) else ''
     if not has_id:
         response += '\n你知道么~你可以使用你的p站uid丢人了（不是w\n' \
-                    '使用方式：!设置P站 P站数字ID'
+                    '使用方式：!设置P站 P站数字ID （在P站点进书签，bookmark可以在url看到一串数字，就是那一串）'
 
     setu_control.set_user_data(requester_qq, 'setu')
 
-    return response
+    return response.strip()
 
 
 def get_user_bookmark_data(pixiv_id: int):
@@ -607,16 +600,22 @@ async def sauce_helper(url):
 
                 json_data = json_data['data']
                 if 'ext_urls' not in json_data:
-                    return {}
+                    if 'jp_name' not in json_data:
+                        return {}
 
                 pixiv_id = 'Undefined'
                 title = 'Undefined'
                 author = 'Undefined'
 
-                ext_url = json_data['ext_urls'][0]
+                ext_url = json_data['ext_urls'][0] if 'ext_urls' in json_data else '[数据删除]'
                 if 'title' not in json_data:
                     if 'creator' in json_data:
                         author = json_data['creator']
+                        if isinstance(author, list):
+                            author = '，'.join(author)
+                        elif not isinstance(author, str):
+                            return {}
+
                     elif 'author' in json_data:
                         author = json_data['author']
                     else:
@@ -638,6 +637,9 @@ async def sauce_helper(url):
                             return {}
 
                         author = json_data['artist']
+
+                    if 'jp_name' in json_data:
+                        title = json_data['jp_name']
 
                 elif 'title' in json_data:
                     title = json_data['title']

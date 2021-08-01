@@ -315,6 +315,8 @@ def _simple_ai_process(question: str, ctx: dict) -> str:
             return f'{syntax_question[1]}'
 
     elif match(syntax2, response):
+        if match(r'.*?主人', response):
+            return '爬'
         rand_num = randint(0, 50)
         if rand_num < 20:
             return '答案肯定是肯定的啦'

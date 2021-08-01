@@ -190,6 +190,10 @@ class SetuFunction:
         if not user_xp_first:
             return '暂无数据'
 
+        for element in user_xp_first:
+            if element[0] not in ('R-18', 'オリジナル'):
+                return element
+
         return user_xp_first[0]
 
     def get_user_data_by_tag(self, user_id, tag: str):
