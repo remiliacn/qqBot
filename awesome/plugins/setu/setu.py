@@ -384,7 +384,7 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
             f'[CQ:reply,id={message_id}]\n' + xp_result +
             '\n你知道么~你可以使用你的p站uid丢人了（不是w\n'
             '使用方式：!设置P站 P站数字ID \n'
-            '（进入自己的仪表盘(dashboard)后，右键查看源代码，ctrl+f搜索user_id，你会看到后面跟着一串数字）'
+            '（进入自己的用户页面，你会看到url后面跟着一串数字）'
         )
 
     result = await get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq, request_search_qq)
@@ -504,7 +504,7 @@ async def download_image(illust):
                 async with session.get(image_url) as response:
                     with open(path, 'wb') as out_file:
                         while True:
-                            chunk = await response.content.read(1024 ** 4)
+                            chunk = await response.content.read(1024 ** 2)
                             if not chunk:
                                 break
                             out_file.write(chunk)

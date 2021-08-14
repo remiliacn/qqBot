@@ -50,6 +50,10 @@ async def natural_language_proc(session: nonebot.NLPSession):
         await session.send('别臭了别臭了！孩子要臭傻了')
         return
 
+    if '为什么' in message and randint(0, 4) == 1:
+        await session.send('因为你不厉害')
+        return
+
     auto_reply = _do_auto_reply_retrieve(user_id, group_id, message)
     if auto_reply:
         await session.send(auto_reply)
@@ -64,6 +68,7 @@ async def natural_language_proc(session: nonebot.NLPSession):
     fetch_result = _repeat_and_palindrome_fetch(message)
     if fetch_result:
         await session.send(fetch_result)
+        return
 
     fetch_result = await _check_if_asking_definition(message)
     if fetch_result:
@@ -146,7 +151,7 @@ def _repeat_and_palindrome_fetch(message: str) -> str:
     if fullmatch(repeat_syntax, message):
         word_repeat = findall(repeat_syntax, message)[0]
         count = message.count(word_repeat)
-        if count >= 3 and rand_chance < 4:
+        if count >= 3 and rand_chance < 6:
             return f'{count}个{word_repeat}'
         return ''
 
