@@ -84,7 +84,7 @@ async def natural_language_proc(session: nonebot.NLPSession):
 
 
 async def _get_flash_image_entry(message: str) -> str:
-    if re.match(r'.*?\[CQ:image,type=flash', message):
+    if re.match(r'.*?\[CQ:image.*?type=flash', message):
         logger.debug('Flash image found.')
         has_image = findall(r'file=(.*?\.image)', message)
         logger.debug(f'Flash image: {has_image}')
