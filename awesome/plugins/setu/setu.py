@@ -131,7 +131,7 @@ async def pixiv_send(session: nonebot.CommandSession):
     if sanity <= 0:
         if group_id not in setu_control.remind_dict or not setu_control.remind_dict[group_id]:
             setu_control.set_remid_dict(group_id, True)
-            await session.finish('差不多得了嗷')
+        await session.finish('差不多得了嗷')
 
     if not admin_control.get_if_authed():
         pixiv_api.set_auth(
@@ -356,7 +356,8 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
     if sanity <= 0:
         if group_id not in setu_control.remind_dict or not setu_control.remind_dict[group_id]:
             setu_control.set_remid_dict(group_id, True)
-            await session.finish('差不多得了嗷')
+
+        await session.finish('差不多得了嗷')
 
     arg = session.current_arg
 

@@ -166,7 +166,7 @@ async def pao_tuan_shai_zi(session: nonebot.CommandSession):
     await session.finish(
         f'[CQ:reply,id={message_id}]'
         f'筛子结果为：{", ".join([str(x) for x in result_list])}\n'
-        f'筛子结果总和为：{result_sum}'
+        f'筛子结果总和为：{result_sum}' if throw_times > 1 else ''
     )
 
 

@@ -10,7 +10,7 @@ from Services.keylol_update import KeylolFreeGame
 from Services.stock import Stock, Crypto
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao.shadiao import setu_control
-from awesome.plugins.util import helper_util
+from awesome.plugins.util import helper_util, search_helper
 from config import SUPER_USER
 from qq_bot_core import user_control_module
 
@@ -18,6 +18,19 @@ cache = helper_util.HhshCache()
 
 HHSHMEANING = 'meaning'
 FURIGANAFUNCTION = 'furigana'
+
+
+@nonebot.on_command('搜索', only_to_me=False)
+async def search_command(session: nonebot.CommandSession):
+    arg = session.current_arg
+    if not arg:
+        await session.finish('你在干神魔？')
+
+    result = await search_helper.get_definition(arg)
+    if result:
+        await session.finish(result)
+
+    await session.finish('找不到，自己查罢。')
 
 
 @nonebot.on_command('help', only_to_me=False)
@@ -76,7 +89,7 @@ async def k_line(session: nonebot.CommandSession):
         file_name, market_will = await stock.get_kline_map()
         if file_name:
             await session.send(
-                f'[CQ:image,file=file:///{file_name}]' +
+                f'[CQ:image,file=file:///{file_name}]\n' +
                 f'{market_will}'
             )
         else:
