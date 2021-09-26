@@ -156,7 +156,7 @@ async def pao_tuan_shai_zi(session: nonebot.CommandSession):
     raw_message = ctx['raw_message'].split()[0][1:].lower()
     args = raw_message.split('d')
     throw_times = int(args[0])
-    if throw_times > 10:
+    if throw_times > 30:
         await session.finish('扔这么多干嘛，爬')
 
     max_val = int(args[1])
