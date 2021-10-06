@@ -1,0 +1,19 @@
+{
+  "YouTuber名": {
+    "channel": "channeID（最简单的查找方法是进入YouTube频道，然后ctrl+u（Mac是cmd+u）在源码搜索channelId，你会找到一串大写小写字母和数字的组合）",
+    "qqGroup": 123456789,
+    "videoID": "",
+    "enabled": true,
+    "upcomingID": "",
+    "liveID": ""
+  },
+  "花丸": {
+    "_comment": "这是个示例",
+    "channel": "UCyIcOCH-VWaRKH9IkR8hz7Q",
+    "qqGroup": 123456789,
+    "videoID": "",
+    "enabled": true,
+    "upcomingID": "",
+    "liveID": ""
+  }
+}
