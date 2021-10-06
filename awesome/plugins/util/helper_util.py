@@ -176,12 +176,19 @@ def anime_reverse_search_response(response_data: dict) -> str:
                    f'集数：{response_data["part"]}\n' \
                    f'大概出现时间：{response_data["est_time"]}'
     else:
-        response = f'{response_data["data"]}\n' \
-                   f'图片相似度：{response_data["simlarity"]}\n' \
-                   f'图片标题：{response_data["title"]}\n' \
-                   f'图片画师：{response_data["author"]}\n' \
-                   f'Pixiv ID：{response_data["pixiv_id"]}\n' \
-                   f'直链：{response_data["ext_url"]}'
+        if response_data['ext_url'] == '[数据删除]':
+            response = f'{response_data["data"]}\n' \
+                       f'图片相似度：{response_data["simlarity"]}\n' \
+                       f'本子标题：{response_data["title"]}\n' \
+                       f'本子画师：{response_data["author"]}\n' \
+                       f'直链：{response_data["ext_url"]}'
+        else:
+            response = f'{response_data["data"]}\n' \
+                       f'图片相似度：{response_data["simlarity"]}\n' \
+                       f'图片标题：{response_data["title"]}\n' \
+                       f'图片画师：{response_data["author"]}\n' \
+                       f'Pixiv ID：{response_data["pixiv_id"]}\n' \
+                       f'直链：{response_data["ext_url"]}'
 
     return response
 

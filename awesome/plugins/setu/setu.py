@@ -444,6 +444,7 @@ def get_user_bookmark_data(pixiv_id: int):
         )
         admin_control.set_if_authed(True)
 
+    json_result_list = []
     json_result = pixiv_api.user_bookmarks_illust(user_id=pixiv_id)
 
     # 看一下access token是否过期
@@ -453,15 +454,16 @@ def get_user_bookmark_data(pixiv_id: int):
 
         json_result = pixiv_api.user_bookmarks_illust(user_id=pixiv_id)
 
-    random_next_page = random.randint(0, 2)
-    while random_next_page == 0:
+    json_result_list.append(json_result)
+    random_loop_time = random.randint(1, 30)
+    for _ in range(random_loop_time):
         next_qs = pixiv_api.parse_qs(json_result.next_url)
         if next_qs is None or 'max_bookmark_id' not in next_qs:
-            return json_result
+            break
         json_result = pixiv_api.user_bookmarks_illust(user_id=pixiv_id, max_bookmark_id=next_qs['max_bookmark_id'])
-        random_next_page = random.randint(0, 1)
+        json_result_list.append(json_result)
 
-    return json_result
+    return random.choice(json_result_list)
 
 
 def _get_image_data_from_username(key_word: str) -> (str, str):

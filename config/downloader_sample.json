@@ -3,7 +3,9 @@
     "channel": "channeID（最简单的查找方法是进入YouTube频道，然后ctrl+u（Mac是cmd+u）在源码搜索channelId，你会找到一串大写小写字母和数字的组合）",
     "qqGroup": 123456789,
     "videoID": "",
+    "_comment": "notify 是是否进行开播通知，enable是是否进行自动下源。notify参数为可选参数，如果不存在则默认为进行开播提醒。",
     "enabled": true,
+    "notify": true,
     "upcomingID": "",
     "liveID": ""
   },
@@ -13,6 +15,7 @@
     "qqGroup": 123456789,
     "videoID": "",
     "enabled": true,
+    "notify": true,
     "upcomingID": "",
     "liveID": ""
   }
