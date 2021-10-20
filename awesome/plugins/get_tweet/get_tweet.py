@@ -21,14 +21,6 @@ get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 tweet = tweeter.Tweeter()
 
 
-@nonebot.on_command('推特数据', only_to_me=False)
-async def get_tweet_data(session: nonebot.CommandSession):
-    response = f'截止到{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n' \
-               f'机器人共跟推：{setu_control.get_global_stat()["tweet"]}次'
-
-    await session.send(response)
-
-
 @nonebot.on_command('跟推添加', only_to_me=False)
 async def add_new_tweeter_function(session: nonebot.CommandSession):
     usage = '！跟推添加 中文名 推特ID（@后面的那一部分） 直播间（bilibili） 是否启用（启用输入Y反则N）\n' \
@@ -78,37 +70,6 @@ async def remove_tweet_following(session: nonebot.CommandSession):
         await session.finish('成功！')
     else:
         await session.finish(f'未找到key：{key_word}')
-
-
-@nonebot.on_command('新推', only_to_me=False)
-async def get_new_tweet_by_ch_name(session: nonebot.CommandSession):
-    key_word = session.get('key_word', prompt='要查谁啊？')
-    the_tweet = tweet.get_time_line_from_screen_name(key_word)
-    if the_tweet:
-        await session.finish(
-            f'--- {key_word}最新动态 ---\n'
-            f'{the_tweet}'
-        )
-
-    else:
-        await session.finish('查询失败！')
-
-
-@nonebot.on_command('推特查询', only_to_me=False)
-async def bulk_get_new_tweet(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    message = ctx['raw_message']
-    args = message.split()
-    screen_name = args[1]
-    count: str = args[2]
-    if count.isdigit():
-        resp = tweet.get_time_line_from_screen_name(screen_name, count)
-        await session.send(resp)
-    else:
-        await session.finish(
-            '用法错误！应为：\n'
-            '！推特查询 要查询的内容 要前多少条'
-        )
 
 
 @nonebot.scheduler.scheduled_job('interval', minutes=2, misfire_grace_time=5)
@@ -343,6 +304,7 @@ async def do_tweet_update_fetch():
                 )
 
 
+# 如果需要bilibili直播间提醒请把这部分的注释去掉。
 """
 async def do_bilibili_live_fetch():
     logger.info('Automatically fetching bilibili live info...')
@@ -359,7 +321,6 @@ async def do_bilibili_live_fetch():
 """
 
 
-@get_new_tweet_by_ch_name.args_parser
 @add_new_tweeter_function.args_parser
 @remove_tweet_following.args_parser
 async def _(session: nonebot.CommandSession):

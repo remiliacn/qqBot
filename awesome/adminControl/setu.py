@@ -13,8 +13,8 @@ class SetuFunction:
         self.updated = False
         self.config_file = 'config/stats.json'
         self._get_user_data()
-        self.setu_config_path = 'config/setu.json'
-        self.setu_config = {}
+        self.setu_stat_path = 'config/setu.json'
+        self.setu_stat = {}
         self._init_bad_word()
 
     def get_setu_usage(self) -> int:
@@ -26,24 +26,24 @@ class SetuFunction:
         return total
 
     def track_keyword(self, key_word):
-        if 'keyword' not in self.setu_config:
-            self.setu_config['keyword'] = {}
+        if 'keyword' not in self.setu_stat:
+            self.setu_stat['keyword'] = {}
 
-        if key_word not in self.setu_config['keyword']:
-            self.setu_config['keyword'][key_word] = 0
+        if key_word not in self.setu_stat['keyword']:
+            self.setu_stat['keyword'][key_word] = 0
 
-        self.setu_config['keyword'][key_word] += 1
-        self.make_a_json(self.setu_config_path)
+        self.setu_stat['keyword'][key_word] += 1
+        self.make_a_json(self.setu_stat_path)
 
-    def get_keyword_track(self) -> list:
-        if 'keyword' not in self.setu_config:
+    def get_high_freq_keyword(self) -> list:
+        if 'keyword' not in self.setu_stat:
             return []
 
-        if not self.setu_config['keyword']:
+        if not self.setu_stat['keyword']:
             return []
 
         sort_orders = sorted(
-            self.setu_config['keyword'].items(),
+            self.setu_stat['keyword'].items(),
             key=lambda x: x[1],
             reverse=True
         )
@@ -53,26 +53,26 @@ class SetuFunction:
         return self.max_sanity
 
     def get_bad_word_dict(self) -> dict:
-        return self.setu_config['bad_words']
+        return self.setu_stat['bad_words']
 
     def add_bad_word_dict(self, key_word, multiplier):
         if multiplier == 1:
-            if key_word in self.setu_config['bad_words']:
-                del self.setu_config['bad_words'][key_word]
+            if key_word in self.setu_stat['bad_words']:
+                del self.setu_stat['bad_words'][key_word]
         else:
-            self.setu_config['bad_words'][key_word] = multiplier
+            self.setu_stat['bad_words'][key_word] = multiplier
 
     def _init_bad_word(self):
-        if exists(self.setu_config_path):
-            with open(self.setu_config_path, 'r', encoding='utf-8') as file:
+        if exists(self.setu_stat_path):
+            with open(self.setu_stat_path, 'r', encoding='utf-8') as file:
                 fl = file.read()
-                self.setu_config = loads(str(fl))
-                if 'bad_words' not in self.setu_config:
-                    self.setu_config['bad_words'] = {}
-                    self.make_a_json(self.setu_config_path)
+                self.setu_stat = loads(str(fl))
+                if 'bad_words' not in self.setu_stat:
+                    self.setu_stat['bad_words'] = {}
+                    self.make_a_json(self.setu_stat_path)
 
         else:
-            with open(self.setu_config_path, 'w+') as f:
+            with open(self.setu_stat_path, 'w+') as f:
                 dump({'bad_words': {}}, f, indent=4)
 
     def get_monitored_keywords(self) -> dict:
@@ -320,4 +320,4 @@ class SetuFunction:
                 dump(self.stat_dict, f, indent=4, ensure_ascii=False)
         elif file_name == 'config/setu.json':
             with open(file_name, 'w+', encoding='utf-8') as f:
-                dump(self.setu_config, f, indent=4, ensure_ascii=False)
+                dump(self.setu_stat, f, indent=4, ensure_ascii=False)

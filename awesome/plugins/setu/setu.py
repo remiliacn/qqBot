@@ -43,7 +43,9 @@ async def set_user_pixiv(session: nonebot.CommandSession):
 @nonebot.on_command('色图数据', only_to_me=False)
 async def get_setu_stat(session: nonebot.CommandSession):
     setu_stat = setu_control.get_setu_usage()
-    await session.finish(f'色图功能共被使用了{setu_stat}次')
+    setu_high_freq_keyword = setu_control.get_high_freq_keyword()[2:12]
+    setu_high_freq_keyword_to_string = "\n".join(f"{x[0]}: {x[1]}次" for x in setu_high_freq_keyword)
+    await session.finish(f'色图功能共被使用了{setu_stat}次，被查最多的关键词前10名为：\n{setu_high_freq_keyword_to_string}')
 
 
 @nonebot.on_command('理智查询', only_to_me=False)
@@ -342,6 +344,9 @@ def _sanity_check(group_id, user_id):
 @nonebot.on_command('看看XP', aliases={'看看xp'}, only_to_me=False)
 async def get_user_xp_data_with_at(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
+    friendly_reminder = '\n你知道么~你可以使用你的p站uid丢人了（不是w\n' \
+                        '使用方式：!设置P站 P站数字ID \n' \
+                        '（进入自己的用户页面，你会看到url后面跟着一串数字）'
 
     group_id = ctx['group_id'] if 'group_id' in ctx else -1
     if group_id != -1 and not get_privilege(ctx['user_id'], perm.OWNER):
@@ -380,56 +385,55 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
 
     message_id = ctx['message_id']
     xp_result = setu_control.get_user_xp(request_search_qq)
-    if isinstance(xp_result, str) and not has_id:
+    if not has_id and xp_result == '暂无数据':
         await session.finish(
-            f'[CQ:reply,id={message_id}]\n' + xp_result +
-            '\n你知道么~你可以使用你的p站uid丢人了（不是w\n'
-            '使用方式：!设置P站 P站数字ID \n'
-            '（进入自己的用户页面，你会看到url后面跟着一串数字）'
+            f'[CQ:reply,id={message_id}]' + friendly_reminder
         )
 
     result = await get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq, request_search_qq)
     setu_control.drain_sanity(group_id)
-    await session.finish(f'[CQ:reply,id={message_id}]{result}')
+    await session.finish(f'[CQ:reply,id={message_id}]{result} + {friendly_reminder if not has_id else ""}')
 
 
 async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq, request_search_qq) -> str:
     response = ''
     if has_id:
         json_result = get_user_bookmark_data(int(pixiv_id))
-        json_result = json_result.illusts
-        if not json_result:
-            return '不是吧~你P站都不收藏图的么（'
+    else:
+        json_result = pixiv_api.search_illust(
+            word=xp_result,
+            sort="popular_desc"
+        )
+    json_result = json_result.illusts
+    if not json_result:
+        return '不是吧~你P站都不收藏图的么（'
 
-        illust = random.choice(json_result)
-        start_time = time.time()
-        path = await download_image(illust)
+    illust = random.choice(json_result)
+    start_time = time.time()
+    path = await download_image(illust)
 
-        is_exempt = group_id != -1 and admin_control.get_group_permission(group_id, 'exempt')
-        is_r18 = illust.sanity_level == 6
+    is_exempt = group_id != -1 and admin_control.get_group_permission(group_id, 'exempt')
+    is_r18 = illust.sanity_level == 6
 
-        setu_control.set_user_data(requester_qq, 'setu')
-        if group_id != -1:
-            setu_control.set_usage(group_id, 'setu')
+    setu_control.set_user_data(requester_qq, 'setu')
+    if group_id != -1:
+        setu_control.set_usage(group_id, 'setu')
 
-        tags = illust['tags']
-        if len(tags) >= 5:
-            tags = tags[:5]
+    tags = illust['tags']
+    if len(tags) >= 5:
+        tags = tags[:5]
 
-        for tag in tags:
-            setu_control.set_user_data(request_search_qq, 'user_xp', keyword=tag['name'])
-            setu_control.track_keyword(tag['name'])
+    for tag in tags:
+        setu_control.set_user_data(request_search_qq, 'user_xp', keyword=tag['name'])
+        setu_control.track_keyword(tag['name'])
 
-        response += f'标题：{illust.title}\n' \
-                    f'Pixiv ID： {illust.id}\n' \
-                    f'画师：{illust["user"]["name"]}\n' \
-                    f'[CQ:image,file=file:///{path}{",type=flash" if (not is_exempt and is_r18) else ""}]\n' \
-                    f'Download Time: {(time.time() - start_time):.2f}s\n'
+    response += f'标题：{illust.title}\n' \
+                f'Pixiv ID： {illust.id}\n' \
+                f'画师：{illust["user"]["name"]}\n' \
+                f'[CQ:image,file=file:///{path}{",type=flash" if (not is_exempt and is_r18) else ""}]\n' \
+                f'Download Time: {(time.time() - start_time):.2f}s\n'
 
     response += f'TA最喜欢的关键词是{xp_result[0]}，已经查询了{xp_result[1]}次。' if not isinstance(xp_result, str) else ''
-    if not has_id:
-        response += '\n你知道么~你可以使用你的p站uid丢人了（不是w\n' \
-                    '使用方式：!设置P站 P站数字ID （在P站点进书签，bookmark可以在url看到一串数字，就是那一串）'
 
     setu_control.set_user_data(requester_qq, 'setu')
 
