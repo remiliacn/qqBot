@@ -26,6 +26,9 @@
 
 说明文档在[这里](https://github.com/remiliacn/Lingye-Bot)
 
+### 重要
+* 为了更好的使用机器人，请在config.py文件中的`SUPER_USER`参数上设置好自己的QQ号，并使用`添加管理`命令将自己的qq号添加上管理员权限
+
 
 # Config
 建议进行以下设置：
