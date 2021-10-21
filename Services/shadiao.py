@@ -118,11 +118,15 @@ class Avalidator:
         from lxml import etree
         if self.page_text:
             e = etree.HTML(self.page_text)
-            title_temp = e.xpath('/html/body/main/h1/span[2]/text()')[0]
+            title_temp = e.xpath('/html/body/main/h1/span[2]/text()')
             if not title_temp:
                 title = '暂不可用'
             else:
-                title = ''.join(title_temp)
+                title_temp = title_temp[0]
+                if not title_temp:
+                    title = '暂不可用'
+                else:
+                    title = ''.join(title_temp)
 
             date = re.findall(r'<dd>(\d+.*?)</dd>', self.page_text)
             date = date[0] if date else '暂不可用'
