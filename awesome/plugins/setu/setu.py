@@ -17,9 +17,7 @@ from config import SUPER_USER, SAUCE_API_KEY, PIXIV_REFRESH_TOKEN
 from qq_bot_core import setu_control, user_control_module, admin_control, cangku_api
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
-pixiv_api = pixivpy3.ByPassSniApi()
-pixiv_api.require_appapi_hosts(hostname='public-api.secure.pixiv.net')
-pixiv_api.set_accept_language('en_us')
+pixiv_api = pixivpy3.AppPixivAPI()
 
 
 @nonebot.on_command('设置P站', aliases={'设置p站', 'p站设置'}, only_to_me=False)
