@@ -76,7 +76,7 @@ async def add_group_quotes(session: nonebot.CommandSession):
         await session.finish('爬')
 
     bot = nonebot.get_bot()
-    has_image = re.findall(r'.*?\[CQ:image,file=(.*?\.image)]', key_word)
+    has_image = re.findall(r'[a-z0-9]+\.image', key_word)
     if has_image:
         response = await bot.get_image(file=has_image[0])
         key_word = get_downloaded_image_path(response, f'{os.getcwd()}/data/lol')
