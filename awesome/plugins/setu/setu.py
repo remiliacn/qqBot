@@ -11,9 +11,10 @@ import pixivpy3
 from aiocqhttp import MessageSegment
 from loguru import logger
 
+from Services.util.sauce_nao_helper import sauce_helper
 from awesome.adminControl import permission as perm
 from awesome.plugins.util.helper_util import anime_reverse_search_response, set_group_permission
-from config import SUPER_USER, SAUCE_API_KEY, PIXIV_REFRESH_TOKEN
+from config import SUPER_USER, PIXIV_REFRESH_TOKEN
 from qq_bot_core import setu_control, user_control_module, admin_control, cangku_api
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
@@ -120,9 +121,9 @@ async def pixiv_send(session: nonebot.CommandSession):
         if admin_control.get_group_permission(group_id, 'banned'):
             await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
 
-    monitored = False
+    monitored = do_multiply = False
     multiplier = 1
-    do_multiply = False
+    ban_count = 3
 
     warn, sanity = _sanity_check(group_id, user_id)
     if warn:
@@ -150,7 +151,7 @@ async def pixiv_send(session: nonebot.CommandSession):
         if multiplier > 0:
             if multiplier * 2 > 400:
                 setu_control.set_user_data(user_id, 'ban_count')
-                if setu_control.get_user_data_by_tag(user_id, 'ban_count') >= 3:
+                if setu_control.get_user_data_by_tag(user_id, 'ban_count') >= ban_count:
                     user_control_module.set_user_privilege(user_id, 'BANNED', True)
                     await session.send(f'用户{user_id}已被封停机器人使用权限')
                     bot = nonebot.get_bot()
@@ -553,119 +554,6 @@ async def reverse_image_search(session: nonebot.CommandSession):
                         f'Error：{err}\n'
                         f'出错URL：{url}'
             )
-
-
-async def sauce_helper(url):
-    params = {
-        'output_type': 2,
-        'api_key': SAUCE_API_KEY,
-        'testmode': 0,
-        'db': 999,
-        'numres': 6,
-        'url': url
-    }
-
-    response = {}
-
-    async with aiohttp.ClientSession() as client:
-        async with client.get(
-                'https://saucenao.com/search.php',
-                params=params
-        ) as page:
-            json_data = await page.json()
-
-        if json_data['results']:
-            json_data = json_data['results'][0]
-            logger.info(f'Json data: \n'
-                        f'{json_data}')
-            response = ''
-            if json_data:
-                simlarity = json_data['header']['similarity'] + '%'
-                thumbnail = json_data['header']['thumbnail']
-                async with client.get(thumbnail) as page:
-                    file_name = thumbnail.split('/')[-1]
-                    file_name = re.sub(r'\?auth=.*?$', '', file_name)
-                    if len(file_name) > 10:
-                        file_name = f'{int(time.time())}.jpg'
-
-                    path = f'{getcwd()}/data/pixivPic/{file_name}'
-                    if not exists(path):
-                        try:
-                            with open(path, 'wb') as file:
-                                while True:
-                                    chunk = await page.content.read(1024 ** 2)
-                                    if not chunk:
-                                        break
-
-                                    file.write(chunk)
-                        except IOError:
-                            return {}
-
-                image_content = MessageSegment.image(f'file:///{path}')
-
-                json_data = json_data['data']
-                if 'ext_urls' not in json_data:
-                    if 'jp_name' not in json_data:
-                        return {}
-
-                pixiv_id = 'Undefined'
-                title = 'Undefined'
-                author = 'Undefined'
-
-                ext_url = json_data['ext_urls'][0] if 'ext_urls' in json_data else '[数据删除]'
-                if 'title' not in json_data:
-                    if 'creator' in json_data:
-                        author = json_data['creator']
-                        if isinstance(author, list):
-                            author = '，'.join(author)
-                        elif not isinstance(author, str):
-                            return {}
-
-                    elif 'author' in json_data:
-                        author = json_data['author']
-                    else:
-                        if 'source' and 'est_time' in json_data:
-                            year = json_data['year']
-                            part = json_data['part']
-                            est_time = json_data['est_time']
-
-                            return {
-                                'simlarity': simlarity,
-                                'year': year,
-                                'part': part,
-                                'est_time': est_time,
-                                'source': json_data['source'],
-                                'thumbnail': image_content
-                            }
-
-                        if 'artist' not in json_data:
-                            return {}
-
-                        author = json_data['artist']
-
-                    if 'jp_name' in json_data:
-                        title = json_data['jp_name']
-
-                elif 'title' in json_data:
-                    title = json_data['title']
-                    if 'author_name' in json_data:
-                        author = json_data['author_name']
-                    elif 'member_name' in json_data:
-                        author = json_data['member_name']
-                        if 'pixiv_id' in json_data:
-                            pixiv_id = json_data['pixiv_id']
-
-                response = {
-                    'data': image_content,
-                    'simlarity': simlarity,
-                    'title': title,
-                    'author': author,
-                    'pixiv_id': pixiv_id,
-                    'ext_url': ext_url,
-                    'thumbnail': thumbnail
-                }
-
-    return response
 
 
 def set_function_auth() -> bool:

@@ -13,8 +13,8 @@ import nonebot
 from loguru import logger
 
 import config
+from Services.util.sauce_nao_helper import sauce_helper
 from awesome.adminControl import permission as perm
-from awesome.plugins.setu.setu import sauce_helper
 from awesome.plugins.util.helper_util import anime_reverse_search_response, get_downloaded_image_path
 from qq_bot_core import admin_control, user_control_module
 from ..little_helper.little_helper import hhsh, cache
