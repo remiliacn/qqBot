@@ -41,6 +41,10 @@ def main():
         for youtube_user in user_in_dict:
             try:
                 logger.debug(f'Getting first video for: {youtube_user}')
+                if not user_in_dict[youtube_user]['enabled']:
+                    logger.debug(f'User disabled: {youtube_user}')
+                    continue
+
                 get_first_video(
                     user_in_dict[youtube_user]['channel'],
                     youtube_user,

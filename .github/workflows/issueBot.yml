@@ -11,9 +11,9 @@ jobs:
       - uses: actions/stale@main
         id: stale
         with:
-          stale-issue-message: '由于长时间未收到回复，本issue已被标记为“过时issue”，如果还需要帮助，请回复，如果您继续不回复本issue的话，该issue将会在5天后关闭。'
-          days-before-stale: 7
-          days-before-close: 5
+          stale-issue-message: '由于长时间未收到回复，本issue已被标记为“过时issue”，如果还需要帮助，请回复，如果您继续不回复本issue的话，该issue将会在3天后关闭。'
+          days-before-stale: 5
+          days-before-close: 3
           close-issue-message: '由于长时间未收到您的答复，本issue已被关闭:('
       - name: Print outputs
         run: echo ${{ join(steps.stale.outputs.*, ',') }}
