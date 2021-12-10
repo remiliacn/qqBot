@@ -530,7 +530,7 @@ async def reverse_image_search(session: nonebot.CommandSession):
         await session.finish('¿')
 
     bot = nonebot.get_bot()
-    has_image = re.findall(r'.*?\[CQ:image,file=(.*?\.image)]', args[1])
+    has_image = re.findall(r'[a-z0-9]+\.image', args[1])
     if has_image:
         image = await bot.get_image(file=has_image[0])
         url = image['url']
@@ -542,6 +542,7 @@ async def reverse_image_search(session: nonebot.CommandSession):
                 return
 
             response = anime_reverse_search_response(response_data)
+            logger.info(f'reverse search response: {response}')
             await session.send(response)
             return
 

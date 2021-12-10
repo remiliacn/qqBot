@@ -147,7 +147,6 @@ async def _async_youtube_live(ch_name, json_data):
     api = YouTubeLiveTracker(json_data[ch_name]['channel'], ch_name)
     await api.get_json_data()
     if 'notify' not in json_data[ch_name] or json_data[ch_name]['notify']:
-        logger.info(f'Checking live stat for {ch_name}')
         if api.get_live_status():
             if await api.update_live_id(True) == 1:
                 bot = nonebot.get_bot()
@@ -199,8 +198,6 @@ async def _async_youtube_live(ch_name, json_data):
                                 f'{ch_name} updated:\n'
                                 f'{update_info}'
                     )
-
-        logger.info(f'Checking live stat for {ch_name} completed.')
 
 
 async def fill_sanity():
