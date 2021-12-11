@@ -35,6 +35,17 @@ class SetuFunction:
         self.setu_stat['keyword'][key_word] += 1
         self.make_a_json(self.setu_stat_path)
 
+    def get_keyword_usage(self, key_word: str) -> int:
+        if 'keyword' not in self.setu_stat:
+            self.setu_stat['keyword'] = {}
+            return 0
+
+        if key_word not in self.setu_stat['keyword']:
+            self.setu_stat['keyword'][key_word] = 0
+            return 0
+
+        return self.setu_stat['keyword'][key_word]
+
     def get_high_freq_keyword(self) -> list:
         if 'keyword' not in self.setu_stat:
             return []

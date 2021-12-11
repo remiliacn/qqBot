@@ -47,6 +47,19 @@ async def get_setu_stat(session: nonebot.CommandSession):
     await session.finish(f'色图功能共被使用了{setu_stat}次，被查最多的关键词前10名为：\n{setu_high_freq_keyword_to_string}')
 
 
+@nonebot.on_command('词频', only_to_me=False)
+async def get_setu_stat(session: nonebot.CommandSession):
+    arg = session.current_arg
+    if not arg:
+        await session.finish('查啥词啊喂！！')
+
+    setu_stat = setu_control.get_keyword_usage(arg)
+    if setu_stat == 0:
+        await session.finish('没人查过这个词呢~')
+
+    await session.finish(f'{arg}被查询了{setu_stat}次~~')
+
+
 @nonebot.on_command('理智查询', only_to_me=False)
 async def sanity_checker(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -391,7 +404,7 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
 
     result = await get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq, request_search_qq)
     setu_control.drain_sanity(group_id)
-    await session.finish(f'[CQ:reply,id={message_id}]{result} + {friendly_reminder if not has_id else ""}')
+    await session.finish(f'[CQ:reply,id={message_id}]{result}\n{friendly_reminder if not has_id else ""}')
 
 
 async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq, request_search_qq) -> str:
