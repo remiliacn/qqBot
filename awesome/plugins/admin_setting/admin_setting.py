@@ -80,10 +80,7 @@ async def add_whitelist(session: nonebot.CommandSession):
         return
 
     user_control_module.set_user_privilege(user_id, perm.WHITELIST, True)
-    await bot.send_private_msg(
-        user_id=user_id,
-        message='您已被机器人的主人添加信任'
-    )
+
     await session.send('添加成功！')
 
 
@@ -119,10 +116,7 @@ async def add_admin(session: nonebot.CommandSession):
 
     user_control_module.set_user_privilege(user_id, 'ADMIN', True)
     user_control_module.set_user_privilege(user_id, 'WHITELIST', True)
-    await bot.send_private_msg(
-        user_id=user_id,
-        message='您已被机器人的主人给予机器人管理权限'
-    )
+
     await session.send('添加完成')
 
 
