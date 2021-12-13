@@ -143,15 +143,18 @@ class Horseracing:
         return False
 
 
+BULLET_IN_GUN = 6
+# 晚安模式在开启时会禁言中枪玩家6小时，而不是平常的2分钟。
+ENABLE_GOOD_NIGHT_MODE = True
+
 poker = poker_game.Pokergame()
 GLOBAL_STORE = Storer()
-game = ru_game.Russianroulette()
+game = ru_game.Russianroulette(BULLET_IN_GUN)
 
 
 @nonebot.on_command('1d100', patterns=r'\d+[dD]\d+', only_to_me=False)
 async def pao_tuan_shai_zi(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    message_id = ctx['message_id']
 
     raw_message = ctx['raw_message'].split()[0][1:].lower()
     args = raw_message.split('d')
@@ -164,7 +167,6 @@ async def pao_tuan_shai_zi(session: nonebot.CommandSession):
     result_sum = sum(result_list)
 
     await session.finish(
-        f'[CQ:reply,id={message_id}]'
         f'筛子结果为：{", ".join([str(x) for x in result_list])}\n'
         f'筛子结果总和为：{result_sum}' if throw_times > 1 else ''
     )
@@ -211,11 +213,7 @@ async def russian_roulette(session: nonebot.CommandSession):
     id_num = ctx['group_id'] if 'group_id' in ctx else ctx['user_id']
     user_id = ctx['user_id']
 
-    if 'group_id' in ctx:
-        if admin_control.get_group_permission(ctx['group_id'], 'banned'):
-            await session.send('已设置禁止该群的娱乐功能。如果确认这是错误的话，请联系bot制作者')
-            return
-    else:
+    if 'group_id' not in ctx:
         await session.finish('这是群组游戏！')
 
     if id_num not in game.game_dict:
@@ -226,16 +224,15 @@ async def russian_roulette(session: nonebot.CommandSession):
     else:
         game.add_player_play_time(group_id=id_num, user_id=user_id)
 
-    play_time = game.get_play_time_with_user_id(group_id=id_num, user_id=user_id)
     message_id = ctx['message_id']
     if not game.get_result(id_num):
         await session.send(f'[CQ:reply,id={message_id}]咔')
     else:
         death = game.get_death(id_num)
-        if get_privilege(user_id, perm.OWNER):
-            await session.send(f'[CQ:reply,id={message_id}] sv_cheats 1 -> 成功触发免死\n'
-                               '本应中枪几率为：%.2f' % (1 / (7 - death) * 100))
-            return
+        death_dodge = randint(0, 100)
+        if get_privilege(user_id, perm.OWNER) or death_dodge < 3:
+            await session.finish(f'[CQ:reply,id={message_id}] sv_cheats 1 -> 成功触发免死\n'
+                                 '本应中枪几率为：%.2f' % (1 / (7 - death) * 100))
 
         await session.send(
             f'[CQ:reply,id={message_id}]boom！你死了。这是第{death}枪，'
@@ -247,22 +244,12 @@ async def russian_roulette(session: nonebot.CommandSession):
         if id_num == user_id:
             return
 
-        if play_time < 3:
-            low = 1
-            high = 2
-        else:
-            low = 1 + play_time
-            high = 2 + play_time
-
-        rand_num = randint(low, high)
-        if rand_num > 10:
-            rand_num = 10
-
+        rand_num = 60 * 2
         if 0 < datetime.datetime.now().hour < 4:
-            rand_num = 60 * 6
+            rand_num = 60 * 60 * 6
             await session.send('晚安')
 
-        await bot.set_group_ban(group_id=id_num, user_id=user_id, duration=60 * rand_num)
+        await bot.set_group_ban(group_id=id_num, user_id=user_id, duration=rand_num)
 
 
 @nonebot.on_command('转轮', only_to_me=False)
@@ -274,6 +261,25 @@ async def shuffle_gun(session: nonebot.CommandSession):
 
     game.reset_gun(ctx['group_id'])
     await session.send('%s转动了弹夹！流向改变了！' % ctx['sender']['nickname'])
+
+
+@nonebot.on_command('设置子弹', only_to_me=False)
+async def modify_gun_rounds(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    user_id = ctx['user_id']
+    if not get_privilege(user_id, perm.ADMIN):
+        await session.finish('无权限')
+
+    arg = session.current_arg
+    if not arg:
+        await session.finish('?')
+
+    if not arg.isdigit() or int(arg) <= 0:
+        await session.finish('必须是正整数')
+
+    bullet = int(arg)
+    game.modify_bullets_in_gun(bullet)
+    await session.finish('Done!')
 
 
 @nonebot.on_command('成语接龙', only_to_me=False)

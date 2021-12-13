@@ -3,14 +3,18 @@ import time
 
 
 class Russianroulette:
-    def __init__(self):
+    def __init__(self, bullet_in_gun=6):
         self.game_dict = {
 
         }
         self.notified = False
+        self.bullet_in_gun = bullet_in_gun
 
     def change_notification(self, stats):
         self.notified = stats
+
+    def modify_bullets_in_gun(self, count: int):
+        self.bullet_in_gun = count
 
     def if_notified(self):
         return self.notified
@@ -18,7 +22,7 @@ class Russianroulette:
     def set_up_dict_by_group(self, user_id):
         self.game_dict[user_id] = {
             "theLowerBound": 1,
-            "theHighestBound": 6,
+            "theHighestBound": self.bullet_in_gun,
             "theLastDeath": 1,
             "playerDict": {}
         }
@@ -43,6 +47,9 @@ class Russianroulette:
         if group_id not in self.game_dict:
             self.game_dict[group_id] = {}
 
+        if 'playerDict' not in self.game_dict[group_id]:
+            self.game_dict[group_id]['playerDict'] = {}
+
         self.game_dict[group_id]["theLastDeath"] = 1
         self.game_dict[group_id]["theLowerBound"] = 1
 
@@ -54,7 +61,7 @@ class Russianroulette:
     def get_result(self, group_id):
         random.seed(time.time_ns())
         draw = random.randint(self.game_dict[group_id]["theLowerBound"], self.game_dict[group_id]["theHighestBound"])
-        if draw >= 6:
+        if draw >= self.bullet_in_gun:
             return True
 
         self.pull_trigger(group_id)
