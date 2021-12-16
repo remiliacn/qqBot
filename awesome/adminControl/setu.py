@@ -4,7 +4,7 @@ from os.path import exists
 
 class SetuFunction:
     def __init__(self):
-        self.max_sanity = 30
+        self.max_sanity = 100
         self.sanity_dict = {}
         self.happy_hours = False
         self.remind_dict = {}

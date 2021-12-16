@@ -299,14 +299,16 @@ def _simple_ai_process(question: str, ctx: dict) -> str:
         syntax_question = list(findall(r'.*?是(.*?)还?是(.*?)[？?]', response))[0]
 
     if len(syntax_question) > 1:
-        rand_num = randint(0, 50)
         if syntax_question[0] == syntax_question[1]:
             return '你这什么屑问法？'
 
-        if rand_num >= 25:
-            return f'{syntax_question[0]}'
+        rand_num = randint(0, 100)
+        if rand_num < 45:
+            return syntax_question[0]
+        elif rand_num < 90:
+            return syntax_question[1]
         else:
-            return f'{syntax_question[1]}'
+            return f'又{syntax_question[0]}又{syntax_question[1]}'
 
     elif match(syntax2, response):
         if match(r'.*?主人', response):

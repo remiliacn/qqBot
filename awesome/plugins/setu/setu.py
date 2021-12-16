@@ -327,7 +327,9 @@ async def pixiv_send(session: nonebot.CommandSession):
         setu_control.set_usage(group_id, 'setu')
 
     setu_control.set_user_data(user_id, 'setu')
-    setu_control.set_user_data(user_id, 'user_xp', keyword=key_word)
+    key_word_list = re.split(r'[\s\u3000]+', key_word)
+    for keyword in key_word_list:
+        setu_control.set_user_data(user_id, 'user_xp', keyword=keyword)
 
     if monitored and not get_privilege(user_id, perm.OWNER):
         await bot.send_private_msg(
