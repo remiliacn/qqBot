@@ -76,7 +76,7 @@ async def crypto_search(session: nonebot.CommandSession):
 
 @nonebot.on_command('K线', aliases={'股票', '股票代码', 'k线'}, only_to_me=False)
 async def k_line(session: nonebot.CommandSession):
-    key_word = session.get(
+    key_word: str = session.get(
         'key_word',
         prompt='请输入股票代码！'
     )
@@ -86,13 +86,7 @@ async def k_line(session: nonebot.CommandSession):
 
     stock = Stock(key_word, keyword=key_word)
     try:
-        file_name, market_will = await stock.get_kline_map()
-        if file_name:
-            await session.send(
-                f'[CQ:image,file=file:///{file_name}]\n' +
-                f'{market_will}'
-            )
-        else:
+        if key_word.isdigit():
             file_name = await stock.get_stock_codes()
             await session.send(
                 f'好像出问题了（\n'
@@ -100,6 +94,13 @@ async def k_line(session: nonebot.CommandSession):
                 f'[CQ:image,file=file:///{file_name}]\n'
                 f'请使用数字代码查询！'
             )
+        else:
+            file_name, market_will = await stock.get_kline_map()
+            if file_name:
+                await session.send(
+                    f'[CQ:image,file=file:///{file_name}]\n' +
+                    f'{market_will}'
+                )
 
     except Exception as err:
         await session.send('出问题了出问题了~')

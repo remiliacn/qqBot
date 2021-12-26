@@ -8,6 +8,7 @@ import pandas
 import plotly.graph_objects as plotter
 import requests
 from PIL import Image, ImageDraw, ImageFont
+from loguru import logger
 from plotly.subplots import make_subplots
 
 import Services.okex.spot_api as spot
@@ -412,7 +413,11 @@ class Stock:
     async def _request_for_kline_data(self, iteration=False) -> list:
         async with aiohttp.ClientSession() as client:
             async with client.get(self.kline_api) as page:
-                json_data = await page.json()
+                try:
+                    json_data = await page.json()
+                except Exception as err:
+                    logger.warning(f'Maybe not stock code? {err}')
+                    return []
 
         if json_data is None:
             return []
