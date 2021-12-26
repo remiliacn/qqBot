@@ -64,6 +64,12 @@ async def natural_language_proc(session: nonebot.NLPSession):
         await session.send(reply_response)
         return
 
+    if admin_control.get_group_permission(group_id, 'flash', default_if_none=False):
+        fetch_flash_image = await _get_flash_image_entry(message)
+        if fetch_flash_image:
+            await session.send(f'已拦截到闪照~\n'
+                               f'[CQ:image,file={fetch_flash_image}]')
+
     message = message.strip()
     fetch_result = _repeat_and_palindrome_fetch(message)
     if fetch_result:
@@ -76,11 +82,18 @@ async def natural_language_proc(session: nonebot.NLPSession):
         await asyncio.sleep(sleep_time)
         await session.send(fetch_result)
 
-    if admin_control.get_group_permission(group_id, 'flash', default_if_none=False):
-        fetch_flash_image = await _get_flash_image_entry(message)
-        if fetch_flash_image:
-            await session.send(f'已拦截到闪照~\n'
-                               f'[CQ:image,file={fetch_flash_image}]')
+    fetch_result = await _get_if_is_abb(message)
+    if fetch_result:
+        await session.send(fetch_result)
+
+
+async def _get_if_is_abb(message: str) -> str:
+    if len(message) != 3:
+        return ''
+    if re.fullmatch(r'^(.)(.(?<!\1))\2$', message):
+        return '叠词词，恶心心。'
+
+    return ''
 
 
 async def _get_flash_image_entry(message: str) -> str:
