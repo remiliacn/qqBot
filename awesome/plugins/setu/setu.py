@@ -437,7 +437,7 @@ async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq
         json_result = get_user_bookmark_data(int(pixiv_id))
     else:
         json_result = pixiv_api.search_illust(
-            word=xp_result,
+            word=xp_result[0],
             sort="popular_desc"
         )
     json_result = json_result.illusts

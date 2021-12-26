@@ -181,7 +181,7 @@ class SetuFunction:
     def get_global_stat(self):
         return self.stat_dict['global']
 
-    def get_user_xp(self, user_id) -> str:
+    def get_user_xp(self, user_id) -> Union[tuple, str]:
         if isinstance(user_id, int):
             user_id = str(user_id)
 
@@ -194,7 +194,7 @@ class SetuFunction:
         if not user_xp_first:
             return '暂无数据'
 
-        return self.filter_overused_keyword(user_xp_first)[0]
+        return self.filter_overused_keyword(user_xp_first)
 
     def get_user_data_by_tag(self, user_id, tag: str):
         if isinstance(user_id, int):
