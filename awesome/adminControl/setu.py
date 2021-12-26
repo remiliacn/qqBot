@@ -1,5 +1,6 @@
 from json import loads, dump
 from os.path import exists
+from typing import Union
 
 
 class SetuFunction:
@@ -53,11 +54,7 @@ class SetuFunction:
         if not self.setu_stat['keyword']:
             return []
 
-        sort_orders = sorted(
-            self.setu_stat['keyword'].items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
+        sort_orders = self.reverse_sort_dictionary(self.setu_stat['keyword'])
         return sort_orders
 
     def get_max_sanity(self) -> int:
@@ -193,19 +190,11 @@ class SetuFunction:
         except KeyError:
             return '暂无数据'
 
-        user_xp_first = sorted(
-            user_xp_dict.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
+        user_xp_first = self.reverse_sort_dictionary(user_xp_dict)
         if not user_xp_first:
             return '暂无数据'
 
-        for element in user_xp_first:
-            if element[0] not in ('R-18', 'オリジナル'):
-                return element
-
-        return user_xp_first[0]
+        return self.filter_overused_keyword(user_xp_first)[0]
 
     def get_user_data_by_tag(self, user_id, tag: str):
         if isinstance(user_id, int):
@@ -230,6 +219,41 @@ class SetuFunction:
     def get_sanity_dict(self):
         return self.sanity_dict
 
+    def get_group_xp(self, group_id):
+        group_id = str(group_id)
+        if 'group' not in self.setu_stat:
+            self.setu_stat['group'] = {}
+            return ''
+
+        if group_id not in self.setu_stat['group']:
+            self.setu_stat['group'][group_id] = {}
+
+        if 'groupXP' not in self.setu_stat['group'][group_id]:
+            self.setu_stat['group'][group_id]['groupXP'] = {}
+            return ''
+
+        if not self.setu_stat['group'][group_id]['groupXP']:
+            return ''
+
+        sorted_item = self.reverse_sort_dictionary(self.setu_stat['group'][group_id]['groupXP'])
+        return self.filter_overused_keyword(sorted_item)
+
+    @staticmethod
+    def filter_overused_keyword(xp_list: list) -> tuple:
+        for element in xp_list:
+            if element[0] not in ('R-18', 'オリジナル'):
+                return element
+
+        return xp_list[0]
+
+    @staticmethod
+    def reverse_sort_dictionary(dictionary: dict) -> Union[dict, list]:
+        if not dictionary:
+            return dictionary
+
+        sorted_item = sorted(dictionary.items(), key=lambda x: x[1], reverse=True)
+        return sorted_item
+
     def set_usage(self, group_id, tag, data=None):
         group_id = str(group_id)
         if group_id not in self.stat_dict:
@@ -240,8 +264,26 @@ class SetuFunction:
                 "pull": 0
             }
 
+        if 'group' not in self.setu_stat:
+            self.setu_stat['group'] = {}
+
         if tag == 'setu' or tag == 'yanche':
             self.stat_dict[group_id][tag] += 1
+
+        elif tag == 'groupXP':
+            if data is None:
+                return
+
+            if group_id not in self.setu_stat['group']:
+                self.setu_stat['group'][group_id] = {}
+
+            if tag not in self.setu_stat['group'][group_id]:
+                self.setu_stat['group'][group_id][tag] = {}
+
+            if data not in self.setu_stat['group'][group_id][tag]:
+                self.setu_stat['group'][group_id][tag][data] = 1
+            else:
+                self.setu_stat['group'][group_id][tag][data] += 1
 
         elif tag == 'pulls':
             if '3' in self.stat_dict[group_id][tag] or '4' in self.stat_dict[group_id][tag] \

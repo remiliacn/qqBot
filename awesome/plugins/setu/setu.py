@@ -47,6 +47,21 @@ async def get_setu_stat(session: nonebot.CommandSession):
     await session.finish(f'色图功能共被使用了{setu_stat}次，被查最多的关键词前10名为：\n{setu_high_freq_keyword_to_string}')
 
 
+@nonebot.on_command('查询本群xp', aliases={'查询本群XP'}, only_to_me=False)
+async def fetch_group_xp(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    if 'group_id' not in ctx:
+        return
+
+    group_id = ctx['group_id']
+    group_xp = setu_control.get_group_xp(group_id)
+
+    if not group_xp:
+        await session.finish('本群还无数据哦~')
+
+    await session.finish(f'本群XP查询第一名为{group_xp[0]} -> {group_xp[1]}')
+
+
 @nonebot.on_command('词频', only_to_me=False)
 async def get_setu_stat(session: nonebot.CommandSession):
     arg = session.current_arg
@@ -330,6 +345,13 @@ async def pixiv_send(session: nonebot.CommandSession):
     key_word_list = re.split(r'[\s\u3000]+', key_word)
     for keyword in key_word_list:
         setu_control.set_user_data(user_id, 'user_xp', keyword=keyword)
+        setu_control.set_usage(group_id, 'groupXP', keyword)
+
+    tags = illust.tags
+    if len(tags) > 5:
+        tags = tags[:5]
+    for tag in tags:
+        setu_control.set_usage(group_id, 'groupXP', tag['name'])
 
     if monitored and not get_privilege(user_id, perm.OWNER):
         await bot.send_private_msg(
@@ -434,12 +456,11 @@ async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq
         setu_control.set_usage(group_id, 'setu')
 
     tags = illust['tags']
-    if len(tags) >= 5:
-        tags = tags[:5]
 
     for tag in tags:
         setu_control.set_user_data(request_search_qq, 'user_xp', keyword=tag['name'])
         setu_control.track_keyword(tag['name'])
+        setu_control.set_usage(group_id, 'groupXP', tag['name'])
 
     response += f'标题：{illust.title}\n' \
                 f'Pixiv ID： {illust.id}\n' \
