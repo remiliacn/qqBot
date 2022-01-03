@@ -1,0 +1,1202 @@
+{
+  "talents": {
+    "1": {
+      "title": "手气不不错",
+      "status": "buff",
+      "grade": 0,
+      "description": "您感觉您除了手气都挺好的（除了幸运之外的数值 +1）",
+      "preq": {
+        "death": 0,
+        "health": 20,
+        "attack": 20,
+        "luck": 0
+      },
+      "change": {
+        "health": 1,
+        "attack": 1,
+        "luck": 0
+      },
+      "exclude_talent": [
+        "2"
+      ]
+    },
+    "2": {
+      "title": "手气不错",
+      "status": "buff",
+      "description": "您感觉您手气不错（幸运 +1）",
+      "grade": 0,
+      "preq": {
+        "health": 20,
+        "attack": 20
+      },
+      "change": {
+        "luck": 1
+      },
+      "exclude_talent": [
+        "1"
+      ]
+    },
+    "3": {
+      "title": "妈妈的爱",
+      "status": "buff",
+      "description": "妈妈觉得您冷所以给您套上了棉外套（攻击-5但是血量+5）",
+      "grade": 0,
+      "preq": {
+        "health": 20,
+        "attack": 20
+      },
+      "change": {
+        "health": 5,
+        "attack": -5
+      }
+    },
+    "4": {
+      "title": "我们应该在深入一些",
+      "status": "buff",
+      "description": "您做好了充足的准备希望更深入一些，但是代价是什么呢？（幸运归0，但是血量+5，伤害+5）",
+      "grade": 0,
+      "preq": {
+        "health": 20,
+        "attack": 20
+      },
+      "change": {
+        "health": 5,
+        "attack": 5
+      },
+      "set": {
+        "luck": 0
+      }
+    },
+    "5": {
+      "title": "生活要有点惊喜v1.0",
+      "status": "buff",
+      "description": "获得未知增益",
+      "grade": 0,
+      "preq": {
+        "health": 20,
+        "attack": 20
+      },
+      "change": {
+        "health": 3,
+        "attack": 3
+      },
+      "exclude_talent": [
+        "6"
+      ]
+    },
+    "6": {
+      "title": "生活要有点惊喜v2.0",
+      "status": "neutral",
+      "description": "获得未知减益和增益",
+      "grade": 0,
+      "preq": {
+        "health": 20,
+        "attack": 20
+      },
+      "change": {
+        "health": -5,
+        "attack": 4,
+        "luck": 3
+      },
+      "exclude_talent": [
+        "5"
+      ]
+    },
+    "7": {
+      "title": "给点给点~",
+      "status": "buff",
+      "description": "给点吧给点吧~（获得“你求我我就给你呀~”成就，并本局幸运+1）",
+      "grade": 1,
+      "preq": {
+        "health": 20,
+        "attack": 20,
+        "death": 5
+      },
+      "change": {
+        "luck": 1
+      },
+      "give_achievement": ["1006"]
+    },
+    "8": {
+      "title": "机会制造器",
+      "status": "neutral",
+      "description": "我只要够幸运我就啥都不需要怕了！（幸运+5，但是其他属性-5）",
+      "grade": 0,
+      "preq": {
+        "health": 20,
+        "attack": 20,
+        "death": 0
+      },
+      "change": {
+        "luck": 5,
+        "health": -5,
+        "attack": -5
+      },
+      "exclude_talent": [
+        "9"
+      ]
+    },
+    "9": {
+      "title": "反·机会制造器",
+      "status": "neutral",
+      "description": "玄不改非，氪不改命！（幸运-5，但是其他属性+5）",
+      "grade": 0,
+      "preq": {
+        "health": 20,
+        "attack": 20,
+        "death": 0
+      },
+      "change": {
+        "luck": -5,
+        "health": 5,
+        "attack": 5
+      },
+      "exclude_talent": [
+        "8"
+      ]
+    },
+    "10": {
+      "title": "偷渡的非洲人",
+      "status": "neutral",
+      "description": "我只要够幸运我就啥都不需要怕了！（幸运+5，但是其他属性-2）",
+      "grade": 0,
+      "preq": {
+        "health": 20,
+        "attack": 20,
+        "death": 0
+      },
+      "change": {
+        "luck": 5,
+        "health": -2,
+        "attack": -2
+      },
+      "exclude_talent": [
+        "11"
+      ]
+    },
+    "11": {
+      "title": "非 洲 人",
+      "status": "neutral",
+      "description": "玄学什么的真有用么？（所有属性+2，但是幸运-5）",
+      "grade": 0,
+      "preq": {
+        "health": 20,
+        "attack": 20,
+        "death": 0
+      },
+      "change": {
+        "luck": 5,
+        "health": -2,
+        "attack": -2
+      },
+      "exclude_talent": [
+        "10"
+      ]
+    },
+    "12": {
+      "title": "感知超人",
+      "status": "neutral",
+      "description": "更有几率得到彩蛋结局（提高几率到0.05%）",
+      "grade": 1,
+      "preq": {
+        "health": 20,
+        "attack": 20,
+        "death": 1
+      },
+      "change": {},
+      "exclude_talent": [
+        "13",
+        "19"
+      ]
+    },
+    "13": {
+      "title": "感知低下",
+      "status": "neutral",
+      "description": "不会拿到彩蛋结局",
+      "grade": 1,
+      "preq": {
+        "health": 20,
+        "attack": 20,
+        "death": 1
+      },
+      "change": {},
+      "exclude_talent": [
+        "12",
+        "19"
+      ]
+    },
+    "14": {
+      "title": "天胡",
+      "status": "buff",
+      "description": "有的人的起跑线就比别的人设定的离终点近（本次探险所有数值都提升到允许的最高值）",
+      "grade": 2,
+      "preq": {
+        "health": 20,
+        "attack": 20,
+        "death": 0
+      },
+      "set": {
+        "health": 100,
+        "attack": 50,
+        "luck": 15
+      },
+      "give_achievement": [],
+      "exclude_talent": [
+        "63",
+        "64"
+      ]
+    },
+    "15": {
+      "title": "整装待发",
+      "status": "buff",
+      "description": "您已做好了探险的所有准备（本次探险所有数值+1）",
+      "grade": 0,
+      "preq": {
+        "health": 20,
+        "attack": 20,
+        "death": 0
+      },
+      "change": {
+        "health": 1,
+        "attack": 1,
+        "luck": 1
+      }
+    },
+    "16": {
+      "title": "人比人，气死人",
+      "status": "buff",
+      "description": "您在探险时越想越气（探索20步后每步+2）",
+      "grade": 0,
+      "preq": {
+        "health": 20,
+        "attack": 20,
+        "death": 0
+      },
+      "change": {
+        "attack": 2
+      },
+      "activate": [
+        {
+          "decider": "step",
+          "step": 20,
+          "result": [
+            {
+              "action": "change",
+              "prop": "attack",
+              "influence": "attack"
+            }
+          ],
+          "condition": "=="
+        }
+      ]
+    },
+    "17": {
+      "title": "天妒英才",
+      "status": "debuff",
+      "description": "探索前您做了个很不好的梦……（每探索5步 幸运-2、攻击-1）",
+      "grade": 0,
+      "preq": {
+        "health": 20,
+        "attack": 20,
+        "death": 0
+      },
+      "change": {
+        "attack": -1,
+        "luck": -2
+      },
+      "activate": [
+        {
+          "decider": "step",
+          "step": 5,
+          "result": [
+            {
+              "action": "change",
+              "prop": "attack",
+              "influence": "attack"
+            },
+            {
+              "action": "change",
+              "prop": "luck",
+              "influence": "luck"
+            }
+          ],
+          "condition": "%"
+        }
+      ]
+    },
+    "18": {
+      "title": "挑战者",
+      "status": "debuff",
+      "description": "您穿着您最喜欢的T恤衫和一把小木剑便出发了……（初始血量-10，且攻击-5）",
+      "grade": 0,
+      "preq": {
+        "health": 20,
+        "attack": 20,
+        "death": 0
+      },
+      "change": {
+        "attack": -5,
+        "health": -10
+      }
+    },
+    "19": {
+      "title": "eval()",
+      "status": "neutral",
+      "description": "在多次的探索后，您似乎有所领悟（？？？）",
+      "grade": 2,
+      "preq": {
+        "health": 20,
+        "attack": 20,
+        "death": 10
+      },
+      "exclude_talent": [
+        "12",
+        "13"
+      ]
+    },
+    "20": {
+      "title": "沉默者之怒",
+      "status": "neutral",
+      "description": "忍一时越想越气，退一步越想越亏（游戏开始时血量降低至1，10步后锁定在120）",
+      "grade": 0,
+      "preq": {
+        "health": 20,
+        "attack": 20,
+        "death": 0
+      },
+      "set": {
+        "health_start": 1,
+        "health_end": 120
+      },
+      "change": {
+        "attack": 10
+      },
+      "activate": [
+        {
+          "decider": "step",
+          "step": 1,
+          "result": [
+            {
+              "action": "set",
+              "prop": "health_start",
+              "influence": "health"
+            }
+          ],
+          "condition": "=="
+        },
+        {
+          "decider": "step",
+          "step": 10,
+          "result": [
+            {
+              "action": "set",
+              "prop": "health_end",
+              "influence": "health"
+            },
+            {
+              "action": "change",
+              "prop": "attack",
+              "influence": "attack"
+            }
+          ],
+          "condition": "=="
+        }
+      ]
+    },
+    "21": {
+      "title": "怎么会这样？",
+      "status": "neutral",
+      "description": "您的名字每个房间都会变化",
+      "grade": 1
+    },
+    "22": {
+      "title": "It's time to STOP!",
+      "status": "debuff",
+      "description": "休息休息别玩了吧……（本次探险所有属性-10）",
+      "grade": 1,
+      "preq": {
+        "death": 100
+      },
+      "change": {
+        "health": -10,
+        "attack": -10,
+        "luck": -10
+      }
+    },
+    "23": {
+      "title": "Never gonna give you up",
+      "status": "neutral",
+      "description": "Never gonna let you down~",
+      "grade": 0,
+      "add_event": []
+    },
+    "24": {
+      "title": "我命由天不由我",
+      "status": "neutral",
+      "description": "啊对对对~（每探索2步有几率全属性+1或全属性-1）",
+      "grade": 0,
+      "change": {
+        "health_decrease": -1,
+        "health_increase": 1
+      },
+      "activate": [
+        {
+          "decider": "step",
+          "step": 2,
+          "result": [
+            {
+              "action": "random[!]change",
+              "prop": [
+                "health_decrease",
+                "health_increase"
+              ],
+              "influence": "health"
+            }
+          ],
+          "condition": "%"
+        }
+      ]
+    },
+    "25": {
+      "title": "春游",
+      "status": "buff",
+      "description": "您探险前准备好了足够的食物（在进行10步之前，每步血量+1）",
+      "grade": 0,
+      "change": {
+        "health": 1
+      },
+      "activate": [
+        {
+          "decider": "step",
+          "step": 10,
+          "condition": "<",
+          "result": [
+            {
+              "action": "change",
+              "prop": "health",
+              "influence": "health"
+            }
+          ]
+        }
+      ]
+    },
+    "26": {
+      "title": "没头脑和不高兴",
+      "description": "您心情不佳，准备也不是很充分（所有属性-2）",
+      "grade": 0,
+      "status": "debuff",
+      "change": {
+        "attack": -2,
+        "health": -2,
+        "luck": -2
+      }
+    },
+    "27": {
+      "title": "倒霉催的",
+      "description": "大概喝凉水都塞牙就是这个感觉？（您将只会遇到减益事件，并覆盖其他幸运相关增益天赋）",
+      "grade": 0,
+      "status": "debuff",
+      "set": {
+        "luck": -20
+      }
+    },
+    "28": {
+      "title": "泥丸子？",
+      "description": "你从一个怪人那里买了个泥丸子，说不定有用呢？（在第一次死亡时可重生一次）",
+      "grade": 1,
+      "status": "buff",
+      "change": {
+        "life": 1
+      }
+    },
+    "29": {
+      "title": "幸运吊坠",
+      "description": "路边买的吊坠，不是很贵，但是看的还挺好看的（本局幸运+1）",
+      "grade": 0,
+      "status": "buff",
+      "change": {
+        "luck": 1
+      }
+    },
+    "30": {
+      "title": "急救箱",
+      "description": "急救箱，里面装的满满的医疗用品（本局血量+10）",
+      "grade": 0,
+      "status": "buff",
+      "change": {
+        "health": 10
+      }
+    },
+    "31": {
+      "title": "奋起",
+      "description": "您学会了拼死搏斗（在血量低于2的时候每步+1）",
+      "grade": 1,
+      "status": "buff",
+      "change": {
+        "health": 1
+      },
+      "activate": [
+        {
+          "condition": "<",
+          "decider": "health",
+          "result": [
+            {
+              "action": "change",
+              "prop": "health",
+              "influence": "health"
+            }
+          ],
+          "health": 2
+        }
+      ]
+    },
+    "32": {
+      "title": "在这片大地上……",
+      "description": "在这大片大地上，还生活着许多受苦的人，但是对这些，您已经历了许多（替换怪物名称为明日方舟的敌人名称）",
+      "grade": 1,
+      "status": "neutral"
+    },
+    "33": {
+      "title": "天赋？狗都不要",
+      "description": "您对您的运气很有信心",
+      "grade": 0,
+      "status": "neutral"
+    },
+    "34": {
+      "title": "快速轮回",
+      "description": "您投胎心急",
+      "grade": 0,
+      "status": "debuff",
+      "set": {
+        "life": 0
+      }
+    },
+    "35": {
+      "title": "寄，乃本质",
+      "description": "深隐于易碎泡影之下……（游戏开始10步内每步血量-1）",
+      "grade": 0,
+      "status": "debuff",
+      "change": {
+        "health": -1
+      },
+      "activate": [
+        {
+          "condition": "<",
+          "decider": "step",
+          "step": 10,
+          "result": [
+            {
+              "action": "change",
+              "prop": "health",
+              "influence": "health"
+            }
+          ]
+        }
+      ]
+    },
+    "36": {
+      "title": "抖M",
+      "description": "啊~好棒ww（在遇到debuff效果时，血量+3）",
+      "grade": 0,
+      "change": {
+        "health": 3
+      },
+      "activate": [
+        {
+          "condition": "is_debuff",
+          "decider": "buff_condition",
+          "result": [
+            {
+              "action": "change",
+              "prop": "health",
+              "influence": "health"
+            }
+          ]
+        }
+      ],
+      "status": "buff"
+    },
+    "37": {
+      "title": "硬骨头",
+      "description": "您不吃嗟来之食（遇到buff时攻击-5，遇到debuff时攻击+5）",
+      "grade": 0,
+      "status": "neutral",
+      "change": {
+        "attack_decrease": -5,
+        "attack_increase": 5
+      },
+      "activate": [
+        {
+          "condition": "is_debuff",
+          "decider": "buff_condition",
+          "result": [
+            {
+              "action": "change",
+              "prop": "attack_increase",
+              "influence": "attack"
+            }
+          ]
+        },
+        {
+          "condition": "is_buff",
+          "decider": "buff_condition",
+          "result": [
+            {
+              "action": "change",
+              "prop": "attack_decrease",
+              "influence": "attack"
+            }
+          ]
+        }
+      ]
+    },
+    "38": {
+      "title": "千回轮回",
+      "description": "感谢支持！（全属性+5）",
+      "grade": 0,
+      "status": "buff",
+      "preq": {
+        "playtime": 1000
+      },
+      "change": {
+        "health": 5,
+        "attack": 5,
+        "luck": 5
+      }
+    },
+    "39": {
+      "title": "万回轮回",
+      "description": "您，不累么？（全属性+10）",
+      "grade": 0,
+      "status": "buff",
+      "preq": {
+        "playtime": 10000
+      },
+      "change": {
+        "attack": 10,
+        "luck": 10,
+        "health": 10
+      }
+    },
+    "40": {
+      "title": "约伯记38:11",
+      "description": "你只可到这里 不可越过（血量低于30时，攻击持续+2，反之攻击持续-2）",
+      "grade": 0,
+      "status": "neutral",
+      "change": {
+        "attack_decrease": -2,
+        "attack_increase": 2
+      },
+      "activate": [
+        {
+          "condition": "<",
+          "decider": "health",
+          "result": [
+            {
+              "action": "change",
+              "prop": "attack_increase",
+              "influence": "attack"
+            }
+          ]
+        },
+        {
+          "condition": ">=",
+          "decider": "health",
+          "result": [
+            {
+              "action": "change",
+              "prop": "attack_decrease",
+              "influence": "attack"
+            }
+          ]
+        }
+      ]
+    },
+    "41": {
+      "title": "我被拉黑了？",
+      "description": "我的意思说如果这其实是个游戏而不是真实的冒险我应该怎么办啊啊啊好愁啊wdnmd我该怎么办好呜呜呜人不能活了什么鬼玩意这才不是真的嘤嘤嘤阿巴巴巴巴说不定我们哪天就消失了啊啊啊啊啊（全属性-5）",
+      "grade": 2,
+      "status": "debuff",
+      "change": {
+        "attack": -5,
+        "health": -5,
+        "luck": -5
+      }
+    },
+    "42": {
+      "title": "按F12开启控制台",
+      "description": "不对啊？我记得你不是游戏拿Python写的么？（幸运-10，但生命和攻击+10）",
+      "grade": 1,
+      "status": "neutral",
+      "change": {
+        "luck": -10,
+        "health": 10,
+        "attack": 10
+      },
+      "need_achievement": []
+    },
+    "43": {
+      "title": "上帝情结",
+      "description": "赞美bot主人！（全属性+2）",
+      "grade": 0,
+      "status": "buff",
+      "change": {
+        "luck": 2,
+        "health": 2,
+        "attack": 2
+      },
+      "exclude_talent": [
+        "41",
+        "40",
+        "19",
+        "12",
+        "13"
+      ]
+    },
+    "44": {
+      "title": "斯巴拉西",
+      "description": "您是个斯巴拉西的好人（每走6步幸运+2）",
+      "grade": 0,
+      "status": "buff",
+      "change": {
+        "luck": 2
+      },
+      "activate": [
+        {
+          "condition": "%",
+          "decider": "step",
+          "luck": 6,
+          "result": [
+            {
+              "action": "change",
+              "prop": "luck",
+              "influence": "luck"
+            }
+          ]
+        }
+      ]
+    },
+    "45": {
+      "title": "可以色色",
+      "description": "您可以色色（攻击力+5）",
+      "grade": 0,
+      "change": {
+        "attack": 5
+      },
+      "status": "buff",
+      "exclude_talent": [
+        "46"
+      ]
+    },
+    "46": {
+      "title": "不可以色色",
+      "description": "您不可以色色（攻击力-5）",
+      "grade": 0,
+      "change": {
+        "attack": -5
+      },
+      "status": "debuff",
+      "exclude_talent": [
+        "45"
+      ]
+    },
+    "47": {
+      "title": "逆天改命？",
+      "description": "您打算逆天改命（所有属性+8）",
+      "grade": 1,
+      "change": {
+        "health": -5,
+        "luck": -5,
+        "attack": -5
+      },
+      "status": "debuff",
+      "exclude_talent": [
+        "48"
+      ]
+    },
+    "48": {
+      "title": "逆天改命",
+      "description": "您想尽了一切办法逆天改命（所有属性+8）",
+      "grade": 2,
+      "status": "buff",
+      "change": {
+        "health": 8,
+        "luck": 8,
+        "attack": 8
+      },
+      "preq": {
+        "playtime": 10
+      },
+      "exclude_talent": [
+        "47"
+      ]
+    },
+    "49": {
+      "title": "数学家",
+      "description": "您数学很好（本次探索血量+1，幸运+2，攻击+4）",
+      "change": {
+        "health": 1,
+        "luck": 2,
+        "attack": 4
+      },
+      "grade": 0,
+      "status": "buff",
+      "need_achievement": []
+    },
+    "50": {
+      "title": "恶魔的眷顾",
+      "description": "您在探索之前对恶魔进行了供奉（本次探索幸运降低至负数，攻击力提高至66，生命提高至66）",
+      "grade": 2,
+      "status": "buff",
+      "set": {
+        "luck": -10,
+        "attack": 66,
+        "health": 66
+      },
+      "exclude_talent": [
+        "4",
+        "7",
+        "8",
+        "9",
+        "20",
+        "27",
+        "34"
+      ]
+    },
+    "51": {
+      "title": "罕见",
+      "description": "这个天赋真的罕见不骗你~",
+      "grade": 1,
+      "status": "neutral",
+      "exclude_talent": [
+        "52"
+      ]
+    },
+    "52": {
+      "title": "普通",
+      "description": "普通！（这个天赋很普通）",
+      "grade": 0,
+      "status": "neutral",
+      "exclude_talent": [
+        "51"
+      ]
+    },
+    "53": {
+      "title": "死神来了",
+      "description": "不是每个人都能一直幸运下去（本次探险血量-15）",
+      "grade": 0,
+      "preq": {
+        "playtime": 10,
+        "death": 2
+      },
+      "change": {
+        "health": -15
+      },
+      "status": "debuff"
+    },
+    "54": {
+      "title": "404 not found",
+      "description": "增加遇到空房间的可能性",
+      "grade": 0,
+      "status": "neutral"
+    },
+    "55": {
+      "title": "Deja Vu",
+      "description": "？",
+      "grade": 1,
+      "status": "neutral",
+      "add_event": []
+    },
+    "56": {
+      "title": "金链子",
+      "description": "您在门口捡了个金链子（如果活着结束游戏将金钱+100）",
+      "grade": 0,
+      "status": "buff",
+      "items": []
+    },
+    "57": {
+      "title": "死亡之盒",
+      "description": "后面玩的玩家会舔您的包并且好心的把您丢掉的东西寄回给您（如果探索中死亡，不会丢掉可以换钱的价值品）",
+      "grade": 2,
+      "status": "buff",
+      "items": []
+    },
+    "58": {
+      "title": "",
+      "description": "",
+      "grade": 1,
+      "change": {
+        "attack": 1,
+        "health": 1,
+        "luck": 1
+      },
+      "status": "buff",
+      "give_achievement": ["1017"]
+    },
+    "59": {
+      "title": "？了来过倒么怎超我",
+      "description": "）来过倒部全会将本文戏游（？吧了怪奇太也这但，读阅响影不置位的字改改便 随下况情般一说虽",
+      "grade": 1,
+      "status": "neutral",
+      "give_achievement": [],
+      "exclude_talent": [
+        "60",
+        "65"
+      ]
+    },
+    "60": {
+      "title": "读者",
+      "description": "汉字的序顺稍微乱点一是不会影响读阅的啦~",
+      "grade": 1,
+      "status": "neutral",
+      "give_achievement": [],
+      "exclude_talent": [
+        "59",
+        "65"
+      ]
+    },
+    "61": {
+      "title": "大砖头",
+      "description": "您找到了一块趁手的砖头，虽然有点脏（本次探索攻击+3）",
+      "grade": 0,
+      "change": {
+        "attack": 3
+      },
+      "status": "buff"
+    },
+    "62": {
+      "title": "它们越强……",
+      "description": "行进大于20步时攻击力持续+2",
+      "grade": 0,
+      "preq": {
+        "playtime": 10
+      },
+      "change": {
+        "attack_increase": 2
+      },
+      "activate": [
+        {
+          "condition": ">",
+          "decider": "step",
+          "step": 20,
+          "result": [
+            {
+              "action": "change",
+              "prop": "attack_increase",
+              "influence": "attack"
+            }
+          ]
+        }
+      ],
+      "status": "buff"
+    },
+    "63": {
+      "title": "地胡",
+      "description": "自摸喵~笛货~~（本次探索全属性+10）",
+      "grade": 2,
+      "change": {
+        "attack": 10,
+        "luck": 10,
+        "health": 10
+      },
+      "status": "buff",
+      "exclude_talent": [
+        "14",
+        "64"
+      ]
+    },
+    "64": {
+      "title": "纯正九莲宝灯",
+      "description": "您探索之前和了个纯九。（20步内运气提升到最高值，但20步后降低到-5）",
+      "grade": 2,
+      "set": {
+        "luck_decrease": -5,
+        "luck_increase": 15
+      },
+      "activate": [
+        {
+          "condition": "<",
+          "decider": "luck",
+          "luck": 20,
+          "result": [
+            {
+              "action": "set",
+              "prop": "luck_increase",
+              "influence": "luck"
+            }
+          ]
+        },
+        {
+          "condition": ">=",
+          "decider": "luck",
+          "luck": 20,
+          "result": [
+            {
+              "action": "set",
+              "prop": "luck_decrease",
+              "influence": "luck"
+            }
+          ]
+        }
+      ],
+      "status": "neutral",
+      "exclude_talent": [
+        "63",
+        "14"
+      ]
+    },
+    "65": {
+      "title": "猫中毒",
+      "description": "喵？（事件描述会变）",
+      "grade": 1,
+      "status": "neutral",
+      "exclude_talent": [
+        "60",
+        "59"
+      ]
+    },
+    "66": {
+      "title": "这个天赋真像个天赋",
+      "description": "这个描述真像个描述（这个增益真像个增益）",
+      "grade": 0,
+      "change": {
+        "health": 1,
+        "attack": 1
+      },
+      "status": "buff"
+    },
+    "68": {
+      "title": "核废水",
+      "description": "您探索的环境有核废水（初始生命值-5，攻击-5）",
+      "grade": 0,
+      "change": {
+        "attack": -5,
+        "health": -5
+      },
+      "status": "debuff"
+    },
+    "69": {
+      "title": "69",
+      "description": "这个天赋的编号是69你知道嘛~（获得未知增益）",
+      "grade": 2,
+      "change": {
+        "health": 69,
+        "luck": 6,
+        "attack": 9
+      },
+      "status": "buff"
+    },
+    "70": {
+      "title": "为什么我们还在这里？",
+      "description": "我的腿！我的胳膊！啊！（本次探索初始生命-5，但攻击+2）",
+      "grade": 0,
+      "preq": {
+        "playtime": 10
+      },
+      "change": {
+        "health": -5,
+        "attack": 2
+      },
+      "status": "neutral"
+    },
+    "71": {
+      "title": "祈雨",
+      "description": "bot主人会知道您选了这个天赋",
+      "grade": 1,
+      "status": "neutral"
+    },
+    "72": {
+      "title": "只能拿一颗",
+      "description": "看起来很好吃的糖果",
+      "change": {
+        "health": 5
+      },
+      "grade": 0,
+      "status": "buff"
+    },
+    "73": {
+      "title": "只能拿一颗",
+      "description": "看起来很好吃的糖果",
+      "change": {
+        "health": 5
+      },
+      "grade": 0,
+      "status": "buff"
+    },
+    "74": {
+      "title": "不要恐慌",
+      "description": "除非你叫弑君者",
+      "grade": 0,
+      "status": "debuff"
+    },
+    "75": {
+      "title": "危机合约",
+      "change": {
+        "attack": -10,
+        "health": -10,
+        "luck": -10
+      },
+      "description": "您点了危机合约18（全属性-10）",
+      "grade": 1,
+      "status": "debuff"
+    },
+    "76": {
+      "title": "薛定谔的猫",
+      "description": "遇事不决，量子力学（您就算不操作也可能会向下个房间前进）",
+      "grade": 1,
+      "status": "neutral"
+    },
+    "77": {
+      "title": "Yes, yes, yes!",
+      "description": "Kono Jotaro Da!",
+      "grade": 1,
+      "status": "neutral"
+    },
+    "78": {
+      "title": "苦难陈述者",
+      "description": "可怕么？是的很可怕。（幸运-5，血量-5，攻击+10）",
+      "grade": 0,
+      "status": "neutral",
+      "change": {
+        "luck": -5,
+        "health": -5,
+        "attack": 10
+      }
+    },
+    "79": {
+      "title": "天降横财",
+      "description": "您在探索的时候必中彩票（金钱+100）",
+      "grade": 0,
+      "status": "buff"
+    },
+    "80": {
+      "title": "失眠飞行",
+      "description": "想要和你低空飞行~和你到处收集氧气~（如果游玩时间为北京时间00:00之后，次日9:00之前，则每步攻击+1，血量+1）",
+      "grade": 0,
+      "change": {
+        "attack_increase": 5,
+        "health_increase": 5
+      },
+      "status": "buff",
+      "activate": [
+        {
+          "condition": "<=",
+          "decider": "time_hour",
+          "time_hour": 9,
+          "result": [
+            {
+              "action": "change",
+              "prop": "attack_increase",
+              "influence": "attack"
+            },
+            {
+              "action": "change",
+              "prop": "health_increase",
+              "influence": "health"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

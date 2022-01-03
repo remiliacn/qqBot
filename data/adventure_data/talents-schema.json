@@ -1,0 +1,318 @@
+{
+  "$schema": "http://json-schema.org/draft-06/schema#",
+  "$ref": "#/definitions/root",
+  "definitions": {
+    "root": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "talents": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Talent"
+          }
+        }
+      },
+      "required": [
+        "talents"
+      ],
+      "title": "root"
+    },
+    "Talent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "description": "天赋名",
+          "type": "string"
+        },
+        "status": {
+          "description": "天赋属性（增益？减益？）",
+          "$ref": "#/definitions/Status"
+        },
+        "grade": {
+          "description": "稀有度（0最低2最高）",
+          "type": "integer"
+        },
+        "description": {
+          "description": "就，描述啊（x",
+          "type": "string"
+        },
+        "preq": {
+          "description": "解锁前提",
+          "$ref": "#/definitions/Preq"
+        },
+        "change": {
+          "description": "更改数值",
+          "$ref": "#/definitions/Change"
+        },
+        "give_achievement": {
+          "description": "选择该天赋会给予成就",
+          "type": "array",
+          "format": "integer"
+        },
+        "need_achievement": {
+          "description": "需要什么成就才能解锁的天赋",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "integer"
+          }
+        },
+        "set": {
+          "description": "直接更改某个属性到某个数值",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Set"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "exclude_talent": {
+          "description": "相斥天赋",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "integer"
+          }
+        },
+        "activate": {
+          "description": "只在某种条件满足的情况下触发Set/Change（高优先度参数）",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Activate"
+          }
+        },
+        "add_event": {
+          "description": "该天赋会解锁某些特殊事件",
+          "type": "array"
+        },
+        "items": {
+          "description": "天赋给予玩家某个物品",
+          "type": "array",
+          "format": "integer"
+        }
+      },
+      "required": [
+        "description",
+        "grade",
+        "status",
+        "title"
+      ],
+      "title": "Talent"
+    },
+    "Activate": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "decider": {
+          "description": "主要由什么决定的启动变更",
+          "$ref": "#/definitions/Decider"
+        },
+        "step": {
+          "type": "integer"
+        },
+        "health": {
+          "type": "integer"
+        },
+        "life": {
+          "type": "integer"
+        },
+        "attack": {
+          "type": "integer"
+        },
+        "luck": {
+          "type": "integer"
+        },
+        "result": {
+          "description": "如果激活，做什么？",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Result"
+          }
+        },
+        "time_hour": {
+          "type": "integer"
+        },
+        "time_minute": {
+          "type": "integer"
+        },
+        "time_second": {
+          "type": "integer"
+        },
+        "condition": {
+          "description": "激活的所需对比条件",
+          "$ref": "#/definitions/Condition"
+        }
+      },
+      "required": [
+        "condition",
+        "decider",
+        "result"
+      ],
+      "title": "Activate"
+    },
+    "Condition": {
+      "type": "string",
+      "enum": [
+        "<",
+        "<=",
+        "==",
+        ">",
+        ">=",
+        "%",
+        "is_debuff",
+        "is_buff"
+      ]
+    },
+    "Decider": {
+      "type": "string",
+      "enum": [
+        "health",
+        "step",
+        "attack",
+        "life",
+        "luck",
+        "buff_condition",
+        "time_hour",
+        "time_minute",
+        "time_second"
+      ]
+    },
+    "Result": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "action": {
+          "description": "Action to influence player's stat, e.g.: set/change/random",
+          "$ref": "#/definitions/Action"
+        },
+        "prop": {
+          "description": "激活键值",
+          "$ref": "#/definitions/Prop"
+        },
+        "influence": {
+          "description": "会更改哪个玩家临时参数？",
+          "$ref": "#/definitions/Influence"
+        }
+      },
+      "required": [
+        "action",
+        "prop",
+        "influence"
+      ],
+      "title": "Result"
+    },
+    "Influence": {
+      "type": "string",
+      "enum": [
+        "health",
+        "attack",
+        "life",
+        "luck"
+      ]
+    },
+    "Change": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "health": {
+          "type": "integer"
+        },
+        "attack": {
+          "type": "integer"
+        },
+        "luck": {
+          "type": "integer"
+        },
+        "death": {
+          "type": "integer"
+        },
+        "life": {
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "title": "Change"
+    },
+    "Preq": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "health": {
+          "type": "integer"
+        },
+        "attack": {
+          "type": "integer"
+        },
+        "luck": {
+          "type": "integer"
+        },
+        "death": {
+          "type": "integer"
+        },
+        "playtime": {
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "title": "Preq"
+    },
+    "Set": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "luck": {
+          "type": "integer"
+        },
+        "health": {
+          "type": "integer"
+        },
+        "attack": {
+          "type": "integer"
+        },
+        "life": {
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "title": "Set"
+    },
+    "Prop": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "string",
+          "pattern": "^(health|attack|life|luck)(_(decrease|increase|start|end))?$"
+        }
+      ],
+      "title": "Prop"
+    },
+    "Action": {
+      "type": "string",
+      "enum": [
+        "set",
+        "change",
+        "random[!]change",
+        "random[!]set"
+      ],
+      "title": "Action"
+    },
+    "Status": {
+      "type": "string",
+      "enum": [
+        "buff",
+        "neutral",
+        "debuff"
+      ],
+      "title": "Status"
+    }
+  }
+}
