@@ -1,0 +1,665 @@
+{
+  "achievements": {
+    "1001": {
+      "title": "新的故事",
+      "description": "您第一次开始冒险",
+      "unlock_instruction": "使用开始探索指令。",
+      "grade": 0,
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "total_step",
+          "expected": 1,
+          "comparator": "=="
+        }
+      ],
+      "influencer": "total_step",
+      "next_achievement": [
+        "1016"
+      ]
+    },
+    "1002": {
+      "title": "旧的回忆",
+      "description": "您虽然忙碌，但是还是不忘记回来看看",
+      "grade": 0,
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "updated_time",
+          "expected": 600,
+          "comparator": ">="
+        }
+      ],
+      "unlock_instruction": "离开至少10分钟后回来继续探索",
+      "influencer": "updated_time"
+    },
+    "1003": {
+      "title": "啊这",
+      "description": "这也许不能怪您……",
+      "grade": 0,
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "step",
+          "expected": 1,
+          "comparator": "<="
+        }
+      ],
+      "unlock_instruction": "步数小于等于1的情况下死亡",
+      "influencer": "step"
+    },
+    "1004": {
+      "title": "给我把名改了！",
+      "description": "您，不叫这个名吧？",
+      "grade": 2,
+      "change": {
+        "health": -10,
+        "attack": -10,
+        "luck": -10
+      },
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "nickname",
+          "expected": "remiliacn",
+          "comparator": "=="
+        }
+      ],
+      "unlock_instruction": "把自己名字改为remiliacn",
+      "influencer": "nickname"
+    },
+    "1005": {
+      "title": "嘿，只是打错字了而已",
+      "description": "九年义务交易的漏网之鱼",
+      "grade": 2,
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "nickname",
+          "expected": "remilacn",
+          "comparator": "=="
+        },
+        {
+          "conditionId": "2",
+          "decider": "nickname",
+          "expected": "remliacn",
+          "comparator": "=="
+        }
+      ],
+      "change": {
+        "health": -15,
+        "attack": -15,
+        "luck": -15
+      },
+      "unlock_instruction": "把自己名字改为remilacn或remliacn",
+      "influencer": "nickname"
+    },
+    "1006": {
+      "title": "你求我我就给你呀~",
+      "description": "你要，肯定会给你啊w",
+      "grade": 0,
+      "unlock_instruction": "拿天赋【给点给点~】",
+      "influencer": "scripted"
+    },
+    "1007": {
+      "title": "48000",
+      "description": "自摸，48000！",
+      "grade": 2,
+      "unlock_instruction": "使用【天胡】天赋",
+      "influencer": "scripted"
+    },
+    "1008": {
+      "title": "32000",
+      "description": "自摸，32000！",
+      "grade": 2,
+      "unlock_instruction": "使用【地胡】天赋",
+      "influencer": "scripted"
+    },
+    "1009": {
+      "title": "吃点好的",
+      "description": "希望人没事。",
+      "grade": 2,
+      "unlock_instruction": "使用【纯九】天赋",
+      "influencer": "scripted"
+    },
+    "1010": {
+      "title": "啊~哭耐次",
+      "description": "海猫 合成玉.jpg",
+      "grade": 1,
+      "unlock_instruction": "使用一次【在这片大地上……】天赋",
+      "influencer": "scripted"
+    },
+    "1011": {
+      "title": "第三面墙",
+      "description": "真真假假，虚虚实实",
+      "grade": 1,
+      "unlock_instruction": "完成一次彩蛋结局",
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "twe",
+          "expected": 1,
+          "comparator": "=="
+        }
+      ],
+      "influencer": "third_wall_ending",
+      "next_achievement": [
+        "1012"
+      ]
+    },
+    "1012": {
+      "title": "清明梦",
+      "description": "您学会了利用并享受这一切",
+      "grade": 2,
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "twe",
+          "expected": 10,
+          "comparator": "=="
+        }
+      ],
+      "unlock_instruction": "完成十次彩蛋结局并解锁后续探索",
+      "influencer": "third_wall_ending"
+    },
+    "1013": {
+      "title": "A+",
+      "description": "您对A这个字母情有独钟",
+      "grade": 1,
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "choice",
+          "expected": "a",
+          "comparator": "=="
+        }
+      ],
+      "unlock_instruction": "在一场成功的探索中，只选择A选项。",
+      "influencer": "choice"
+    },
+    "1014": {
+      "title": "\uD83C\uDD71",
+      "description": "所有人都有喜欢的字母，相信您也一样。",
+      "grade": 1,
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "choice",
+          "expected": "b",
+          "comparator": "=="
+        }
+      ],
+      "unlock_instruction": "一场探索中只使用B选项。",
+      "influencer": "choice"
+    },
+    "1015": {
+      "title": "哎，人呢？",
+      "description": "小心特种。",
+      "grade": 1,
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "condition",
+          "expected": "2,3",
+          "comparator": "&"
+        },
+        {
+          "conditionId": "2",
+          "decider": "talent",
+          "expected": "74",
+          "comparator": "=="
+        },
+        {
+          "conditionId": "3",
+          "decider": "nickname",
+          "expected": "弑君者",
+          "comparator": "=="
+        }
+      ],
+      "unlock_instruction": "在获得【不要恐慌】天赋的情况下叫自己弑君者",
+      "influencer": "nickname"
+    },
+    "1016": {
+      "title": "旧的故事",
+      "description": "感谢游玩！",
+      "grade": 0,
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "played",
+          "expected": 10,
+          "comparator": "=="
+        }
+      ],
+      "unlock_instruction": "开启新的探索10次以上",
+      "influencer": "total_played"
+    },
+    "1017": {
+      "title": "这是bug？",
+      "description": "这不是bug，这是故意的hhh",
+      "grade": 0,
+      "unlock_instruction": "再一次探索中使用天赋58",
+      "influencer": "scripted"
+    },
+    "1018": {
+      "title": "天命之子",
+      "description": "您是一个吃不得亏的玩家。",
+      "grade": 0,
+      "unlock_instruction": "使用全buff天赋开始游戏",
+      "influencer": "scripted"
+    },
+    "1019": {
+      "title": "苦行僧",
+      "description": "生活总要有点挑战嘛~",
+      "grade": 0,
+      "unlock_instruction": "使用两个debuff天赋开始游戏",
+      "influencer": "scripted"
+    },
+    "1020": {
+      "title": "死了啦，都是你害的",
+      "description": "胜败乃兵家常事，大侠请重新来过。",
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "death",
+          "expected": 1,
+          "comparator": "=="
+        }
+      ],
+      "grade": 0,
+      "unlock_instruction": "死亡1次。",
+      "influencer": "death"
+    },
+    "1021": {
+      "title": "不变的旅途",
+      "description": "您的探索逐渐变的简单无趣起来",
+      "grade": 0,
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "played",
+          "expected": 100,
+          "comparator": "=="
+        }
+      ],
+      "unlock_instruction": "探索100次",
+      "influencer": "total_played"
+    },
+    "1022": {
+      "title": "我和我的世界末日",
+      "description": "无数次的轮回中，您究竟都得到了什么？",
+      "grade": 0,
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "death",
+          "expected": 100,
+          "comparator": "=="
+        }
+      ],
+      "unlock_instruction": "死亡100次",
+      "influencer": "death"
+    },
+    "1023": {
+      "title": "流汗黄豆",
+      "description": "虽然不知道您为啥要叫这个，但是既然如此就给您个成就吧~",
+      "grade": 1,
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "nickname",
+          "expected": "\uD83D\uDE05",
+          "comparator": "=="
+        }
+      ],
+      "unlock_instruction": "在探索时输入！下一步 [流汗黄豆]",
+      "influencer": "nickname"
+    },
+    "1024": {
+      "title": "ASCII",
+      "description": "您的名字对老设备很友好",
+      "grade": 0,
+      "unlock_instruction": "名字遵守以下规则：RegExp(/^\\w+$/, 'i')",
+      "influencer": "nickname"
+    },
+    "1025": {
+      "title": "真的只能拿一颗",
+      "description": "您的贪婪真的值得么？",
+      "grade": 0,
+      "unlock_instruction": "死于【只能拿一颗】天赋",
+      "influencer": "scripted"
+    },
+    "1026": {
+      "title": "好日子",
+      "description": "今天在某个意义上是圣诞节。",
+      "grade": 0,
+      "unlock_instruction": "在bot主人公历生日那天开始游戏",
+      "influencer": "time",
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "condition",
+          "expected": "2,3",
+          "comparator": "&"
+        },
+        {
+          "conditionId": "2",
+          "decider": "time_month",
+          "expected": 8,
+          "comparator": "=="
+        },
+        {
+          "conditionId": "3",
+          "decider": "time_day",
+          "expected": 7,
+          "comparator": "=="
+        }
+      ]
+    },
+    "1027": {
+      "title": "Hello World",
+      "description": "bot主人人还是挺好的对吧？",
+      "grade": 0,
+      "change": {
+        "luck": 2,
+        "health": 2,
+        "attack": 2
+      },
+      "unlock_instruction": "像bot主人索要本成就",
+      "influencer": "hidden"
+    },
+    "1028": {
+      "title": "刷屏",
+      "description": "您说话太快了:) 请先停下来喝杯茶吧",
+      "grade": 1,
+      "unlock_instruction": "50毫秒内更新下一步",
+      "influencer": "scripted"
+    },
+    "1029": {
+      "title": "烫烫烫烫烫",
+      "description": "您的数值应该足够您通关了吧……",
+      "grade": 0,
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "luck",
+          "expected": 15,
+          "comparator": ">="
+        },
+        {
+          "conditionId": "2",
+          "decider": "health",
+          "expected": 100,
+          "comparator": ">="
+        },
+        {
+          "conditionId": "3",
+          "decider": "attack",
+          "expected": 50,
+          "comparator": ">="
+        }
+      ],
+      "unlock_instruction": "探索中三数值的其中至少一个达到上限",
+      "influencer": [
+        "luck",
+        "health",
+        "attack"
+      ]
+    },
+    "1030": {
+      "title": "挂机游戏",
+      "description": "探险家，欢迎回来",
+      "grade": 1,
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "updated_time",
+          "expected": 86400,
+          "comparator": ">="
+        }
+      ],
+      "unlock_instruction": "经过1天后回来继续游戏",
+      "influencer": "updated_time"
+    },
+    "1031": {
+      "title": "佛系玩家",
+      "description": "作者打心底的佩服您",
+      "grade": 2,
+      "unlock_instruction": "死亡1000次",
+      "influencer": "death",
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "death",
+          "expected": 1000,
+          "comparator": ">="
+        }
+      ]
+    },
+    "1032": {
+      "title": "老倒霉蛋了",
+      "description": "您的运气跌破了地平线",
+      "grade": 1,
+      "unlock_instruction": "幸运<0",
+      "influencer": "luck",
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "luck",
+          "expected": 0,
+          "comparator": "<"
+        }
+      ]
+    },
+    "1033": {
+      "title": "这下费了",
+      "description": "大概喝凉水都塞牙就是这种感觉？",
+      "grade": 2,
+      "unlock_instruction": "幸运到达下限：-25",
+      "influencer": "luck",
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "luck",
+          "expected": -25,
+          "comparator": "<="
+        }
+      ]
+    },
+    "1034": {
+      "title": "寄了",
+      "description": "哒咩大内，哒咩哟，哒咩娜诺哟~",
+      "grade": 0,
+      "unlock_instruction": "死于一个怪物",
+      "influencer": "scripted"
+    },
+    "1035": {
+      "title": "感觉不错",
+      "description": "恭喜您的第一次胜利",
+      "grade": 0,
+      "unlock_instruction": "达成一次结局",
+      "influencer": "win",
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "win",
+          "expected": 1,
+          "comparator": "=="
+        }
+      ]
+    },
+    "1036": {
+      "title": "渐入佳境",
+      "description": "您已逐渐熟悉探险的套路",
+      "grade": 1,
+      "unlock_instruction": "达成10次结局",
+      "influencer": "win",
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "win",
+          "expected": 10,
+          "comparator": "=="
+        }
+      ]
+    },
+    "1037": {
+      "title": "常胜将军",
+      "description": "您战无不胜",
+      "grade": 2,
+      "unlock_instruction": "达成100次结局",
+      "influencer": "win",
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "win",
+          "expected": 100,
+          "comparator": "=="
+        }
+      ]
+    },
+    "1038": {
+      "title": "百步走",
+      "description": "刷刷步数~",
+      "grade": 0,
+      "unlock_instruction": "总行进步数达到100",
+      "influencer": "step",
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "step",
+          "expected": 100,
+          "comparator": ">="
+        }
+      ]
+    },
+    "1039": {
+      "title": "不连续存在",
+      "description": "发生了什么？",
+      "grade": 0,
+      "unlock_instruction": "？？？？",
+      "influencer": "hidden"
+    },
+    "1040": {
+      "title": "留一手",
+      "description": "您很节约",
+      "grade": 0,
+      "unlock_instruction": "只选择一个天赋开始游戏",
+      "influencer": "scripted"
+    },
+    "1041": {
+      "title": "手无缚鸡",
+      "description": "您该多去锻炼锻炼",
+      "grade": 1,
+      "unlock_instruction": "攻击力小于等于0",
+      "influencer": "attack",
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "attack",
+          "expected": 0,
+          "comparator": "<="
+        }
+      ]
+    },
+    "1042": {
+      "title": "光荣之路",
+      "description": "您的天赋羡煞旁人",
+      "grade": 0,
+      "unlock_instruction": "使用两个史诗天赋开始游戏",
+      "influencer": "scripted"
+    },
+    "1043": {
+      "title": "坏了",
+      "description": "因为太贪婪而受骗",
+      "grade": 1,
+      "unlock_instruction": "选取某个天赋",
+      "influencer": "scripted"
+    },
+    "1044": {
+      "title": "肉斩骨断",
+      "description": "你们游戏没有自己的技能么？",
+      "grade": 0,
+      "unlock_instruction": "血量到1",
+      "influencer": "health",
+      "condition": [
+        {
+          "conditionId": "1",
+          "decider": "health",
+          "expected": 1,
+          "comparator": "=="
+        }
+      ]
+    },
+    "1045": {
+      "title": "潮湿",
+      "description": "躲着点闪电……",
+      "grade": 0,
+      "unlock_instruction": "再一次探索时雨天开局",
+      "influencer": "scripted"
+    },
+    "1046": {
+      "title": "可疑的盒子",
+      "description": "你很警觉",
+      "grade": 0,
+      "unlock_instruction": "选择不捡起来那个可疑的盒子",
+      "influencer": "scripted"
+    },
+    "1047": {
+      "title": "不劳而获",
+      "description": "您选择捡起了那个可疑的盒子，还有所收获",
+      "grade": 0,
+      "unlock_instruction": "选择捡起那个可疑的盒子",
+      "influencer": "scripted"
+    },
+    "1048": {
+      "title": "I’ve just been in this time before",
+      "description": "Higher on the beat",
+      "grade": 0,
+      "unlock_instruction": "解锁成就特殊事件",
+      "influencer": "scripted"
+    },
+    "1049": {
+      "title": "Cookie Clicker",
+      "description": "我们需要更多饼干和老奶奶。",
+      "grade": 1,
+      "unlock_instruction": "捡起秘境中的巧克力饼干",
+      "influencer": "scripted"
+    },
+    "1050": {
+      "title": "不长记性",
+      "description": "人类唯一能从历史中吸取的教训就是，人类从来都不会从历史中吸取教训。",
+      "grade": 1,
+      "unlock_instruction": "在拥有【不要恐慌】天赋时哄啼哭的小女孩且得到坏结局",
+      "influencer": "scripted"
+    },
+    "1051": {
+      "title": "好人好报",
+      "description": "您乐于助人",
+      "grade": 1,
+      "unlock_instruction": "您成功哄好了小女孩",
+      "influencer": "scripted"
+    },
+    "1052": {
+      "title": "我是面包机",
+      "description": "我大概找个能插电的地方还能用……",
+      "grade": 1,
+      "unlock_instruction": "由特定事件解锁",
+      "influencer": "scripted"
+    },
+    "1053": {
+      "title": "叛逆",
+      "description": "您不愿被规则拘束。",
+      "grade": 0,
+      "unlock_instruction": "在选择时选择除了A, B, 1, 2之外的选项",
+      "influencer": "scripted"
+    },
+    "1054": {
+      "title": "火星文",
+      "description": "看不懂了……",
+      "grade": 1,
+      "unlock_instruction": "使用某天赋获得",
+      "influencer": "scripted"
+    }
+  }
+}

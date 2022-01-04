@@ -1,0 +1,254 @@
+{
+  "$schema": "http://json-schema.org/draft-06/schema#",
+  "$ref": "#/definitions/root",
+  "definitions": {
+    "root": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "achievements": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Achievements"
+          }
+        }
+      },
+      "required": [
+        "achievements"
+      ],
+      "title": "root"
+    },
+    "Achievements": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "description": "成就名",
+          "type": "string"
+        },
+        "unlock_time": {
+          "description": "解锁时间",
+          "$ref": "#/definitions/UnlockTime"
+        },
+        "grade": {
+          "description": "稀有度（0最低3最高）",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "description": {
+          "description": "就，描述啊（x",
+          "type": "string"
+        },
+        "unlock_instruction": {
+          "description": "怎么才能解锁",
+          "type": "string"
+        },
+        "influencer": {
+          "description": "决定属性（生涯）",
+          "$ref": "#/definitions/Influencer"
+        },
+        "change": {
+          "description": "更改数值",
+          "$ref": "#/definitions/Change"
+        },
+        "set": {
+          "description": "直接更改某个属性到某个数值",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Set"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "add_event": {
+          "description": "该成就会解锁某些特殊事件",
+          "type": "array"
+        },
+        "next_achievement": {
+          "description": "解锁下面别的成就",
+          "type": "array",
+          "format": "integer"
+        },
+        "condition": {
+          "description": "如果没有condition的influencer，则视为OR逻辑",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Condition"
+          }
+        }
+      },
+      "required": [
+        "description",
+        "grade",
+        "unlock_instruction",
+        "title",
+        "influencer"
+      ],
+      "title": "Achievements"
+    },
+    "Condition": {
+      "type": "object",
+      "description": "流程逻辑",
+      "additionalProperties": false,
+      "patternProperties": {
+        "conditionId": {
+          "description": "需要在本条件中独特",
+          "type": "string",
+          "format": "integer"
+        },
+        "decider": {
+          "type": "string",
+          "enum": [
+            "updated_time",
+            "time_month",
+            "time_day",
+            "health",
+            "luck",
+            "attack",
+            "step",
+            "total_step",
+            "win",
+            "nickname",
+            "talent",
+            "twe",
+            "choice",
+            "played",
+            "death",
+            "condition"
+          ]
+        },
+        "expected": {
+          "anyOf": [
+            {
+              "description": "expected var",
+              "type": "integer"
+            },
+            {
+              "description": "比较昵称用",
+              "type": "string"
+            },
+            {
+              "description": "比较condition用",
+              "type": "string",
+              "pattern": "(\\d[&|]\\d)+"
+            }
+          ]
+        },
+        "comparator": {
+          "type": "string",
+          "enum": [
+            ">",
+            ">=",
+            "<",
+            "<=",
+            "==",
+            "&",
+            "|"
+          ]
+        }
+      },
+      "required": [
+        "conditionId",
+        "decider",
+        "expected",
+        "comparator"
+      ],
+      "title": "Condition"
+    },
+    "Influencer": {
+      "anyOf": [
+        {
+          "description": "解锁需要什么属性",
+          "type": "string",
+          "$ref": "#/definitions/Influence"
+        },
+        {
+          "description": "解锁需要属性可以是多种（OR）",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Influence"
+          }
+        }
+      ]
+    },
+    "Influence": {
+      "type": "string",
+      "enum": [
+        "health",
+        "step",
+        "total_step",
+        "attack",
+        "luck",
+        "death",
+        "updated_time",
+        "total_played",
+        "third_wall_ending",
+        "monster_killed",
+        "nickname",
+        "choice",
+        "time",
+        "hidden",
+        "event",
+        "win",
+        "scripted"
+      ],
+      "title": "Influencer"
+    },
+    "Change": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "health": {
+          "type": "integer"
+        },
+        "attack": {
+          "type": "integer"
+        },
+        "luck": {
+          "type": "integer"
+        },
+        "death": {
+          "type": "integer"
+        },
+        "life": {
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "title": "Change"
+    },
+    "Preq": {
+      "type": "array",
+      "format": "integer",
+      "title": "Preq"
+    },
+    "Set": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "luck": {
+          "type": "integer"
+        },
+        "health": {
+          "type": "integer"
+        },
+        "attack": {
+          "type": "integer"
+        },
+        "life": {
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "title": "Set"
+    },
+    "UnlockTime": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "UnlockTime"
+    }
+  }
+}

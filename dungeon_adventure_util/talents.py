@@ -3,7 +3,7 @@ from os import getcwd
 from random import randint, choice
 from typing import List
 
-from remilia_adventure_util.utils import get_data, get_data_nested_int
+from dungeon_adventure_util.utils import get_data, get_data_nested_int
 
 
 class Talent:
@@ -35,6 +35,7 @@ class Talent:
                     choose random key in prop to execute.
         """
         self.activate_need: list = get_data(data, 'activate')
+        self.decider = get_data(data, 'decider')
 
         self.change_health = get_data_nested_int(data, ['change', 'health'])
         self.change_attack = get_data_nested_int(data, ['change', 'attack'])
@@ -49,7 +50,7 @@ class Talent:
 
         self.exclude_talent = get_data(data, 'exclude_talent')
         self.need_achievement = get_data(data, 'need_achievement')
-        self.unlock_achievement = get_data(data, 'achievement')
+        self.unlock_achievement = get_data(data, 'give_achievement')
         self.item_add = get_data(data, 'items')
         self.event_to_add = get_data(data, 'add_event')
 

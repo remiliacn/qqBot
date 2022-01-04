@@ -22,6 +22,14 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "_comment": {
+          "description": "debug用注释",
+          "type": "string"
+        },
+        "decider": {
+          "description": "主要由什么决定的启动变更",
+          "$ref": "#/definitions/Decider"
+        },
         "title": {
           "description": "天赋名",
           "type": "string"
@@ -107,10 +115,6 @@
       "type": "object",
       "additionalProperties": false,
       "patternProperties": {
-        "decider": {
-          "description": "主要由什么决定的启动变更",
-          "$ref": "#/definitions/Decider"
-        },
         "step": {
           "type": "integer"
         },
@@ -149,7 +153,6 @@
       },
       "required": [
         "condition",
-        "decider",
         "result"
       ],
       "title": "Activate"

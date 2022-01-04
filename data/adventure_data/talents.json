@@ -115,7 +115,9 @@
       "change": {
         "luck": 1
       },
-      "give_achievement": ["1006"]
+      "give_achievement": [
+        "1006"
+      ]
     },
     "8": {
       "title": "机会制造器",
@@ -240,7 +242,7 @@
         "attack": 50,
         "luck": 15
       },
-      "give_achievement": [],
+      "give_achievement": ["1007"],
       "exclude_talent": [
         "63",
         "64"
@@ -265,7 +267,7 @@
     "16": {
       "title": "人比人，气死人",
       "status": "buff",
-      "description": "您在探险时越想越气（探索20步后每步+2）",
+      "description": "您在探险时越想越气（探索20步后每步+2攻击）",
       "grade": 0,
       "preq": {
         "health": 20,
@@ -275,9 +277,9 @@
       "change": {
         "attack": 2
       },
+      "decider": "step",
       "activate": [
         {
-          "decider": "step",
           "step": 20,
           "result": [
             {
@@ -304,9 +306,9 @@
         "attack": -1,
         "luck": -2
       },
+      "decider": "step",
       "activate": [
         {
-          "decider": "step",
           "step": 5,
           "result": [
             {
@@ -371,9 +373,9 @@
       "change": {
         "attack": 10
       },
+      "decider": "step",
       "activate": [
         {
-          "decider": "step",
           "step": 1,
           "result": [
             {
@@ -385,7 +387,6 @@
           "condition": "=="
         },
         {
-          "decider": "step",
           "step": 10,
           "result": [
             {
@@ -435,13 +436,13 @@
       "status": "neutral",
       "description": "啊对对对~（每探索2步有几率全属性+1或全属性-1）",
       "grade": 0,
+      "decider": "step",
       "change": {
         "health_decrease": -1,
         "health_increase": 1
       },
       "activate": [
         {
-          "decider": "step",
           "step": 2,
           "result": [
             {
@@ -465,9 +466,9 @@
       "change": {
         "health": 1
       },
+      "decider": "step",
       "activate": [
         {
-          "decider": "step",
           "step": 10,
           "condition": "<",
           "result": [
@@ -478,7 +479,8 @@
             }
           ]
         }
-      ]
+      ],
+      "exclude_talent": ["35"]
     },
     "26": {
       "title": "没头脑和不高兴",
@@ -535,10 +537,10 @@
       "change": {
         "health": 1
       },
+      "decider": "health",
       "activate": [
         {
           "condition": "<",
-          "decider": "health",
           "result": [
             {
               "action": "change",
@@ -568,7 +570,7 @@
       "grade": 0,
       "status": "debuff",
       "set": {
-        "life": 0
+        "life": -1
       }
     },
     "35": {
@@ -579,10 +581,10 @@
       "change": {
         "health": -1
       },
+      "decider": "step",
       "activate": [
         {
           "condition": "<",
-          "decider": "step",
           "step": 10,
           "result": [
             {
@@ -592,7 +594,8 @@
             }
           ]
         }
-      ]
+      ],
+      "exclude_talent": ["25"]
     },
     "36": {
       "title": "抖M",
@@ -601,10 +604,10 @@
       "change": {
         "health": 3
       },
+      "decider": "buff_condition",
       "activate": [
         {
           "condition": "is_debuff",
-          "decider": "buff_condition",
           "result": [
             {
               "action": "change",
@@ -625,10 +628,10 @@
         "attack_decrease": -5,
         "attack_increase": 5
       },
+      "decider": "buff_condition",
       "activate": [
         {
           "condition": "is_debuff",
-          "decider": "buff_condition",
           "result": [
             {
               "action": "change",
@@ -639,7 +642,6 @@
         },
         {
           "condition": "is_buff",
-          "decider": "buff_condition",
           "result": [
             {
               "action": "change",
@@ -687,10 +689,10 @@
         "attack_decrease": -2,
         "attack_increase": 2
       },
+      "decider": "health",
       "activate": [
         {
           "condition": "<",
-          "decider": "health",
           "result": [
             {
               "action": "change",
@@ -701,7 +703,6 @@
         },
         {
           "condition": ">=",
-          "decider": "health",
           "result": [
             {
               "action": "change",
@@ -758,13 +759,13 @@
       "description": "您是个斯巴拉西的好人（每走6步幸运+2）",
       "grade": 0,
       "status": "buff",
+      "decider": "step",
       "change": {
         "luck": 2
       },
       "activate": [
         {
           "condition": "%",
-          "decider": "step",
           "luck": 6,
           "result": [
             {
@@ -905,7 +906,7 @@
       "description": "？",
       "grade": 1,
       "status": "neutral",
-      "add_event": []
+      "add_event": ["10034"]
     },
     "56": {
       "title": "金链子",
@@ -931,14 +932,16 @@
         "luck": 1
       },
       "status": "buff",
-      "give_achievement": ["1017"]
+      "give_achievement": [
+        "1017"
+      ]
     },
     "59": {
       "title": "？了来过倒么怎超我",
       "description": "）来过倒部全会将本文戏游（？吧了怪奇太也这但，读阅响影不置位的字改改便 随下况情般一说虽",
       "grade": 1,
       "status": "neutral",
-      "give_achievement": [],
+      "give_achievement": ["1054"],
       "exclude_talent": [
         "60",
         "65"
@@ -949,7 +952,7 @@
       "description": "汉字的序顺稍微乱点一是不会影响读阅的啦~",
       "grade": 1,
       "status": "neutral",
-      "give_achievement": [],
+      "give_achievement": ["1054"],
       "exclude_talent": [
         "59",
         "65"
@@ -974,10 +977,10 @@
       "change": {
         "attack_increase": 2
       },
+      "decider": "step",
       "activate": [
         {
           "condition": ">",
-          "decider": "step",
           "step": 20,
           "result": [
             {
@@ -1003,7 +1006,8 @@
       "exclude_talent": [
         "14",
         "64"
-      ]
+      ],
+      "give_achievement": ["1008"]
     },
     "64": {
       "title": "纯正九莲宝灯",
@@ -1013,10 +1017,10 @@
         "luck_decrease": -5,
         "luck_increase": 15
       },
+      "decider": "luck",
       "activate": [
         {
           "condition": "<",
-          "decider": "luck",
           "luck": 20,
           "result": [
             {
@@ -1028,7 +1032,6 @@
         },
         {
           "condition": ">=",
-          "decider": "luck",
           "luck": 20,
           "result": [
             {
@@ -1043,7 +1046,8 @@
       "exclude_talent": [
         "63",
         "14"
-      ]
+      ],
+      "give_achievement": ["1009"]
     },
     "65": {
       "title": "猫中毒",
@@ -1141,8 +1145,9 @@
       "status": "debuff"
     },
     "76": {
+      "_comment": "即使不前进也有可能多走一步",
       "title": "薛定谔的猫",
-      "description": "遇事不决，量子力学（您就算不操作也可能会向下个房间前进）",
+      "description": "遇事不决，量子力学（？？？）",
       "grade": 1,
       "status": "neutral"
     },
@@ -1178,10 +1183,10 @@
         "health_increase": 5
       },
       "status": "buff",
+      "decider": "time_hour",
       "activate": [
         {
           "condition": "<=",
-          "decider": "time_hour",
           "time_hour": 9,
           "result": [
             {
@@ -1197,6 +1202,93 @@
           ]
         }
       ]
+    },
+    "81": {
+      "title": "女巫的诅咒·攻击",
+      "description": "您的每一步都有几率+5或-5生命值攻击",
+      "grade": 0,
+      "status": "neutral",
+      "change": {
+        "attack_increase": 5,
+        "attack_decrease": -5
+      },
+      "decider": "step",
+      "activate": [
+        {
+          "condition": "%",
+          "step": 1,
+          "result": [
+            {
+              "action": "random[!]change",
+              "prop": ["attack_increase", "attack_decrease"],
+              "influence": "attack"
+            }
+          ]
+        }
+      ]
+    },
+    "82": {
+      "title": "女巫的诅咒·生命",
+      "description": "您的每一步都有几率+5或-5生命值",
+      "grade": 0,
+      "status": "neutral",
+      "decider": "step",
+      "change": {
+        "health_increase": 5,
+        "health_decrease": -5
+      },
+      "activate": [
+        {
+          "condition": "%",
+          "result": [
+            {
+              "action": "random[!]change",
+              "prop": ["health_increase", "health_decrease"],
+              "influence": "health"
+            }
+          ]
+        }
+      ]
+    },
+    "83": {
+      "title": "女巫的诅咒·幸运",
+      "description": "您的每一步都有几率+5或-5幸运",
+      "grade": 0,
+      "status": "neutral",
+      "decider": "step",
+      "change": {
+        "luck_increase": 5,
+        "luck_decrease": -5
+      },
+      "activate": [
+        {
+          "condition": "%",
+          "result": [
+            {
+              "action": "random[!]change",
+              "prop": ["luck_increase", "luck_decrease"],
+              "influence": "health"
+            }
+          ]
+        }
+      ]
+    },
+    "84": {
+      "title": "独苗",
+      "description": "您的家人在您出发探险之前对您进行了全方位的训练（全属性+1）",
+      "grade": 0,
+      "status": "buff",
+      "change": {
+        "health": 1,
+        "attack": 1,
+        "luck": 1
+      }
+    },
+    "85": {
+      "title": "114514",
+      "description": "这是一个很臭的天赋。",
+      "grade": 0,
+      "status": "neutral"
     }
   }
 }

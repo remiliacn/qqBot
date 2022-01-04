@@ -1,0 +1,244 @@
+{
+  "$schema": "http://json-schema.org/draft-06/schema#",
+  "$ref": "#/definitions/root",
+  "definitions": {
+    "root": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "events": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Events"
+          }
+        }
+      },
+      "required": [
+        "events"
+      ],
+      "title": "root"
+    },
+    "Events": {
+      "type": "object",
+      "additionalProperties": false,
+      "StepSetting": {
+        "type": "integer",
+        "minimum": 10,
+        "maximum": 500
+      },
+      "properties": {
+        "_comment": {
+          "description": "事件备注",
+          "type": "string"
+        },
+        "status": {
+          "description": "是什么事件",
+          "type": "string",
+          "enum": [
+            "start",
+            "buff",
+            "debuff",
+            "neutral",
+            "reserved",
+            "need_choice",
+            "blah",
+            "ending",
+            "special_ending",
+            "scripted"
+          ]
+        },
+        "description": {
+          "description": "事件介绍",
+          "type": "string"
+        },
+        "preq": {
+          "description": "只有在满足以下玩家数值的情况下才会触发的事件",
+          "$ref": "#/definitions/Preq"
+        },
+        "change": {
+          "description": "更改数值",
+          "$ref": "#/definitions/Change"
+        },
+        "change_death": {
+          "description": "因为更改数据而死亡的话的prompt",
+          "type": "string"
+        },
+        "set": {
+          "description": "直接更改某个属性到某个数值",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Set"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "add_event": {
+          "description": "该事件出现后才会解锁某些特殊事件",
+          "type": "array"
+        },
+        "unlock_achievement": {
+          "description": "该事件会解锁某个成就",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "integer"
+          }
+        },
+        "can_random": {
+          "description": "是否为特殊事件（有上下文关系）",
+          "type": "boolean",
+          "default": true
+        },
+        "add_item": {
+          "description": "添加游戏物品",
+          "type": "array"
+        },
+        "exclude_event": {
+          "description": "如果出现该事件则不进行某件事情",
+          "type": "array",
+          "format": "integer"
+        },
+        "binary_choice": {
+          "$ref": "#/definitions/Choice"
+        },
+        "one_time_use": {
+          "type": "boolean",
+          "default": false
+        },
+        "force_next": {
+          "description": "强制触发下一个事件",
+          "type": "string",
+          "pattern": "E?\\d+"
+        },
+        "monster": {
+          "description": "怪物属性",
+          "type": "object",
+          "properties": {
+            "step_min": {
+              "$ref": "#/definitions/Events/StepSetting"
+            },
+            "step_max": {
+              "$ref": "#/definitions/Events/StepSetting"
+            },
+            "health": {
+              "$ref": "#/definitions/GLOBAL_INTEGER"
+            },
+            "defense": {
+              "$ref": "#/definitions/GLOBAL_INTEGER"
+            }
+          }
+        }
+      },
+      "required": [
+        "description",
+        "can_random",
+        "status",
+        "one_time_use"
+      ],
+      "title": "Events"
+    },
+    "GLOBAL_INTEGER": {
+      "type": "integer",
+      "default": 0
+    },
+    "Preq": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "health": {
+          "$ref": "#/definitions/GLOBAL_INTEGER"
+        },
+        "attack": {
+          "$ref": "#/definitions/GLOBAL_INTEGER"
+        },
+        "luck": {
+          "$ref": "#/definitions/GLOBAL_INTEGER"
+        },
+        "step": {
+          "$ref": "#/definitions/GLOBAL_INTEGER"
+        },
+        "playtime": {
+          "$ref": "#/definitions/GLOBAL_INTEGER"
+        }
+      }
+    },
+    "Choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "choice_property": {
+        "type": "object",
+        "properties": {
+          "triggerEvent": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "\\d+-\\d+"
+              },
+              {
+                "type": "array"
+              }
+            ]
+          },
+          "prompt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "triggerEvent",
+          "prompt"
+        ]
+      },
+      "properties": {
+        "A": {
+          "$ref": "#/definitions/Choice/choice_property"
+        },
+        "B": {
+          "$ref": "#/definitions/Choice/choice_property"
+        }
+      },
+      "required": [
+        "A",
+        "B"
+      ]
+    },
+    "Change": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "health": {
+          "$ref": "#/definitions/GLOBAL_INTEGER"
+        },
+        "attack": {
+          "$ref": "#/definitions/GLOBAL_INTEGER"
+        },
+        "luck": {
+          "$ref": "#/definitions/GLOBAL_INTEGER"
+        }
+      },
+      "required": [],
+      "title": "Change"
+    },
+    "Set": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "luck": {
+          "$ref": "#/definitions/GLOBAL_INTEGER"
+        },
+        "health": {
+          "$ref": "#/definitions/GLOBAL_INTEGER"
+        },
+        "attack": {
+          "$ref": "#/definitions/GLOBAL_INTEGER"
+        },
+        "life": {
+          "$ref": "#/definitions/GLOBAL_INTEGER"
+        }
+      },
+      "required": [],
+      "title": "Set"
+    }
+  }
+}

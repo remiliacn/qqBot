@@ -4,7 +4,8 @@ from random import randint, choice
 from time import time
 from typing import Union
 
-from remilia_adventure_util.talents import Talents, Talent
+from dungeon_adventure_util.events import Events
+from dungeon_adventure_util.talents import Talents, Talent
 
 NOT_STARTED = 'NOT STARTED'
 IN_PROGRESS = 'IN PROGRESS'
@@ -19,13 +20,15 @@ talents = Talents(True)
 
 
 # Talent
-# TODO：添加成就14
 # TODO：添加特殊处理给12,13,19,49,42,59,60,71,74,76,77
 # TODO: 添加特殊事件给23,32,54,55,56,57
+# TODO: Achievement特殊处理: 1050(10036-1), 10039-1
 
 class Player:
     def __init__(self, uid, is_debug=False):
         self.uid = str(uid)
+        self.talents = Talents()
+        self.events = Events()
         self.game_status = NOT_STARTED  # 游戏进行情况
         self.environment = None  # 探险活动
 
@@ -36,11 +39,12 @@ class Player:
         self.third_wall_ending = 0  # 拿到10次后有惊喜？
         self.all_steps = 0  # 生涯经过房间
         self.current_step = 0  # 本次游戏经过房间
-        self.all_death = 0  # 生涯死亡次数
+        self.total_death = 0  # 生涯死亡次数
         self.play_time = 0  # 生涯游玩次数
+        self.win_all_time = 0  # 生涯通关
 
         self.base_luck = randint(0, 3)  # 幸运影响是否会更容易拿到好的道具或正面效果房间和buff
-        self.base_health = randint(20, 50)  # 玩家血量base数值
+        self.base_health = randint(20, 30)  # 玩家血量base数值
         self.base_attack = randint(20, 30)  # 玩家永久伤害
         self.money = 0
 
@@ -94,7 +98,7 @@ class Player:
         while talent.preq_luck > self.base_luck or \
                 talent.preq_attack > self.base_attack or \
                 talent.preq_health > self.base_health or \
-                talent.preq_death > self.all_death or \
+                talent.preq_death > self.total_death or \
                 talent.preq_playtime > self.play_time:
             talent = talents.get_random_talent()
 
@@ -103,6 +107,79 @@ class Player:
 
         return talent
 
+    # HELPER PARSER FOR ACTIVATES
+    def _decider_value_parser(self, decider: str):
+        return {
+            'health': lambda: self.current_health,
+            'step': lambda: self.current_step,
+            'attack': lambda: self.current_attack,
+            'life': lambda: self.current_life,
+            'luck': lambda: self.current_luck,
+            'buff_condition': lambda: self.is_all_buff_talent,
+            'time_hour': lambda: datetime.now().hour,
+            'time_minute': lambda: datetime.now().minute,
+            'time_second': lambda: datetime.now().second
+        }.get(decider, -999)()
+
+    def condition_compare(self, expr_condition: str, decider: str, expected_value: Union[int, float, str]):
+        p_value = self._decider_value_parser(decider)
+
+        return {
+            '>': lambda: p_value > expected_value,
+            '>=': lambda: p_value >= expected_value,
+            '==': lambda: p_value == expected_value,
+            '<': lambda: p_value < expected_value,
+            '<=': lambda: p_value <= expected_value,
+            '%': lambda: p_value % expected_value == 0
+        }.get(expr_condition, False)()
+
+    def _parse_influence(self, influence: str, action: str, var: Union[int, float]):
+        if influence == 'health':
+            if action == 'change':
+                self.current_health += var
+            else:
+                self.current_health = var
+        elif influence == 'attack':
+            if action == 'change':
+                self.current_attack += var
+            else:
+                self.current_attack = var
+        elif influence == 'life':
+            if action == 'change':
+                self.current_life += var
+            else:
+                self.current_life = var
+        elif influence == 'luck':
+            if action == 'change':
+                self.current_luck += var
+            else:
+                self.current_luck = var
+
+    def parse_talent_activate_condition(self):
+        for talent in self.player_talent:
+            condition = talent.activate_need
+            if condition is None:
+                continue
+
+            for cond in condition:
+                expr_condition = cond['condition']
+                decider = talent.decider
+                decider_value = cond[decider]
+                payloads = cond['result']
+
+                if self.condition_compare(expr_condition, decider, decider_value):
+                    for payload in payloads:
+                        action = payload['action']
+                        prop = payload['prop']
+                        influence = payload['influence']
+
+                        if action in ('change', 'set'):
+                            self._parse_influence(influence, action, talent.data[action][prop])
+                        else:
+                            action = action.split('[!]')
+                            action_var = action[1]
+                            self._parse_influence(influence, action_var, choice(talent.data[action]))
+
     def get_random_talents(self):
         return_talent = []
         added_talent = set()
@@ -110,16 +187,22 @@ class Player:
 
         for _ in range(5):
             talent = talents.get_random_talent()
-            if talent.talent_id in added_talent:
-                continue
+            while talent.talent_id in added_talent:
+                talent = talents.get_random_talent()
 
-            if '72' in added_talent and '73' not in added_talent:
+            if talent.talent_id == '72' and '73' not in added_talent:
                 return_talent.append(talents.get_talents_by_id('73'))
                 added_talent.add('73')
-
-            if '73' in added_talent and '72' not in added_talent:
                 return_talent.append(talents.get_talents_by_id('72'))
                 added_talent.add('72')
+                continue
+
+            if talent.talent_id == '73' and '72' not in added_talent:
+                return_talent.append(talents.get_talents_by_id('72'))
+                added_talent.add('72')
+                return_talent.append(talents.get_talents_by_id('73'))
+                added_talent.add('73')
+                continue
 
             talent = self._random_talent_helper(talent, exclude_talent, return_talent)
 
@@ -153,11 +236,11 @@ class Player:
 
         for talent in query_list:
             if talent not in given_talent:
-                return False, '我可没给你这个天赋让你选哦'
+                return False, '我可没给你这个天赋让你选哦', None
 
             talent = talents.get_talents_by_id(talent)
             if talent is None:
-                return False, '什么jb玩意……'
+                return False, '什么jb玩意……', None
 
             # 如果不需要动态更改则直接应用改变
             if talent.activate_need is None:
@@ -170,8 +253,13 @@ class Player:
                     self.update_check.append(update)
 
             self.talent_set.add(talent.talent_id)
+            self.player_talent.append(talent)
+            self.is_all_buff_talent = True & (talent.status == "buff")
+            self.is_all_debuff_talent = True & (talent.status == "debuff")
 
-        return True, 'Success!'
+        if '73' in self.talent_set and '72' in self.talent_set:
+            return True, 'Death_lol', None
+        return True, 'Success!', self.player_talent
 
     def change_user_data_by_talent_passive(self, talent: Talent):
         self.current_attack += talent.change_attack
@@ -192,85 +280,5 @@ class Player:
         if talent.set_step is not None and talent.set_step < self.current_step:
             self.current_step = talent.set_step
 
-
-# HELPER PARSER FOR ACTIVATES
-def decider_value_parser(decider: str, player: Player):
-    return {
-        'health': lambda: player.current_health,
-        'step': lambda: player.current_step,
-        'attack': lambda: player.current_attack,
-        'life': lambda: player.current_life,
-        'luck': lambda: player.current_luck,
-        'buff_condition': lambda: player.is_all_buff_talent,
-        'time_hour': lambda: datetime.now().hour,
-        'time_minute': lambda: datetime.now().minute,
-        'time_second': lambda: datetime.now().second
-    }.get(decider, -999)()
-
-
-def condition_compare(expr_condition: str, decider: str, player: Player, expected_value: Union[int, float, str]):
-    p_value = decider_value_parser(decider, player)
-
-    return {
-        '>': lambda: p_value > expected_value,
-        '>=': lambda: p_value >= expected_value,
-        '==': lambda: p_value == expected_value,
-        '<': lambda: p_value < expected_value,
-        '<=': lambda: p_value <= expected_value,
-        '%': lambda: p_value % expected_value == 0
-    }.get(expr_condition, False)()
-
-
-def _parse_influence(influence: str, player: Player, action: str, var: Union[int, float]):
-    if influence == 'health':
-        if action == 'change':
-            player.current_health += var
-        else:
-            player.current_health = var
-    elif influence == 'attack':
-        if action == 'change':
-            player.current_attack += var
-        else:
-            player.current_attack = var
-    elif influence == 'life':
-        if action == 'change':
-            player.current_life += var
-        else:
-            player.current_life = var
-    elif influence == 'luck':
-        if action == 'change':
-            player.current_luck += var
-        else:
-            player.current_luck = var
-
-
-def parse_talent_activate_condition(talent: Talent, player: Player):
-    condition = talent.activate_need
-    for cond in condition:
-        expr_condition = cond['condition']
-        decider = cond['decider']
-        decider_value = cond[decider]
-        payloads = cond['result']
-
-        if condition_compare(expr_condition, decider, player, decider_value):
-            for payload in payloads:
-                action = payload['action']
-                prop = payload['prop']
-                influence = payload['influence']
-
-                if action in ('change', 'set'):
-                    _parse_influence(influence, player, action, talent.data[action][prop])
-                else:
-                    action = action.split('[!]')
-                    action_var = action[1]
-                    _parse_influence(influence, player, action_var, choice(talent.data[action][prop]))
-
-
-if __name__ == '__main__':
-    # debug testing
-    talenta = Talents()
-    playera = Player(634915227)
-    talent_dkfx = talenta.get_talents_by_id('20')
-    playera.current_step = 1
-    parse_talent_activate_condition(talent_dkfx, playera)
-    print()
+        if talent.set_life is not None:
+            self.current_life = talent.set_life

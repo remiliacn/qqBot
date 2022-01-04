@@ -1,0 +1,572 @@
+{
+  "events": {
+    "10000": {
+      "description": "您死了",
+      "_comment": "reserved event",
+      "status": "ending",
+      "can_random": false,
+      "one_time_use": true
+    },
+    "10001": {
+      "description": "${nickname}开始了旅途，这是TA的第一次冒险，但是TA信心满满",
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": true
+    },
+    "10002": {
+      "description": "${nickname}再一次开始了TA的旅途",
+      "can_random": true,
+      "status": "start",
+      "one_time_use": true
+    },
+    "10003": {
+      "description": "${nickname}再一次开始了TA的旅途，但是不久便下雨了",
+      "change": {
+        "luck": 1
+      },
+      "can_random": true,
+      "status": "start",
+      "unlock_achievement": [
+        "1045"
+      ],
+      "add_event": [],
+      "one_time_use": true
+    },
+    "10004": {
+      "description": "${nickname}再一次开始了TA的旅途，但是TA很快就在迷雾中迷失了方向",
+      "change": {
+        "attack": -1
+      },
+      "can_random": true,
+      "status": "start",
+      "add_event": [],
+      "one_time_use": true
+    },
+    "10005": {
+      "description": "${nickname}再一次开始了TA的旅途，进入秘境后，TA抿了一口入口处的泉水，顿时感觉神清气爽了起来",
+      "change": {
+        "health": 1,
+        "attack": 1,
+        "luck": 1
+      },
+      "can_random": true,
+      "status": "start",
+      "one_time_use": true
+    },
+    "10006": {
+      "description": "${nickname}再一次开始了TA的旅途，进入秘境后，TA抿了一口入口处的泉水，虽然泉水非常清甜，但是不知怎么的喉咙有些隐隐作痛",
+      "change": {
+        "luck": -1,
+        "attack": -1,
+        "health": -1
+      },
+      "can_random": true,
+      "change_death": "你死了，虽说这水是有点问题，但是你体质也有点太弱了吧~",
+      "status": "start",
+      "one_time_use": true
+    },
+    "10007": {
+      "description": "${nickname}再一次开始了你的旅途，但是走了一半路你突然想起来自己的衣服没收，于是决定回去拿衣服",
+      "can_random": false,
+      "status": "start",
+      "force_next": "E10001",
+      "one_time_use": true
+    },
+    "10008": {
+      "description": "${nickname}再一次开始了你的旅途，你还隐约记着昨天有个算命的说他今天会遭受血光之灾，所以你格外小心",
+      "can_random": true,
+      "status": "start",
+      "change": {
+        "luck": -1,
+        "attack": 1
+      },
+      "one_time_use": true
+    },
+    "10020": {
+      "description": "${nickname}走进了一个小屋子，屋子中间摆着一个精致的小盒子，要捡起来么？",
+      "status": "need_choice",
+      "binary_choice": {
+        "A": {
+          "triggerEvent": "10020-1",
+          "prompt": "捡起来"
+        },
+        "B": {
+          "triggerEvent": "10020-2",
+          "prompt": "不要了，走了"
+        }
+      },
+      "can_random": true,
+      "add_event": [
+        "20020"
+      ],
+      "one_time_use": true
+    },
+    "20020": {
+      "description": "${nickname}再次走进了一个小屋子，屋子中间摆着一个精致的小盒子，要捡起来么？",
+      "status": "need_choice",
+      "binary_choice": {
+        "A": {
+          "triggerEvent": "10020-1",
+          "prompt": "捡起来"
+        },
+        "B": {
+          "triggerEvent": "10020-2",
+          "prompt": "不要了，走了"
+        }
+      },
+      "can_random": true,
+      "add_event": [],
+      "one_time_use": false
+    },
+    "10020-1": {
+      "description": "${nickname}捡起来了那个小盒子，然后用了很大力才把它撬开，但是你发现里面竟然有个${health_item}",
+      "can_random": false,
+      "status": "scripted",
+      "unlock_achievement": [
+        "1047"
+      ],
+      "one_time_use": false
+    },
+    "10020-2": {
+      "description": "妈妈叮嘱过${nickname}很多次不要随便捡密境里的东西起来玩，所以你离开了该房间",
+      "can_random": false,
+      "status": "scripted",
+      "unlock_achievement": [
+        "1046"
+      ],
+      "one_time_use": false
+    },
+    "10021": {
+      "description": "${nickname}听说这里有不少奇珍异宝，所以你决定多四处看看",
+      "can_random": true,
+      "status": "blah",
+      "add_event": [
+        "10022"
+      ],
+      "one_time_use": true
+    },
+    "10022": {
+      "description": "${nickname}发现了${valuable}，于是把它捡了起来",
+      "can_random": false,
+      "add_item": ["valuable"],
+      "status": "blah",
+      "one_time_use": true
+    },
+    "10023": {
+      "description": "密境里的空气很冷，你不禁打了一个喷嚏",
+      "can_random": true,
+      "status": "blah",
+      "one_time_use": true,
+      "exclude_event": [
+        "10024"
+      ]
+    },
+    "10024": {
+      "description": "密境里很热，你感觉不是很舒服",
+      "can_random": true,
+      "status": "blah",
+      "exclude_event": [
+        "10023"
+      ],
+      "one_time_use": true
+    },
+    "10025": {
+      "description": "不知从哪儿窜出来一只猴子，对着你吐了口吐沫，你感觉非常不爽",
+      "can_random": true,
+      "status": "debuff",
+      "one_time_use": true
+    },
+    "10026": {
+      "description": "${nickname}突然听到有人叫你的名字，虽然你没找到究竟是谁在叫你，但是就在你转悠的时候找到了把趁手的${weapon}",
+      "can_random": true,
+      "status": "buff",
+      "change": {
+        "attack": 2
+      },
+      "one_time_use": true,
+      "exclude_event": [
+        "10027"
+      ]
+    },
+    "10027": {
+      "description": "${nickname}突然听到有人叫你的名字，你找了半天也没找到到底是谁",
+      "can_random": true,
+      "status": "neutral",
+      "one_time_use": true,
+      "exclude_event": [
+        "10026"
+      ]
+    },
+    "10028": {
+      "description": "${nickname}发现地上有一块巧克力饼干，要捡起来么？",
+      "can_random": true,
+      "status": "need_choice",
+      "one_time_use": true,
+      "binary_choice": {
+        "A": {
+          "triggerEvent": "10028-1",
+          "prompt": "捡起饼干"
+        },
+        "B": {
+          "triggerEvent": "10028-2",
+          "prompt": "还是不要了吧"
+        }
+      }
+    },
+    "10028-1": {
+      "description": "${nickname}捡起了饼干，你似乎听到从饼干中传来了很多老奶奶的怒吼",
+      "can_random": false,
+      "status": "scripted",
+      "change": {
+        "attack": 2
+      },
+      "one_time_use": true,
+      "unlock_achievement": ["1049"]
+    },
+    "10028-2": {
+      "description": "${nickname}觉得这饼干掉地上肯定超过7秒了，捡起来也不能吃，于是离开了",
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": true
+    },
+    "10029": {
+      "description": "${nickname}进入了一个金光闪闪的房间，但是里面什么也没有。",
+      "can_random": true,
+      "status": "neutral",
+      "one_time_use": true
+    },
+    "10030": {
+      "description": "${nickname}进入了一个金光闪闪的房间，房间的正中央有一个同样金光灿灿的宝箱，要打开么？",
+      "can_random": true,
+      "status": "need_choice",
+      "binary_choice": {
+        "A": {
+          "triggerEvent": [
+            "10030-1",
+            "10030-3",
+            "10030-5",
+            "10030-7"
+          ],
+          "prompt": "打开"
+        },
+        "B": {
+          "triggerEvent": [
+            "10030-2",
+            "10030-4",
+            "10030-6",
+            "10030-8"
+          ],
+          "prompt": "WTF IS THIS？"
+        }
+      },
+      "one_time_use": false
+    },
+    "10030-1": {
+      "description": "${nickname}打开了宝箱，里面什么也没有，你失望的离开了",
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": false
+    },
+    "10030-2": {
+      "description": "${nickname}离开了这个充满诱惑的房间",
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": false
+    },
+    "10030-3": {
+      "description": "${nickname}打开了宝箱，里面装满了金币，但是很显然，你只能带走一部分。",
+      "add_item": ["gold"],
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": false
+    },
+    "10030-4": {
+      "description": "${nickname}离开了这个金灿灿的房间，你的身后传来了愤怒的声音",
+      "change": {
+        "luck": 1
+      },
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": false
+    },
+    "10030-5": {
+      "description": "${nickname}打开了宝箱，好消息是：里面是空的，坏消息是：奇怪的东西钻进了你的身体里",
+      "change_death": "${nickname}的身体无法承受宝箱里那个东西带来的疼痛，你痛苦的死掉了。",
+      "change": {
+        "health": -5
+      },
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": false
+    },
+    "10030-6": {
+      "description": "${nickname}离开了这个房间，你隐约听到身后传来了微微的叹息声",
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": false
+    },
+    "10030-7": {
+      "description": "${nickname}刚接近宝箱就被宝箱怪袭击了，你和它打了起来",
+      "change_death": "${nickname}被宝箱怪咬死了",
+      "change": {
+        "health": -10
+      },
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": false
+    },
+    "10030-8": {
+      "description": "${nickname}就在要离开时，宝箱突然变成了人形，它拦住了你，往你的手中强塞了一瓶奇怪的粉色药剂。",
+      "change": {
+        "health": 5
+      },
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": false
+    },
+    "10031": {
+      "description": "${nickname}走的有点口渴",
+      "can_random": true,
+      "status": "neutral",
+      "one_time_use": true,
+      "exclude_event": ["10032"]
+    },
+    "10032": {
+      "description": "${nickname}走的有点饿",
+      "can_random": true,
+      "status": "neutral",
+      "one_time_use": true,
+      "exclude_event": ["10031"]
+    },
+    "10033": {
+      "description": "${nickname}听师傅说这个秘境有二次元美少女，但是走了半天你也没找到",
+      "can_random": true,
+      "status": "neutral",
+      "one_time_use": true
+    },
+    "10034": {
+      "description": "你感觉你的环境似曾相识，好像在哪儿见过",
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": true,
+      "unlock_achievement": ["1048"]
+    },
+    "10035": {
+      "description": "${nickname}发现地上有一块饼干，要捡起来么？",
+      "can_random": true,
+      "status": "need_choice",
+      "one_time_use": true,
+      "binary_choice": {
+        "A": {
+          "triggerEvent": ["10035-1", "10035-2", "10035-3"],
+          "prompt": "捡起饼干"
+        },
+        "B": {
+          "triggerEvent": "10028-2",
+          "prompt": "还是不要了吧"
+        }
+      }
+    },
+    "10035-1": {
+      "description": "${nickname}捡起了饼干，饼干很小，你一口把它吞掉了。别说，味道还不错。",
+      "change": {
+        "health": 2
+      },
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": false
+    },
+    "10035-2": {
+      "description": "${nickname}捡起了饼干，饼干很大，你打算带着它一边走一边吃。",
+      "change": {
+        "health": 8
+      },
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": false
+    },
+    "10035-3": {
+      "description": "${nickname}捡起了饼干，饼干好像发霉了，你嫌弃的丢掉了它",
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": false
+    },
+    "10036": {
+      "description": "${nickname}又走了一段时间后发现了一个啼哭的小女孩，要不要哄哄她？",
+      "binary_choice": {
+        "A": {
+          "triggerEvent": ["10036-1", "10036-2"],
+          "prompt": "帮帮她"
+        },
+        "B": {
+          "triggerEvent": ["10036-3", "10036-4"],
+          "prompt": "有点可疑还是算了"
+        }
+      },
+      "can_random": true,
+      "status": "need_choice",
+      "one_time_use": true
+    },
+    "10036-1": {
+      "description": "她坏笑了两声站了起来，${nickname}看到她手里拿着武器，显然不是什么善茬，你和她打了起来。",
+      "can_random": false,
+      "change_death": "你怎么连个小女孩都打不过？",
+      "change": {
+        "health": -5
+      },
+      "status": "scripted",
+      "one_time_use": false
+    },
+    "10036-2": {
+      "description": "你哄了哄小女孩，小女孩逐渐停止了哭泣，并递给了你个小盒子。你打开小盒子发现了一片四叶草。",
+      "change": {
+        "luck": 3
+      },
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": false,
+      "unlock_achievement": ["1051"]
+    },
+    "10036-3": {
+      "description": "看到${nickname}离去，对方骂骂咧咧地站了起来。果然还是谨慎一点好。",
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": false
+    },
+    "10036-4": {
+      "description": "看到${nickname}离去，她的哭声似乎不那么大了，也许人家只是被你吓哭了？",
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": false
+    },
+    "10037": {
+      "description": "${nickname}找到了块鱼塘，就当你准备下水炸鱼的时候，一只食人鱼突然窜了出来咬了你一口",
+      "can_random": true,
+      "change_death": "你怎么被鱼咬死了（x",
+      "change":  {
+        "health": -2
+      },
+      "status": "debuff",
+      "one_time_use": true,
+      "exclude_event": ["10038"]
+    },
+    "10038": {
+      "description": "${nickname}找到了块鱼塘，你掏了掏裤兜找到一截防水鞭炮，你想都没想就把它丢进了池塘里，你成功炸出来了不少鱼，一会儿有的吃了",
+      "can_random": true,
+      "change":  {
+        "health": 2
+      },
+      "status": "debuff",
+      "one_time_use": true,
+      "exclude_event": ["10037"]
+    },
+    "10039": {
+      "description": "${nickname}被什么东西突然绊倒了，你仔细一看似乎是一个烤面包机。这荒郊野岭的怎么会有一个烤面包机？",
+      "can_random": true,
+      "binary_choice": {
+        "A": {
+          "triggerEvent": ["10039-1", "10039-2"],
+          "prompt": "捡起来看看"
+        },
+        "B": {
+          "triggerEvent": ["10039-3", "10039-4"],
+          "prompt": "看着也没啥用，不要了"
+        }
+      },
+      "status": "need_choice",
+      "one_time_use": true
+    },
+    "10039-1": {
+      "description": "${nickname}捡起了我，但是总感觉有什么地方不对……不过应该这个我还挺值钱的吧",
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": true,
+      "add_item": ["gold"],
+      "unlock_achievement": ["1052"]
+    },
+    "10039-2": {
+      "description": "${nickname}审视了一下面包机，里面的机械元件都暴露了出来，估计是没法用了。",
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": true
+    },
+    "10039-3": {
+      "description": "${nickname}想了想还是不要我了，毕竟也没多值钱的样子",
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": true,
+      "unlock_achievement": ["1052"]
+    },
+    "10039-4": {
+      "description": "${nickname}想了想，还是决定将面包机留在原地。说不定失主会回来取呢？",
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": true
+    },
+    "10040": {
+      "description": "一个蒙面白衣男子在你身边擦身而过，你似乎在哪儿见过他？",
+      "can_random": true,
+      "status": "neutral",
+      "one_time_use": true,
+      "exclude_event": ["10041", "10042"]
+    },
+    "10041": {
+      "description": "一个蒙面白衣男子突然拦住了你，他递给了你一个${health_item}",
+      "can_random": true,
+      "status": "buff",
+      "change":  {
+        "health": 2
+      },
+      "one_time_use": true,
+      "exclude_event": ["10040", "10042"]
+    },
+    "10042": {
+      "description": "一个蒙面白衣男子突然拦住了你，他问你御前求婚是不是个好主意，你一脸迷惑。",
+      "can_random": true,
+      "status": "need_choice",
+      "binary_choice": {
+        "A": {
+          "triggerEvent": "10042-1",
+          "prompt": "帮帮他"
+        },
+        "B": {
+          "triggerEvent": "10042-2",
+          "prompt": "委婉地拒绝他"
+        }
+      },
+      "one_time_use": true,
+      "exclude_event": ["10040", "10041"]
+    },
+    "10042-1": {
+      "description": "他给你讲述了一个他暗恋的一个叫做八重神子的女人的故事，你鼓励了鼓励他，他很感谢，并递给了你一个${valuable}",
+      "can_random": false,
+      "status": "scripted",
+      "add_item": ["valuable"],
+      "one_time_use": true
+    },
+    "10042-2": {
+      "description": "他表示理解，并向你道了别",
+      "can_random": false,
+      "status": "scripted",
+      "one_time_use": true
+    },
+    "E10001": {
+      "description": "${nickname}结束了本次旅途。至少你的衣服没事~",
+      "can_random": false,
+      "status": "special_ending",
+      "one_time_use": true
+    },
+    "E10002": {
+      "description": "${nickname}结束了本次旅途。收获多多！~",
+      "can_random": true,
+      "status": "ending",
+      "one_time_use": true
+    },
+    "E99999": {
+      "description": "${nickname}突然从梦中惊醒，你环顾四周，原来这只是一场梦。",
+      "can_random": true,
+      "status": "ending",
+      "one_time_use": true
+    }
+  }
+}
