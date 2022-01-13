@@ -5,7 +5,7 @@ plotly~=4.14.3
 kaleido
 youtube_dl
 aiohttp>=3.7.4
-urllib3>=1.26.5
+urllib3
 twitter
 lxml>=4.6.3
 googletrans~=3.0.0
