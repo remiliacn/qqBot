@@ -94,7 +94,7 @@ async def ocr_image_test(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     msg: str = ctx['raw_message']
 
-    has_image = re.findall(r'file=(.*?\.image)', msg)
+    has_image = re.findall(r'[a-z0-9]+\.image', msg)
     if not has_image:
         await session.finish('无图片哼啊啊啊啊~')
 

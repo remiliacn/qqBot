@@ -36,7 +36,7 @@ async def natural_language_proc(session: nonebot.NLPSession):
 
     if '添加语录' in message:
         bot = nonebot.get_bot()
-        has_image = re.findall(r'.*?\[CQ:image,file=(.*?\.image)]', message)
+        has_image = re.findall(r'[a-z0-9]+\.image', message)
         if has_image:
             response = await bot.get_image(file=has_image[0])
             path = get_downloaded_image_path(response, f'{getcwd()}/data/lol')
@@ -99,7 +99,7 @@ async def _get_if_is_abb(message: str) -> str:
 async def _get_flash_image_entry(message: str) -> str:
     if re.match(r'.*?\[CQ:image.*?type=flash', message):
         logger.debug('Flash image found.')
-        has_image = findall(r'file=(.*?\.image)', message)
+        has_image = findall(r'[a-z0-9]+\.image', message)
         logger.debug(f'Flash image: {has_image}')
         if has_image:
             return has_image[0]
@@ -246,7 +246,7 @@ async def _do_soutu_operation(message: str) -> str:
     if not possible_image_content:
         possible_image_content = data['raw_message']
 
-    has_image = findall(r'file=(.*?\.image)', possible_image_content)
+    has_image = findall(r'[a-z0-9]+\.image', possible_image_content)
     if has_image:
         for idx, element in enumerate(has_image):
             image = await bot.get_image(file=element)

@@ -68,7 +68,6 @@ async def add_blacklist_word(session: nonebot.CommandSession):
 @nonebot.on_command('添加信任', only_to_me=False)
 async def add_whitelist(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    bot = nonebot.get_bot()
     if not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish('您无权使用该功能')
 
@@ -103,7 +102,6 @@ async def delete_whitelist(session: nonebot.CommandSession):
 @nonebot.on_command('添加管理', only_to_me=False)
 async def add_admin(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    bot = nonebot.get_bot()
     if not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish('您无权使用该功能')
 
@@ -156,7 +154,7 @@ async def add_ai_real_response(session: nonebot.CommandSession):
     if match(r'\$', answer) and not get_privilege(ctx['user_id'], perm.OWNER):
         await session.finish('您无权封印此语料')
 
-    has_image = findall(r'.*?file=(.*?\.image)', answer)
+    has_image = findall(r'[a-z0-9]+\.image', answer)
     bot = nonebot.get_bot()
     if has_image:
         response = await bot.get_image(file=has_image[0])
