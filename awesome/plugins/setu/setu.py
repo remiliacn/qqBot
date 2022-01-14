@@ -3,15 +3,14 @@ import re
 import time
 from datetime import datetime
 from os import getcwd
-from os.path import exists
 
-import aiohttp
 import nonebot
 import pixivpy3
 from aiocqhttp import MessageSegment
 from loguru import logger
 
 from Services.nice_image_crawler import NiceImageCrawler
+from Services.util.download_helper import download_image
 from Services.util.sauce_nao_helper import sauce_helper
 from awesome.adminControl import permission as perm
 from awesome.plugins.util.helper_util import anime_reverse_search_response, set_group_permission
@@ -286,7 +285,7 @@ async def pixiv_send(session: nonebot.CommandSession):
             )
 
     start_time = time.time()
-    path = await download_image(illust)
+    path = await _download_pixiv_image_helper(illust)
     try:
         nickname = ctx['sender']['nickname']
     except KeyError:
@@ -468,7 +467,7 @@ async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq
 
     illust = random.choice(json_result)
     start_time = time.time()
-    path = await download_image(illust)
+    path = await _download_pixiv_image_helper(illust)
 
     is_exempt = group_id != -1 and admin_control.get_group_permission(group_id, 'exempt')
     is_r18 = illust.sanity_level == 6
@@ -545,7 +544,7 @@ def _get_image_data_from_username(key_word: str) -> (str, str):
         return f"{key_word}无搜索结果或图片过少……", ''
 
 
-async def download_image(illust):
+async def _download_pixiv_image_helper(illust):
     if illust['meta_single_page']:
         if 'original_image_url' in illust['meta_single_page']:
             image_url = illust.meta_single_page['original_image_url']
@@ -559,22 +558,12 @@ async def download_image(illust):
         image_url = illust.image_urls['medium']
 
     logger.info(f"{illust.title}: {image_url}, {illust.id}")
-    image_file_name = image_url.split('/')[-1].replace('_', '')
-    path = f'{getcwd()}/data/pixivPic/{image_file_name}'
+    path = f'{getcwd()}/data/pixivPic/'
 
-    if not exists(path):
-        try:
-            async with aiohttp.ClientSession(headers={'Referer': 'https://app-api.pixiv.net/'}) as session:
-                async with session.get(image_url) as response:
-                    with open(path, 'wb') as out_file:
-                        while True:
-                            chunk = await response.content.read(1024 ** 2)
-                            if not chunk:
-                                break
-                            out_file.write(chunk)
-
-        except Exception as err:
-            logger.info(f'Download image error: {err}')
+    try:
+        path = await download_image(image_url, path, headers={'Referer': 'https://app-api.pixiv.net/'})
+    except Exception as err:
+        logger.info(f'Download image error: {err}')
 
     logger.info("PATH = " + path)
     return path

@@ -6,14 +6,16 @@ from time import time
 import aiohttp
 
 
-async def download_image(url, path: str) -> str:
+async def download_image(url, path: str, headers=None) -> str:
+    if headers is None:
+        headers = {}
     if not exists(path):
         try:
             makedirs(path)
         except OSError:
             return ''
 
-    async with aiohttp.ClientSession() as client:
+    async with aiohttp.ClientSession(headers={} if headers is None else headers) as client:
         async with client.get(url) as page:
             file_name = url.split('/')[-1]
             file_name = sub(r'\?auth=.*?$', '', file_name)
