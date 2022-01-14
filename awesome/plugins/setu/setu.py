@@ -11,6 +11,7 @@ import pixivpy3
 from aiocqhttp import MessageSegment
 from loguru import logger
 
+from Services.nice_image_crawler import NiceImageCrawler
 from Services.util.sauce_nao_helper import sauce_helper
 from awesome.adminControl import permission as perm
 from awesome.plugins.util.helper_util import anime_reverse_search_response, set_group_permission
@@ -375,6 +376,27 @@ def _sanity_check(group_id, user_id):
         sanity = setu_control.get_max_sanity()
         setu_control.set_sanity(group_id=group_id, sanity=setu_control.get_max_sanity())
         return '', sanity
+
+
+@nonebot.on_command('来点三次元', only_to_me=False)
+async def get_some_three_dimension_lewd(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+
+    group_id = ctx['group_id'] if 'group_id' in ctx else -1
+    if group_id != -1 and not get_privilege(ctx['user_id'], perm.OWNER):
+        if admin_control.get_group_permission(group_id, 'banned'):
+            await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
+
+    san_ci_yuan_image_api = NiceImageCrawler()
+    file_path = await san_ci_yuan_image_api.get_random_image()
+    message = f'[CQ:image,file=file:///{file_path}]' if file_path else '服务器崩了~'
+    await session.finish(message)
+
+    group_id = ctx['group_id'] if 'group_id' in ctx else -1
+    requester_qq = ctx['user_id']
+    setu_control.set_user_data(requester_qq, 'setu')
+    if group_id != -1:
+        setu_control.set_usage(group_id, 'setu')
 
 
 @nonebot.on_command('看看XP', aliases={'看看xp'}, only_to_me=False)
