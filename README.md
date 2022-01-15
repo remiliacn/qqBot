@@ -28,6 +28,7 @@
 
 ### 重要
 * 为了更好的使用机器人，请在config.py文件中的`SUPER_USER`参数上设置好自己的QQ号，并使用`添加管理`命令将自己的qq号添加上管理员权限
+* 如果在使用机器人的时候遇到了权限问题，请参照[该issue](https://github.com/remiliacn/qqBot/issues/13#issuecomment-1012546963)进行修正
 
 
 # Config
