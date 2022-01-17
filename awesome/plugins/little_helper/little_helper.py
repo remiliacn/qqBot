@@ -86,7 +86,7 @@ async def k_line(session: nonebot.CommandSession):
 
     stock = Stock(key_word, keyword=key_word)
     try:
-        if key_word.isdigit():
+        if not key_word.isdigit():
             file_name = await stock.get_stock_codes()
             await session.send(
                 f'好像出问题了（\n'
