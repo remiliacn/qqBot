@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import re
 from random import randint, seed, choice
 from time import time_ns
 
@@ -24,12 +25,13 @@ class Storer:
 
         if function not in self.stored_result[group_id]:
             self.stored_result[group_id][function] = {}
-            if is_global:
-                self.stored_result[group_id][function] = ref
-            else:
-                self.stored_result[group_id][function][user_id] = ref
 
-    def get_store(self, group_id, function, is_global: bool, user_id='-1'):
+        if is_global:
+            self.stored_result[group_id][function] = ref
+        else:
+            self.stored_result[group_id][function][user_id] = ref
+
+    def get_store(self, group_id, function, is_global: bool, user_id='-1', clear_after_use=True):
         if group_id not in self.stored_result:
             self.stored_result[group_id] = {}
             return ''
@@ -40,14 +42,16 @@ class Storer:
 
         if is_global:
             temp = self.stored_result[group_id][function]
-            self.stored_result[group_id][function] = ''
+            if clear_after_use:
+                self.stored_result[group_id][function] = ''
             return temp
         else:
             if user_id not in self.stored_result[group_id][function]:
                 return ''
 
             info = self.stored_result[group_id][function][user_id]
-            self.stored_result[group_id][function][user_id] = ''
+            if clear_after_use:
+                self.stored_result[group_id][function][user_id] = ''
             return info
 
 
@@ -285,28 +289,42 @@ async def modify_gun_rounds(session: nonebot.CommandSession):
 @nonebot.on_command('成语接龙', only_to_me=False)
 async def jielong(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
+    user_choice = session.current_arg_text
     random_idiom = GLOBAL_STORE.get_store(
         group_id=str(ctx['group_id']) if 'group_id' in ctx else "-1",
         function='solitaire',
-        is_global=False,
-        user_id=str(ctx['user_id'])
+        is_global=True,
+        user_id=str(ctx['user_id']),
+        clear_after_use=False
     )
+
+    first_play = not random_idiom
 
     if not random_idiom:
         random_idiom = get_random_idiom()
+
+    GLOBAL_STORE.set_store(
+        function='solitaire',
+        ref=random_idiom,
+        group_id=str(ctx['group_id']) if 'group_id' in ctx else "-1",
+        is_global=True,
+        user_id=str(ctx['user_id'])
+    )
+
+    if first_play or not user_choice:
+        user_choice = session.get('user_choice', prompt=f'请接龙：{random_idiom}')
+        user_choice = re.sub(r'[!！]成语接龙\s+', '', str(user_choice).strip())
+    if idiom.is_idiom_solitaire(random_idiom, user_choice):
         GLOBAL_STORE.set_store(
             function='solitaire',
-            ref=random_idiom,
+            ref=user_choice,
             group_id=str(ctx['group_id']) if 'group_id' in ctx else "-1",
-            is_global=False,
+            is_global=True,
             user_id=str(ctx['user_id'])
         )
-
-    user_choice = session.get('user_choice', prompt=f'请接龙：{random_idiom}')
-    if idiom.is_idiom_solitaire(random_idiom, str(user_choice).strip()):
-        await session.finish('啧啧啧，什么嘛~还不错嘛~（好感度 +1）')
+        await session.finish(f'啧啧啧，什么嘛~还不错嘛~（好感度 +1）请继续~当前成语：{user_choice}')
     else:
-        await session.finish('你接球呢ww （好感度 -1）')
+        await session.finish(f'你接球呢ww （好感度 -1）现在的成语是{random_idiom}哦')
 
 
 @nonebot.on_command('比大小', only_to_me=False)
