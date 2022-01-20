@@ -88,7 +88,7 @@ async def buy_stonk(session: nonebot.CommandSession):
     )
 
 
-@nonebot.on_command('卖出', aliases={'sell', '售出', '卖出股票'}, only_to_me=False)
+@nonebot.on_command('卖出', aliases={'sell', '售出', '卖出股票', '出售'}, only_to_me=False)
 async def sell_stonk(session: nonebot.CommandSession):
     args = session.current_arg_text
     args = args.split()
