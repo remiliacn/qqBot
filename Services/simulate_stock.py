@@ -254,14 +254,6 @@ class SimulateStock:
         price_now, is_digital, \
         stock_name, stock_api, _ = await self._determine_stock_price_digital_name(identifier)
 
-        self.stock_price_cache[identifier] = {
-            'priceNow': price_now,
-            'stockName': stock_name,
-            'lastUpdated': int(time.time()),
-            'isDigital': is_digital,
-            'stockType': stock_api.type if isinstance(stock_api, Stock) else stock_api.crypto_name
-        }
-        self._store_stock_data()
         return price_now
 
     async def buy_with_code_and_amount(
@@ -339,10 +331,12 @@ class SimulateStock:
             else:
                 # 虚拟盘24小时开所以寄~
                 if not self.stock_price_cache[stock_code]['isDigital']:
-                    # 如果本天是周末，且上次价格更新是周五，则直接返回数据
-                    if datetime.today().weekday() >= 5 and datetime.fromtimestamp(last_updated).weekday() != 4:
-                        return True, self.stock_price_cache[stock_code]
+                    # 如果本天是周末，且上次价格更新是周五，则直接返回数据，反之需要稍微更新一下
+                    if datetime.today().weekday() >= 5:
+                        return datetime.fromtimestamp(last_updated).weekday() >= 4, self.stock_price_cache[stock_code]
 
+                # 最坏情况为上日14:59问的然后第二日9:30查房~
+                if time_diff > 60 * 60 * 18:
                     return False, self.stock_price_cache[stock_code]
 
                 # AB股闭市时间
