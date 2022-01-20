@@ -1,5 +1,4 @@
 import time
-from datetime import datetime
 
 import aiohttp
 import nonebot
@@ -7,11 +6,9 @@ from loguru import logger
 
 from Services import random_services
 from Services.keylol_update import KeylolFreeGame
-from Services.stock import Stock, Crypto
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao.shadiao import setu_control
 from awesome.plugins.util import helper_util, search_helper
-from config import SUPER_USER
 from qq_bot_core import user_control_module
 
 cache = helper_util.HhshCache()
@@ -47,69 +44,6 @@ async def get_free_game(session: nonebot.CommandSession):
     keylol = KeylolFreeGame()
     keylol.get_update()
     await session.send(keylol.get_free_game_list())
-
-
-@nonebot.on_command('虚拟货币', only_to_me=False)
-async def crypto_search(session: nonebot.CommandSession):
-    key_word = session.get(
-        'key_word',
-        prompt='请输入货币缩写！'
-    )
-
-    crypto = Crypto(key_word)
-    try:
-        file_name, market_will = crypto.get_kline()
-        if file_name:
-            await session.send(
-                f'[CQ:image,file=file:///{file_name}]\n'
-                f'{market_will}'
-            )
-        else:
-            await session.send(
-                f'好像出问题了（\n'
-            )
-
-    except Exception as err:
-        logger.warning(f'{err} - Crypto error.')
-        await session.finish('这货币真的上架了么……')
-
-
-@nonebot.on_command('K线', aliases={'股票', '股票代码', 'k线'}, only_to_me=False)
-async def k_line(session: nonebot.CommandSession):
-    key_word: str = session.get(
-        'key_word',
-        prompt='请输入股票代码！'
-    )
-
-    if len(key_word) < 2:
-        await session.finish('你太短了')
-
-    stock = Stock(key_word, keyword=key_word)
-    try:
-        if not key_word.isdigit():
-            file_name = await stock.get_stock_codes()
-            await session.send(
-                f'好像出问题了（\n'
-                f'灵夜机器人帮助你找到了以下备选搜索结果~\n'
-                f'[CQ:image,file=file:///{file_name}]\n'
-                f'请使用数字代码查询！'
-            )
-        else:
-            file_name, market_will = await stock.get_kline_map()
-            if file_name:
-                await session.send(
-                    f'[CQ:image,file=file:///{file_name}]\n' +
-                    f'{market_will}'
-                )
-
-    except Exception as err:
-        await session.send('出问题了出问题了~')
-        bot = nonebot.get_bot()
-        await bot.send_private_msg(
-            user_id=SUPER_USER,
-            message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
-                    f'股票查询出错{err}, 股票代码：{key_word}'
-        )
 
 
 @nonebot.on_command('最新地震', only_to_me=False)
@@ -164,8 +98,6 @@ async def can_you_be_fucking_normal(session: nonebot.CommandSession):
 
 
 @can_you_be_fucking_normal.args_parser
-@k_line.args_parser
-@crypto_search.args_parser
 async def _you_dao_service_args(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:

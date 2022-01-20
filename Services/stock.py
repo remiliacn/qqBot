@@ -1,14 +1,17 @@
+import asyncio
 import json
 import re
 from datetime import datetime, timedelta
 from os import getcwd
 from time import time_ns
+from typing import Union
 
 import aiohttp
 import pandas
 import plotly.graph_objects as plotter
 import requests
 from PIL import Image, ImageDraw, ImageFont
+from aiohttp import ContentTypeError
 from loguru import logger
 from plotly.subplots import make_subplots
 
@@ -256,20 +259,10 @@ class Crypto:
         self.granularity = 60 * 60
 
     def get_kline(self, analyze_type='MACD'):
-        spot_api = spot.SpotAPI(
-            OKEX_API_KEY,
-            OKEX_SECRET_KEY,
-            OKEX_PASSPHRASE,
-            False
-        )
+        spot_api = spot.SpotAPI(OKEX_API_KEY, OKEX_SECRET_KEY, OKEX_PASSPHRASE)
 
         # get 1h k-line
-        json_data = spot_api.get_kline(
-            instrument_id=self.crypto,
-            start='',
-            end='',
-            granularity=self.granularity
-        )[:90]
+        json_data = spot_api.get_kline(instrument_id=self.crypto, granularity=self.granularity)[:90]
 
         self.crypto += ' （1h）'
         json_data = list(json_data)
@@ -300,7 +293,7 @@ class Crypto:
 
 
 class Stock:
-    def __init__(self, code, keyword=''):
+    def __init__(self, code: str, keyword=''):
         self.code = code
         self.stock_name = '未知股票'
         self.type = -1
@@ -323,6 +316,7 @@ class Stock:
         self.kline_api = self.get_api_link(self.type)
 
         self.guba_api = None
+
         if keyword:
             self.guba_api = f'http://searchapi.eastmoney.com/bussiness/web/' \
                             f'QuotationLabelSearch?' \
@@ -335,6 +329,9 @@ class Stock:
                f'Cf59%2Cf60%2Cf61&klt=101&fqt=1' \
                f'&beg={(datetime.now() - timedelta(days=120)).strftime("%Y%m%d")[0:8]}' \
                f'&end={((datetime.now()).strftime("%Y%m%d"))[0:8]}'
+
+    def _get_first_buy_link(self, type_code):
+        return f'https://push2.eastmoney.com/api/qt/stock/get?fields=f43&secid={type_code}.{self.code}'
 
     async def get_stock_codes(self) -> str:
         if self.guba_api is None:
@@ -401,6 +398,31 @@ class Stock:
         json_data = json_data[0]
         return f'\n主力控盘迹象：{json_data["JGCYDType"]}（更新时间：{json_data["TDate"]}）'
 
+    async def get_purchase_price(self, iteration=False) -> (Union[int, float, None], str):
+        if not self.code.isdigit():
+            return None
+
+        data_url = f'https://push2.eastmoney.com/api/qt/stock/get?fields=f43,f58&secid={self.type}.{self.code}'
+        async with aiohttp.ClientSession() as session:
+            async with session.get(data_url) as response:
+                try:
+                    json_data = await response.json()
+                    purchase_price = json_data['data']['f43']
+                    stock_name = json_data['data']['f58']
+                except (TypeError, ContentTypeError):
+                    if not iteration:
+                        self._retry_type()
+                        return await self.get_purchase_price(iteration=True)
+                except Exception as err:
+                    logger.warning(f'Error when getting first purchase price for stock: {self.code} -- {err}')
+                    return None
+
+        if self.type > 100:
+            purchase_price /= 1000
+        else:
+            purchase_price /= 100
+        return purchase_price, stock_name
+
     async def get_kline_map(self, analyze_type='MACD') -> (str, str):
         kline_data = await self._request_for_kline_data()
         if not kline_data:
@@ -439,12 +461,12 @@ class Stock:
             async with client.get(self.kline_api) as page:
                 try:
                     json_data = await page.json()
-                except Exception as err:
-                    logger.warning(f'Maybe not stock code? {err}')
+                except TypeError:
                     if self.type == 1:
                         self.kline_api = self.get_api_link(0)
                         return await self._request_for_kline_data(iteration=True)
-
+                except Exception as err:
+                    logger.warning(f'Maybe not stock code? {err}')
                     return []
 
         if json_data is None:
@@ -457,11 +479,7 @@ class Stock:
         if json_data is None:
             # Iter once to use the other API to try to fetch the kline data.
             if not iteration:
-                if self.type == 106:
-                    self.kline_api = self.get_api_link(107)
-                else:
-                    self.kline_api = self.get_api_link(0)
-
+                self._retry_type()
                 return await self._request_for_kline_data(iteration=True)
 
             return []
@@ -474,3 +492,20 @@ class Stock:
             return [x.split(',') for x in json_data]
 
         return []
+
+    def _retry_type(self):
+        if self.type == 106:
+            self.type = 107
+        else:
+            self.type = 0
+
+
+# test code
+async def main():
+    test = Stock('002658', keyword='002658')
+    print(await test.get_purchase_price())
+
+
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())

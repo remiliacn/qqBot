@@ -8,6 +8,7 @@ from nonebot.log import logger
 # 如果下面这行报错，请暂时注释掉这行然后运行下面的main()
 import config
 from Services.cangku_api import CangkuApi
+from Services.simulate_stock import SimulateStock
 from awesome.adminControl import alarm, user_control, setu, group_control
 from awesome.adminControl.weeb_controller import WeebController
 
@@ -58,6 +59,7 @@ admin_control = group_control.Shadiaoadmin()
 weeb_learning = WeebController()
 
 cangku_api = CangkuApi()
+virtual_market = SimulateStock()
 
 
 def register_true():
