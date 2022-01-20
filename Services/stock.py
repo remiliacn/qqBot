@@ -1,3 +1,4 @@
+import json
 import re
 from datetime import datetime, timedelta
 from os import getcwd
@@ -328,7 +329,7 @@ class Stock:
                             f'token=REMILIACN&keyword={keyword}&type=0&pi=1&ps=30'
 
     def get_api_link(self, type_code) -> str:
-        return f'http://15.push2his.eastmoney.com/api/qt/stock/kline/get?' \
+        return f'http://6.push2his.eastmoney.com/api/qt/stock/kline/get?' \
                f'secid={type_code}.{self.code}&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6' \
                f'&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2' \
                f'Cf59%2Cf60%2Cf61&klt=101&fqt=1' \
@@ -379,6 +380,27 @@ class Stock:
         response = await text_to_image(response)
         return response
 
+    async def _host_detection(self) -> str:
+        if not self.code.isdigit():
+            return ''
+
+        url = f'https://dcfm.eastmoney.com/em_mutisvcexpandinterface/api/js/' \
+              f'get?type=QGQP_LB&CMD={self.code}&token=70f12f2f4f091e459a279469fe49eca5'
+
+        async with aiohttp.ClientSession() as client:
+            async with client.get(url) as response:
+                try:
+                    json_data = await response.text()
+                    json_data = json.loads(json_data)
+                except Exception as err:
+                    logger.warning(f'Maybe not stock code? {err}')
+                    return ''
+        if not json_data:
+            return ''
+
+        json_data = json_data[0]
+        return f'\n主力控盘迹象：{json_data["JGCYDType"]}（更新时间：{json_data["TDate"]}）'
+
     async def get_kline_map(self, analyze_type='MACD') -> (str, str):
         kline_data = await self._request_for_kline_data()
         if not kline_data:
@@ -408,7 +430,9 @@ class Stock:
         )
         file_name = f'{getcwd()}/data/bot/stock/{int(time_ns())}.png'
         plot.write_image(file_name)
-        return file_name, market_will
+
+        host_detection = await self._host_detection()
+        return file_name, market_will + host_detection
 
     async def _request_for_kline_data(self, iteration=False) -> list:
         async with aiohttp.ClientSession() as client:
@@ -417,6 +441,10 @@ class Stock:
                     json_data = await page.json()
                 except Exception as err:
                     logger.warning(f'Maybe not stock code? {err}')
+                    if self.type == 1:
+                        self.kline_api = self.get_api_link(0)
+                        return await self._request_for_kline_data(iteration=True)
+
                     return []
 
         if json_data is None:
