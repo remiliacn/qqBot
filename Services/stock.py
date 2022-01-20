@@ -9,7 +9,6 @@ from typing import Union
 import aiohttp
 import pandas
 import plotly.graph_objects as plotter
-import requests
 from PIL import Image, ImageDraw, ImageFont
 from aiohttp import ContentTypeError
 from loguru import logger
@@ -255,16 +254,29 @@ def do_plot(
 
 class Crypto:
     def __init__(self, crypto: str):
-        self.crypto = f'{crypto.upper()}-USDT'
+        self.crypto_name = crypto
+        self.crypto_usdt = f'{crypto.upper()}-USDT'
         self.granularity = 60 * 60
+
+    def get_current_value(self):
+        try:
+            spot_api = spot.SpotAPI(OKEX_API_KEY, OKEX_SECRET_KEY, OKEX_PASSPHRASE)
+            # get 1h k-line
+            json_data = spot_api.get_kline(instrument_id=self.crypto_usdt, granularity=self.granularity)[:90]
+            open_data = [float(x[1]) for x in json_data][-1]
+
+            return open_data
+        except Exception as err:
+            logger.warning(f'Seemly no crypto like this: {err}')
+            return -1
 
     def get_kline(self, analyze_type='MACD'):
         spot_api = spot.SpotAPI(OKEX_API_KEY, OKEX_SECRET_KEY, OKEX_PASSPHRASE)
 
         # get 1h k-line
-        json_data = spot_api.get_kline(instrument_id=self.crypto, granularity=self.granularity)[:90]
+        json_data = spot_api.get_kline(instrument_id=self.crypto_usdt, granularity=self.granularity)[:90]
 
-        self.crypto += ' （1h）'
+        self.crypto_usdt += ' （1h）'
         json_data = list(json_data)
         json_data.reverse()
 
@@ -283,7 +295,7 @@ class Crypto:
             volume_data,
             high_data,
             low_data,
-            self.crypto,
+            self.crypto_usdt,
             volume_color,
             analyze_type
         )
@@ -330,20 +342,18 @@ class Stock:
                f'&beg={(datetime.now() - timedelta(days=120)).strftime("%Y%m%d")[0:8]}' \
                f'&end={((datetime.now()).strftime("%Y%m%d"))[0:8]}'
 
-    def _get_first_buy_link(self, type_code):
-        return f'https://push2.eastmoney.com/api/qt/stock/get?fields=f43&secid={type_code}.{self.code}'
-
-    async def get_stock_codes(self) -> str:
+    async def get_stock_codes(self, get_one=False) -> str:
         if self.guba_api is None:
             return ''
 
-        page = requests.get(self.guba_api)
-        json_data = page.json()
-        if not json_data['IsSuccess']:
-            return '请求API失败'
+        async with aiohttp.ClientSession() as client:
+            async with client.get(self.guba_api) as response:
+                json_data = await response.json()
+                if not json_data['IsSuccess']:
+                    return '请求API失败'
 
-        if 'Data' not in json_data:
-            return 'Data键值丢失'
+                if 'Data' not in json_data:
+                    return 'Data键值丢失'
 
         json_data = json_data['Data']
         if not json_data:
@@ -361,10 +371,15 @@ class Stock:
             stock_type = element['Name']
             type_id = element['Type']
             data = element['Datas']
-            if not data or type_id == 6:
-                continue
 
-            stock[stock_type] = data
+            if not get_one:
+                if not data or type_id == 6:
+                    continue
+
+                stock[stock_type] = data
+            else:
+                if type_id < 6 and data:
+                    return str(data[0]["Code"])
 
         response = ''
         for key, element in stock.items():
@@ -398,11 +413,16 @@ class Stock:
         json_data = json_data[0]
         return f'\n主力控盘迹象：{json_data["JGCYDType"]}（更新时间：{json_data["TDate"]}）'
 
-    async def get_purchase_price(self, iteration=False) -> (Union[int, float, None], str):
-        if not self.code.isdigit():
-            return None
+    def set_type(self, any_type: str):
+        self.type = any_type
 
-        data_url = f'https://push2.eastmoney.com/api/qt/stock/get?fields=f43,f58&secid={self.type}.{self.code}'
+    async def get_purchase_price(self, iteration=False) -> (Union[int, float, None], str):
+        purchase_price = -1
+        stock_name = ''
+
+        data_url = f'https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&' \
+                   f'fields=f43,f58&secid={self.type}.{self.code}'
+
         async with aiohttp.ClientSession() as session:
             async with session.get(data_url) as response:
                 try:
@@ -415,12 +435,8 @@ class Stock:
                         return await self.get_purchase_price(iteration=True)
                 except Exception as err:
                     logger.warning(f'Error when getting first purchase price for stock: {self.code} -- {err}')
-                    return None
+                    return -1
 
-        if self.type > 100:
-            purchase_price /= 1000
-        else:
-            purchase_price /= 100
         return purchase_price, stock_name
 
     async def get_kline_map(self, analyze_type='MACD') -> (str, str):
@@ -495,7 +511,9 @@ class Stock:
 
     def _retry_type(self):
         if self.type == 106:
-            self.type = 107
+            self.type = 105
+        elif self.type == 107:
+            self.type = 106
         else:
             self.type = 0
 

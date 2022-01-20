@@ -78,7 +78,7 @@ async def buy_stonk(session: nonebot.CommandSession):
 
     ctx = session.ctx.copy()
     if len(args) != 2:
-        await session.finish('用法是！购买 股票代码 数量')
+        await session.finish('用法是！购买 股票名称/代码/缩写 数量')
 
     user_id = ctx['user_id']
     message_id = ctx['message_id']
