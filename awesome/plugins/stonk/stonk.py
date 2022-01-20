@@ -75,39 +75,50 @@ async def k_line(session: nonebot.CommandSession):
 async def buy_stonk(session: nonebot.CommandSession):
     args = session.current_arg_text
     args = args.split()
+
+    ctx = session.ctx.copy()
     if len(args) != 2:
         await session.finish('用法是！购买 股票代码 数量')
 
-    user_id = session.ctx['user_id']
-    message_id = session.ctx['message_id']
+    user_id = ctx['user_id']
+    message_id = ctx['message_id']
     await session.finish(
         f'[CQ:reply,id={message_id}]'
-        f'{await virtual_market.buy_with_code_and_amount(user_id, args[0], args[1])}'
+        f'{await virtual_market.buy_with_code_and_amount(user_id, args[0], args[1], ctx=ctx)}'
     )
 
 
-@nonebot.on_command('卖出', aliases={'sell'}, only_to_me=False)
+@nonebot.on_command('卖出', aliases={'sell', '售出', '卖出股票'}, only_to_me=False)
 async def sell_stonk(session: nonebot.CommandSession):
     args = session.current_arg_text
     args = args.split()
     if len(args) != 2:
         await session.finish('用法是！卖出 股票代码 数量')
 
-    user_id = session.ctx['user_id']
-    message_id = session.ctx['message_id']
+    ctx = session.ctx.copy()
+    user_id = ctx['user_id']
+    message_id = ctx['message_id']
     await session.finish(
         f'[CQ:reply,id={message_id}]' +
-        await virtual_market.sell_stock(user_id, args[0], args[1])
+        await virtual_market.sell_stock(user_id, args[0], args[1], ctx=ctx)
     )
 
 
 @nonebot.on_command('持仓', only_to_me=False)
 async def my_stonks(session: nonebot.CommandSession):
-    user_id = session.ctx['user_id']
-    message_id = session.ctx['message_id']
+    ctx = session.ctx.copy()
+    user_id = ctx['user_id']
+    message_id = ctx['message_id']
     await session.finish(
         f'[CQ:reply,id={message_id}]' +
-        await virtual_market.get_all_stonk_log_by_user(user_id)
+        await virtual_market.get_all_stonk_log_by_user(user_id, ctx=ctx)
+    )
+
+
+@nonebot.on_command('战绩', aliases={'炒股战绩', '龙虎榜'}, only_to_me=False)
+async def stonk_stat_send(session: nonebot.CommandSession):
+    await session.finish(
+        await virtual_market.get_all_user_info()
     )
 
 

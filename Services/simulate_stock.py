@@ -1,3 +1,4 @@
+import copy
 from datetime import datetime
 from json import dump, loads
 from os import getcwd
@@ -13,6 +14,7 @@ class SimulateStock:
         self.NO_INFO = '您啥还没买呢哦~'
 
         self.file_name = f'{getcwd()}/Services/util/userStockRecord.json'
+        self.stock_price_cache = {}
         self.user_stock_data = {"data": {}}
         if not exists(self.file_name):
             self._store_user_data()
@@ -27,7 +29,7 @@ class SimulateStock:
         with open(self.file_name, 'w+', encoding='utf-8') as file:
             dump(self.user_stock_data, file, indent=4, ensure_ascii=False)
 
-    async def get_all_stonk_log_by_user(self, uid: Union[int, str]):
+    async def get_all_stonk_log_by_user(self, uid: Union[int, str], ctx=None):
         uid = str(uid)
         try:
             stonk_whole_log = self.user_stock_data['data'][uid]
@@ -45,19 +47,56 @@ class SimulateStock:
             time_awareness = '【午间休市】\n'
         elif datetime.now().hour > 15 or (datetime.now().hour <= 9 and datetime.now().minute <= 30):
             time_awareness = '【休市】\n'
+        elif datetime.now().hour == 9 and 15 <= datetime.now().minute <= 25:
+            time_awareness = '【集合竞价·开盘】\n'
+        elif datetime.now().hour == 14 and datetime.now().minute >= 57:
+            time_awareness = '【集合竞价·收盘】\n'
 
+        # backfill
+        self._backfill_nickname(uid, ctx)
         return f'{time_awareness}' + '\n'.join(response)
 
-    async def get_all_user_info(self):
-        data = self.user_stock_data['data']
-        response = ''
-        for uid in data:
-            money, rate = await self._get_user_overall_stat(uid)
-            response += f'{uid}: 总资产{money:.2f}软妹币（总收益率：{rate:.2f}% {"↑" if rate > 0 else "↓"}）\n'
+    def _backfill_nickname(self, uid: Union[str, int], ctx=None):
+        if ctx is not None:
+            try:
+                self.user_stock_data['data'][uid]['nickname'] = ctx['sender']['nickname']
+            except KeyError:
+                pass
 
+            self._store_user_data()
+
+    async def get_all_user_info(self):
+        user_data = copy.deepcopy(self.user_stock_data)
+        data = user_data['data']
+        response = ''
+        user_data_info = []
+        for uid in data:
+            data = await self._get_user_overall_stat(uid)
+            user_data_info.append(data)
+
+        if len(user_data_info) > 3:
+            sorted_list_reverse = sorted(user_data_info, key=lambda d: d["ratio"], reverse=True)
+            sorted_list = sorted_list_reverse[::-1][:3]
+            sorted_list_reverse = sorted_list_reverse[:3]
+        else:
+            sorted_list_reverse = sorted(user_data_info, key=lambda d: d["ratio"], reverse=True)
+            sorted_list = sorted_list_reverse[::-1]
+
+        response += f'龙虎榜：\n\n'
+        for idx, data in enumerate(sorted_list_reverse):
+            response += f'收益第{idx + 1}: {data["nickname"]}\n' \
+                        f'【总资产{data["total"]:.2f}软妹币' \
+                        f'（总收益率：{data["ratio"]:.2f}% {"↑" if data["ratio"] > 0 else "↓"}）】\n'
+
+        response += f'\n韭菜榜：\n\n'
+        for idx, data in enumerate(sorted_list):
+            response += f'收益倒数第{idx + 1}: {data["nickname"]}\n' \
+                        f'【总资产{data["total"]:.2f}软妹币' \
+                        f'（总收益率：{data["ratio"]:.2f}% {"↑" if data["ratio"] > 0 else "↓"}）】\n'
+        self.stock_price_cache.clear()
         return response.strip()
 
-    async def sell_stock(self, uid: Union[int, str], stock_code: str, amount: str):
+    async def sell_stock(self, uid: Union[int, str], stock_code: str, amount: str, ctx=None):
         if not amount.isdigit():
             return f'卖不了{amount}股'
         uid = str(uid)
@@ -89,6 +128,7 @@ class SimulateStock:
                     self.user_stock_data['data'][uid][stock_code]['moneySpent'] / \
                     self.user_stock_data['data'][uid][stock_code]['purchaseCount']
 
+            self._backfill_nickname(uid, ctx)
             self._store_user_data()
             return f'您已每股{price_now}软妹币的价格卖出了{amount}股{stock_name}，' \
                    f'现在您有{self.user_stock_data["data"][uid]["totalMoney"]:.2f}软妹币了~'
@@ -96,26 +136,41 @@ class SimulateStock:
         except KeyError:
             return self.NO_INFO
 
-    async def _get_user_overall_stat(self, uid: Union[int, str]):
+    async def _get_user_overall_stat(self, uid: Union[int, str]) -> dict:
         data = self.user_stock_data['data']
         uid = str(uid)
         try:
             total_money = data[uid]['totalMoney']
+            if 'nickname' in data[uid]:
+                nickname = data[uid]['nickname']
+            else:
+                nickname = '匿名'
+
             current_stock_money = 0
             for stock in data[uid]:
-                if stock == 'totalMoney':
+                if not isinstance(data[uid][stock], dict):
                     continue
-                stock_entity = Stock(stock)
-                price_now = await stock_entity.get_purchase_price()
+
+                if stock not in self.stock_price_cache:
+                    stock_entity = Stock(stock)
+                    price_now, _ = await stock_entity.get_purchase_price()
+                    self.stock_price_cache[stock] = price_now
+                else:
+                    price_now = self.stock_price_cache[stock]
+
                 current_stock_money += price_now * data[uid][stock]['purchaseCount']
 
             total_money += current_stock_money
-            ratio = ((total_money - 10 ** 6 * 5) / 10 ** 6 * 5) * 100
+            ratio = ((total_money - (10 ** 6 * 5)) / (10 ** 6 * 5)) * 100
 
-            return total_money, ratio
+            return {
+                "total": total_money,
+                "ratio": ratio,
+                "nickname": nickname
+            }
 
         except KeyError:
-            return 0.0, 0.0
+            return {}
 
     async def my_money_spent_by_stock_code(self, uid: Union[int, str], stock_code: str) -> (str, float, float):
         uid = str(uid)
@@ -146,7 +201,9 @@ class SimulateStock:
                f'（最新市值：{new_price:.2f}软妹币 | ' \
                f'持仓盈亏：{rate:.2f}% {"↑" if rate > 0 else "↓"} | 平摊成本：{avg_money:.2f}软妹币/股）\n'
 
-    async def buy_with_code_and_amount(self, uid: Union[int, str], stock_code: str, amount: Union[str, int]) -> str:
+    async def buy_with_code_and_amount(
+            self, uid: Union[int, str], stock_code: str, amount: Union[str, int], ctx=None
+    ) -> str:
         if isinstance(amount, str):
             if not amount.isdigit():
                 return '购买数量不合法'
@@ -180,6 +237,8 @@ class SimulateStock:
         user_money = self.user_stock_data['data'][uid]['totalMoney']
         if need_money > user_money:
             return '您没钱了'
+
+        self._backfill_nickname(uid, ctx)
 
         self.user_stock_data['data'][uid]['totalMoney'] = user_money - need_money
 
