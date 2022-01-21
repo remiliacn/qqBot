@@ -317,7 +317,7 @@ class Stock:
             self.type = 90
 
         elif re.match(r'[A-Z]+', self.code):
-            self.type = 106
+            self.type = 105
 
         elif re.match(r'\d{5}', self.code):
             self.type = 116
@@ -326,13 +326,15 @@ class Stock:
             self.type = 0
 
         self.kline_api = self.get_api_link(self.type)
-
         self.guba_api = None
+        self.keyword = keyword
 
         if keyword:
             self.guba_api = f'http://searchapi.eastmoney.com/bussiness/web/' \
                             f'QuotationLabelSearch?' \
                             f'token=REMILIACN&keyword={keyword}&type=0&pi=1&ps=30'
+            self.search_api = f'https://searchapi.eastmoney.com/api/suggest/get?input={self.keyword}' \
+                              f'&type=14&token=D43BF722C8E33BDC906FB84D85E326E8'
 
     def get_api_link(self, type_code) -> str:
         return f'http://6.push2his.eastmoney.com/api/qt/stock/kline/get?' \
@@ -370,6 +372,7 @@ class Stock:
 
             stock_type = element['Name']
             type_id = element['Type']
+
             data = element['Datas']
 
             if not get_one:
@@ -379,6 +382,7 @@ class Stock:
                 stock[stock_type] = data
             else:
                 if type_id < 6 and data:
+                    self.type = int(data[0]['MktNum'])
                     return str(data[0]["Code"])
 
         response = ''
@@ -416,6 +420,19 @@ class Stock:
     def set_type(self, any_type: str):
         self.type = any_type
 
+    async def search_to_set_type_and_get_name(self) -> str:
+        try_url = f'https://searchapi.eastmoney.com/api/suggest/get?input={self.code}' \
+                  f'&type=14&token=D43BF722C8E33BDC906FB84D85E326E8'
+        async with aiohttp.ClientSession() as session:
+            async with session.get(try_url) as page:
+                try:
+                    data_response = await page.json()
+                    self.set_type(int(data_response['QuotationCodeTable']['Data'][0]['MktNum']))
+                    return data_response['QuotationCodeTable']['Data'][0]['Name']
+                except (KeyError, IndexError):
+                    self._retry_type()
+                    return ''
+
     async def get_purchase_price(self, iteration=False) -> (Union[int, float, None], str):
         purchase_price = -1
         stock_name = ''
@@ -431,7 +448,10 @@ class Stock:
                     stock_name = json_data['data']['f58']
                 except (TypeError, ContentTypeError):
                     if not iteration:
-                        self._retry_type()
+                        if self.code.isdigit():
+                            await self.search_to_set_type_and_get_name()
+                        else:
+                            self._retry_type()
                         return await self.get_purchase_price(iteration=True)
                 except Exception as err:
                     logger.warning(f'Error when getting first purchase price for stock: {self.code} -- {err}')
@@ -440,6 +460,7 @@ class Stock:
         return purchase_price, stock_name
 
     async def get_kline_map(self, analyze_type='MACD') -> (str, str):
+        self.kline_api = self.get_api_link(self.type)
         kline_data = await self._request_for_kline_data()
         if not kline_data:
             return '', ''
@@ -478,7 +499,9 @@ class Stock:
                 try:
                     json_data = await page.json()
                 except TypeError:
-                    if self.type == 1:
+                    if self.code.isdigit():
+                        await self.search_to_set_type_and_get_name()
+                    elif self.type == 1:
                         self.kline_api = self.get_api_link(0)
                         return await self._request_for_kline_data(iteration=True)
                 except Exception as err:
@@ -510,10 +533,10 @@ class Stock:
         return []
 
     def _retry_type(self):
-        if self.type == 106:
-            self.type = 105
-        elif self.type == 107:
+        if self.type == 105:
             self.type = 106
+        elif self.type == 106:
+            self.type = 107
         else:
             self.type = 0
 

@@ -1,3 +1,4 @@
+import re
 from asyncio.log import logger
 from datetime import datetime
 
@@ -33,6 +34,19 @@ async def crypto_search(session: nonebot.CommandSession):
         await session.finish('这货币真的上架了么……')
 
 
+@nonebot.on_command('把钱还我', only_to_me=False)
+async def reset_user_stock_data(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    user_id = ctx['user_id']
+
+    user_response = session.get('user_response', prompt='您确定要重置持仓么？该操作不能撤回！（回复Y，YES 或 是确认）').strip()
+    if user_response.upper() in ('Y', 'YES', '是'):
+        virtual_market.reset_user(user_id)
+        await session.finish('已完成')
+
+    await session.finish('已取消')
+
+
 @nonebot.on_command('K线', aliases={'股票', '股票代码', 'k线'}, only_to_me=False)
 async def k_line(session: nonebot.CommandSession):
     key_word: str = session.get(
@@ -54,6 +68,13 @@ async def k_line(session: nonebot.CommandSession):
                 f'请使用数字代码查询！'
             )
         else:
+            market_type = virtual_market.get_type_by_stock_code(key_word)
+            if market_type is None:
+                stock_name = await stock.search_to_set_type_and_get_name()
+                virtual_market.set_type_by_stock_code(key_word, stock_name, stock.type)
+            else:
+                stock.set_type(market_type)
+
             file_name, market_will = await stock.get_kline_map()
             if file_name:
                 await session.send(
@@ -108,6 +129,14 @@ async def sell_stonk(session: nonebot.CommandSession):
 async def my_stonks(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     user_id = ctx['user_id']
+
+    arg = ctx['raw_message']
+    if arg:
+        try:
+            user_id = re.findall(r'CQ:at,qq=(\d+)', arg)[0]
+        except IndexError:
+            user_id = user_id
+
     message_id = ctx['message_id']
     await session.finish(
         f'[CQ:reply,id={message_id}]' +
