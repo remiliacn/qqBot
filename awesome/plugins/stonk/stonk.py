@@ -4,7 +4,7 @@ from datetime import datetime
 
 import nonebot
 
-from Services.stock import Crypto, Stock
+from Services.stock import Crypto, Stock, text_to_image
 from config import SUPER_USER
 from qq_bot_core import virtual_market
 
@@ -59,7 +59,20 @@ async def k_line(session: nonebot.CommandSession):
 
     stock = Stock(key_word, keyword=key_word)
     try:
-        if not key_word.isdigit():
+        market_type = virtual_market.get_type_by_stock_code(key_word)
+        if market_type is None:
+            stock_name = await stock.search_to_set_type_and_get_name()
+            virtual_market.set_type_by_stock_code(key_word, stock_name, stock.type)
+        else:
+            stock.set_type(market_type)
+
+        file_name, market_will = await stock.get_kline_map()
+        if file_name:
+            await session.send(
+                f'[CQ:image,file=file:///{file_name}]\n' +
+                f'{market_will}'
+            )
+        else:
             file_name = await stock.get_stock_codes()
             await session.send(
                 f'好像出问题了（\n'
@@ -67,20 +80,6 @@ async def k_line(session: nonebot.CommandSession):
                 f'[CQ:image,file=file:///{file_name}]\n'
                 f'请使用数字代码查询！'
             )
-        else:
-            market_type = virtual_market.get_type_by_stock_code(key_word)
-            if market_type is None:
-                stock_name = await stock.search_to_set_type_and_get_name()
-                virtual_market.set_type_by_stock_code(key_word, stock_name, stock.type)
-            else:
-                stock.set_type(market_type)
-
-            file_name, market_will = await stock.get_kline_map()
-            if file_name:
-                await session.send(
-                    f'[CQ:image,file=file:///{file_name}]\n' +
-                    f'{market_will}'
-                )
 
     except Exception as err:
         await session.send('出问题了出问题了~')
@@ -131,23 +130,28 @@ async def my_stonks(session: nonebot.CommandSession):
     user_id = ctx['user_id']
 
     arg = ctx['raw_message']
+    is_same_guy = True
     if arg:
         try:
             user_id = re.findall(r'CQ:at,qq=(\d+)', arg)[0]
+            is_same_guy = False
         except IndexError:
             user_id = user_id
 
     message_id = ctx['message_id']
+    user_hold = await virtual_market.get_all_stonk_log_by_user(user_id, ctx=ctx if is_same_guy else None)
     await session.finish(
         f'[CQ:reply,id={message_id}]' +
-        await virtual_market.get_all_stonk_log_by_user(user_id, ctx=ctx)
+        f'[CQ:image,file=file:///'
+        f'{await text_to_image(user_hold)}]'
     )
 
 
 @nonebot.on_command('战绩', aliases={'炒股战绩', '龙虎榜'}, only_to_me=False)
 async def stonk_stat_send(session: nonebot.CommandSession):
+    leaderboard = await virtual_market.get_all_user_info()
     await session.finish(
-        await virtual_market.get_all_user_info()
+        f'[CQ:image,file=file:///{await text_to_image(leaderboard)}]'
     )
 
 

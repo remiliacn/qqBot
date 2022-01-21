@@ -348,7 +348,7 @@ class Stock:
         if self.guba_api is None:
             return ''
 
-        async with aiohttp.ClientSession() as client:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as client:
             async with client.get(self.guba_api) as response:
                 json_data = await response.json()
                 if not json_data['IsSuccess']:
@@ -403,7 +403,7 @@ class Stock:
         url = f'https://dcfm.eastmoney.com/em_mutisvcexpandinterface/api/js/' \
               f'get?type=QGQP_LB&CMD={self.code}&token=70f12f2f4f091e459a279469fe49eca5'
 
-        async with aiohttp.ClientSession() as client:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as client:
             async with client.get(url) as response:
                 try:
                     json_data = await response.text()
@@ -423,11 +423,12 @@ class Stock:
     async def search_to_set_type_and_get_name(self) -> str:
         try_url = f'https://searchapi.eastmoney.com/api/suggest/get?input={self.code}' \
                   f'&type=14&token=D43BF722C8E33BDC906FB84D85E326E8'
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
             async with session.get(try_url) as page:
                 try:
                     data_response = await page.json()
                     self.set_type(int(data_response['QuotationCodeTable']['Data'][0]['MktNum']))
+                    self.code = data_response['QuotationCodeTable']['Data'][0]['Code']
                     return data_response['QuotationCodeTable']['Data'][0]['Name']
                 except (KeyError, IndexError):
                     self._retry_type()
@@ -440,7 +441,7 @@ class Stock:
         data_url = f'https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&' \
                    f'fields=f43,f58&secid={self.type}.{self.code}'
 
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
             async with session.get(data_url) as response:
                 try:
                     json_data = await response.json()
@@ -494,7 +495,7 @@ class Stock:
         return file_name, market_will + host_detection
 
     async def _request_for_kline_data(self, iteration=False) -> list:
-        async with aiohttp.ClientSession() as client:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as client:
             async with client.get(self.kline_api) as page:
                 try:
                     json_data = await page.json()
