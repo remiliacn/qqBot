@@ -571,29 +571,20 @@ async def _download_pixiv_image_helper(illust):
 
 @nonebot.on_command('搜图', only_to_me=False)
 async def reverse_image_search(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    args = ctx['raw_message'].split()
-    if len(args) != 2:
-        await session.finish('¿')
-
-    bot = nonebot.get_bot()
-    has_image = re.findall(r'[a-z0-9]+\.image', args[1])
-    if has_image:
-        image = await bot.get_image(file=has_image[0])
-        url = image['url']
+    args = session.current_arg_images
+    if args:
+        url = args[0]
         logger.info(f'URL extracted: {url}')
         try:
             response_data = await sauce_helper(url)
             if not response_data:
-                await session.finish('阿这~图片辨别率低，请换一张图试试！')
-                return
-
-            response = anime_reverse_search_response(response_data)
-            logger.info(f'reverse search response: {response}')
-            await session.send(response)
-            return
+                response = f'图片无法辨别的说！'
+            else:
+                response = anime_reverse_search_response(response_data)
+            await session.finish(response)
 
         except Exception as err:
+            bot = nonebot.get_bot()
             await session.send(f'啊这~出错了！报错信息已发送主人debug~')
             await bot.send_private_msg(
                 user_id=SUPER_USER,
@@ -602,6 +593,8 @@ async def reverse_image_search(session: nonebot.CommandSession):
                         f'Error：{err}\n'
                         f'出错URL：{url}'
             )
+    else:
+        await session.finish('¿')
 
 
 def set_function_auth() -> bool:

@@ -82,19 +82,6 @@ async def natural_language_proc(session: nonebot.NLPSession):
         await asyncio.sleep(sleep_time)
         await session.send(fetch_result)
 
-    fetch_result = await _get_if_is_abb(message)
-    if fetch_result:
-        await session.send(fetch_result)
-
-
-async def _get_if_is_abb(message: str) -> str:
-    if len(message) != 3:
-        return ''
-    if re.fullmatch(r'^(.)(.(?<!\1))\2$', message):
-        return '叠词词，恶心心。'
-
-    return ''
-
 
 async def _get_flash_image_entry(message: str) -> str:
     if re.match(r'.*?\[CQ:image.*?type=flash', message):

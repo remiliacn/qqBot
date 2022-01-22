@@ -18,6 +18,26 @@ import Services.okex.spot_api as spot
 from config import OKEX_API_KEY, OKEX_PASSPHRASE, OKEX_SECRET_KEY
 
 
+def is_trading_hour(is_crypto: bool) -> bool:
+    if is_crypto:
+        return True
+
+    time_now = datetime.now()
+    if time_now.weekday() >= 5:
+        return False
+
+    if time_now.hour < 9:
+        return False
+
+    if time_now.hour == 9 and time_now.minute < 20:
+        return False
+
+    if time_now.hour >= 15:
+        return False
+
+    return True
+
+
 async def text_to_image(string: str):
     line_char_count = 50 * 2  # 每行字符数：30个中文字符(=60英文字符)
     char_size = 30
@@ -126,6 +146,8 @@ def do_plot(
         macd_data = _convert_data_frame_to_list(macd_data)
         signal_data = _convert_data_frame_to_list(signal)
 
+        point_of_no_return = len(macd_data) * .7
+
         for i in range(1, len(macd_data) - 1):
             prev_macd = round(macd_data[i - 1], 3)
             next_macd = round(macd_data[i + 1], 3)
@@ -135,11 +157,11 @@ def do_plot(
 
             if prev_macd <= prev_signal \
                     and next_macd >= next_signal:
-                market_will = '检测到MACD金叉，买入信号'
+                market_will = f'检测到MACD金叉，买入信号{"（信号发出时间较早，可能已失效）" if i < point_of_no_return else ""}'
 
             elif prev_macd >= prev_signal \
                     and next_macd <= next_signal:
-                market_will = '检测到MACD死叉，卖出信号'
+                market_will = f'检测到MACD死叉，卖出信号{"（信号发出时间较早，可能已失效）" if i < point_of_no_return else ""}'
 
         # histogram
         histogram_graph = plotter.Bar(
@@ -430,16 +452,14 @@ class Stock:
                     self.set_type(int(data_response['QuotationCodeTable']['Data'][0]['MktNum']))
                     self.code = data_response['QuotationCodeTable']['Data'][0]['Code']
                     return data_response['QuotationCodeTable']['Data'][0]['Name']
-                except (KeyError, IndexError):
-                    self._retry_type()
+                except (KeyError, IndexError, TypeError):
                     return ''
 
     async def get_purchase_price(self, iteration=False) -> (Union[int, float, None], str):
         purchase_price = -1
-        stock_name = ''
-
         data_url = f'https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&' \
                    f'fields=f43,f58&secid={self.type}.{self.code}'
+        stock_name = ''
 
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
             async with session.get(data_url) as response:
@@ -449,15 +469,13 @@ class Stock:
                     stock_name = json_data['data']['f58']
                 except (TypeError, ContentTypeError):
                     if not iteration:
-                        if self.code.isdigit():
-                            await self.search_to_set_type_and_get_name()
-                        else:
-                            self._retry_type()
+                        await self.search_to_set_type_and_get_name()
                         return await self.get_purchase_price(iteration=True)
                 except Exception as err:
                     logger.warning(f'Error when getting first purchase price for stock: {self.code} -- {err}')
-                    return -1
+                    return -1, ''
 
+        # 有10%的几率价格变为已目前价格为基础上的跌停
         return purchase_price, stock_name
 
     async def get_kline_map(self, analyze_type='MACD') -> (str, str):
@@ -519,7 +537,7 @@ class Stock:
         if json_data is None:
             # Iter once to use the other API to try to fetch the kline data.
             if not iteration:
-                self._retry_type()
+                await self.search_to_set_type_and_get_name()
                 return await self._request_for_kline_data(iteration=True)
 
             return []
@@ -532,14 +550,6 @@ class Stock:
             return [x.split(',') for x in json_data]
 
         return []
-
-    def _retry_type(self):
-        if self.type == 105:
-            self.type = 106
-        elif self.type == 106:
-            self.type = 107
-        else:
-            self.type = 0
 
 
 # test code

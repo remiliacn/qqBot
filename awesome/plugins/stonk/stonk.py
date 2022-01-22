@@ -1,12 +1,25 @@
 import re
 from asyncio.log import logger
 from datetime import datetime
+from random import choice
 
 import nonebot
 
 from Services.stock import Crypto, Stock, text_to_image
 from config import SUPER_USER
 from qq_bot_core import virtual_market
+
+ATTENTION = [
+    '虚拟交易为仅供娱乐，实盘请注意风险控制。',
+    '先求知，再投资，少损失。',
+    '不跟风、不迷信、不盲从。',
+    '多一分谨慎，少一分风险；多一分了解，少一分损失。',
+    '保障基本生活，切勿冒险投资。'
+]
+
+
+def get_attention():
+    return f'【{choice(ATTENTION)}】\n'
 
 
 @nonebot.on_command('虚拟货币', only_to_me=False)
@@ -41,8 +54,7 @@ async def reset_user_stock_data(session: nonebot.CommandSession):
 
     user_response = session.get('user_response', prompt='您确定要重置持仓么？该操作不能撤回！（回复Y，YES 或 是确认）').strip()
     if user_response.upper() in ('Y', 'YES', '是'):
-        virtual_market.reset_user(user_id)
-        await session.finish('已完成')
+        await session.finish(virtual_market.reset_user(user_id))
 
     await session.finish('已取消')
 
@@ -104,6 +116,7 @@ async def buy_stonk(session: nonebot.CommandSession):
     message_id = ctx['message_id']
     await session.finish(
         f'[CQ:reply,id={message_id}]'
+        f'{get_attention()}'
         f'{await virtual_market.buy_with_code_and_amount(user_id, args[0], args[1], ctx=ctx)}'
     )
 
@@ -119,7 +132,8 @@ async def sell_stonk(session: nonebot.CommandSession):
     user_id = ctx['user_id']
     message_id = ctx['message_id']
     await session.finish(
-        f'[CQ:reply,id={message_id}]' +
+        f'[CQ:reply,id={message_id}]'
+        f'{get_attention()}' +
         await virtual_market.sell_stock(user_id, args[0], args[1], ctx=ctx)
     )
 
@@ -143,7 +157,7 @@ async def my_stonks(session: nonebot.CommandSession):
     await session.finish(
         f'[CQ:reply,id={message_id}]' +
         f'[CQ:image,file=file:///'
-        f'{await text_to_image(user_hold)}]'
+        f'{await text_to_image(get_attention() + user_hold)}]'
     )
 
 
@@ -151,7 +165,7 @@ async def my_stonks(session: nonebot.CommandSession):
 async def stonk_stat_send(session: nonebot.CommandSession):
     leaderboard = await virtual_market.get_all_user_info()
     await session.finish(
-        f'[CQ:image,file=file:///{await text_to_image(leaderboard)}]'
+        f'[CQ:image,file=file:///{await text_to_image(get_attention() + leaderboard)}]'
     )
 
 

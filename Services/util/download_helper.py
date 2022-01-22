@@ -19,7 +19,7 @@ async def download_image(url, path: str, headers=None) -> str:
         async with client.get(url) as page:
             file_name = url.split('/')[-1]
             file_name = sub(r'\?auth=.*?$', '', file_name)
-            if len(file_name) > 10:
+            if len(file_name) > 10 or '.' not in file_name:
                 file_name = f'{int(time())}.jpg'
 
             path = f'{path}/{file_name}'.replace('//', '/')

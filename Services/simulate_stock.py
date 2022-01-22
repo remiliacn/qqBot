@@ -5,11 +5,19 @@ from datetime import datetime
 from json import dump, loads
 from os import getcwd
 from os.path import exists
+from random import randint, choice
 from typing import Union, Dict
 
 from loguru import logger
 
 from Services.stock import Stock, Crypto
+
+
+def _get_price_sn_or_literal(n: float) -> str:
+    if n < 0.01:
+        return f'{n:.2e}'
+
+    return f'{n:,.2f}'
 
 
 class SimulateStock:
@@ -58,8 +66,16 @@ class SimulateStock:
 
     def reset_user(self, uid: Union[str, int]):
         uid = str(uid)
-        self.user_stock_data['data'][uid] = {"totalMoney": 5 * (10 ** 6)}
+        if uid not in self.user_stock_data['data']:
+            self.user_stock_data['data'][uid] = {"totalMoney": 5 * (10 ** 6)}
+
+        if 'lastReset' in self.user_stock_data['data'][uid]:
+            if time.time() - self.user_stock_data['data'][uid]['lastReset'] < 60 * 60 * 24 * 7:
+                return '每一周只能remake一次哦~'
+
+        self.user_stock_data['data'][uid] = {"totalMoney": 5 * (10 ** 6), 'lastReset': int(time.time())}
         self._store_user_data()
+        return 'Done'
 
     async def get_all_stonk_log_by_user(self, uid: Union[int, str], ctx=None):
         uid = str(uid)
@@ -72,28 +88,40 @@ class SimulateStock:
             return self.NO_INFO
 
         response = [await self.my_money_spent_by_stock_code(uid, stock_code) for stock_code in stonk_whole_log]
-        time_awareness = ''
         time_now = datetime.now()
-        if time_now.hour == 12:
+
+        if time_now.hour >= 15 or (time_now.hour <= 9 and time_now.minute < 15) or time_now.weekday() >= 5:
+            time_awareness = '【SZ·休市】\n'
+        elif time_now.hour == 12:
             time_awareness = '【SZ·午间休市】\n'
         elif time_now.hour == 11 and time_now.minute >= 30:
             time_awareness = '【SZ·午间休市】\n'
-        elif time_now.hour >= 15 or (time_now.hour <= 9 and time_now.minute < 15):
-            time_awareness = '【SZ·休市】\n'
         elif time_now.hour == 9 and 15 <= time_now.minute <= 29:
             time_awareness = '【SZ·集合竞价·开盘】\n'
         elif time_now.hour == 14 and time_now.minute >= 57:
             time_awareness = '【SZ·集合竞价·收盘】\n'
+        else:
+            time_awareness = '【SZ·交易中】\n'
 
-        if time_now.hour == 9 and time_now.minute < 30 or time_now.hour < 9:
+        if time_now.weekday() >= 5 or (time_now.hour == 9 and time_now.minute < 30) or time_now.hour < 9:
             time_awareness += '【港股·休市】\n'
         elif time_now.hour >= 16:
             time_awareness += "【港股·休市】\n"
+        else:
+            time_awareness += "【港股·交易中】\n"
+
+        time_awareness += '【虚拟货币·交易中】\n'
 
         # backfill
         self._backfill_nickname(uid, ctx)
         response = [x for x in response if x]
-        return f'{time_awareness}' + '\n'.join(response)
+        user_data = await self.get_user_overall_stat(uid)
+        money_diff = user_data["total"] - 5 * 10 ** 6
+        return f'{time_awareness}\n\n' \
+               f'总资产{user_data["total"]:,.2f}软妹币\n' \
+               f'总收益率：{user_data["ratio"]:,.2f}% {"↑" if user_data["ratio"] >= 0 else "↓"}\n' \
+               f'账户盈亏：{"+ " if money_diff >= 0 else ""} {money_diff:,.2f}软妹币 {"↑" if money_diff >= 0 else "↓"}\n\n' \
+               + '\n'.join(response)
 
     def _backfill_nickname(self, uid: Union[str, int], ctx=None):
         if ctx is not None:
@@ -110,7 +138,7 @@ class SimulateStock:
         response = ''
         user_data_info = []
         for uid in data:
-            data = await self._get_user_overall_stat(uid)
+            data = await self.get_user_overall_stat(uid)
             user_data_info.append(data)
 
         if len(user_data_info) > 3:
@@ -124,13 +152,13 @@ class SimulateStock:
         response += f'龙虎榜：\n\n'
         for idx, data in enumerate(sorted_list_reverse):
             response += f'收益第{idx + 1}: {data["nickname"]}\n' \
-                        f'【总资产{data["total"]:.2f}软妹币' \
+                        f'【总资产{data["total"]:,.2f}软妹币' \
                         f'（总收益率：{data["ratio"]:.2f}% {"↑" if data["ratio"] > 0 else "↓"}）】\n'
 
         response += f'\n韭菜榜：\n\n'
         for idx, data in enumerate(sorted_list):
             response += f'收益倒数第{idx + 1}: {data["nickname"]}\n' \
-                        f'【总资产{data["total"]:.2f}软妹币' \
+                        f'【总资产{data["total"]:,.2f}软妹币' \
                         f'（总收益率：{data["ratio"]:.2f}% {"↑" if data["ratio"] > 0 else "↓"}）】\n'
 
         return response.strip()
@@ -192,6 +220,18 @@ class SimulateStock:
             if price_now <= 0:
                 return stock_name
 
+            special_event = ''
+            random_num = randint(0, 99)
+            if random_num < 5:
+                random_chance = choice((0, 1))
+                random_percentage = randint(1, 10)
+                if random_chance == 0:
+                    price_now *= (1 + random_percentage / 100)
+                else:
+                    price_now *= (1 - random_percentage / 100)
+
+                special_event = f'(在您售出的时候，该产品的价格瞬时{"下降了" if random_chance == 1 else "上涨了"}{random_percentage}%)'
+
             self.user_stock_data['data'][uid][stock_code]['purchaseCount'] -= amount
 
             price_earned = price_now * amount
@@ -207,15 +247,15 @@ class SimulateStock:
 
             self._backfill_nickname(uid, ctx)
             self._store_user_data()
-            return f'您已每{"股" if not is_digital_coin else "个"}{price_now}' \
+            return f'您已每{"股" if not is_digital_coin else "个"}{_get_price_sn_or_literal(price_now)}' \
                    f'软妹币的价格卖出了{amount}{"股" if not is_digital_coin else "个"}' \
-                   f'{stock_name}（印花税：{fee:.2f}软妹币），' \
-                   f'现在您有{self.user_stock_data["data"][uid]["totalMoney"]:.2f}软妹币了~'
+                   f'{stock_name}{special_event}（印花税：{_get_price_sn_or_literal(fee)}软妹币），' \
+                   f'现在您有{self.user_stock_data["data"][uid]["totalMoney"]:,.2f}软妹币了~'
 
         except KeyError:
             return self.NO_INFO
 
-    async def _get_user_overall_stat(self, uid: Union[int, str]) -> dict:
+    async def get_user_overall_stat(self, uid: Union[int, str]) -> dict:
         data = self.user_stock_data['data']
         uid = str(uid)
         try:
@@ -282,9 +322,9 @@ class SimulateStock:
         new_price = price_now * total_count
         rate = (new_price - total_money_spent) / total_money_spent * 100
 
-        return f'{stock_name}[{stock_code}] x {total_count} -> 成本{total_money_spent:.2f}软妹币\n' \
-               f'（最新市值：{new_price:.2f}软妹币 | ' \
-               f'持仓盈亏：{rate:.2f}% {"↑" if rate > 0 else "↓"} | 平摊成本：{avg_money:.2f}软妹币/张）\n'
+        return f'{stock_name}[{stock_code}] x {total_count} -> 成本{_get_price_sn_or_literal(total_money_spent)}软妹币\n' \
+               f'（最新市值：{_get_price_sn_or_literal(new_price)}软妹币 | ' \
+               f'持仓盈亏：{rate:.2f}% {"↑" if rate >= 0 else "↓"} | 平摊成本：{_get_price_sn_or_literal(avg_money)}软妹币/张）\n'
 
     async def _get_stock_price_from_cache_by_identifier(self, identifier) -> Union[int, float]:
         price_now, is_digital, \
@@ -323,13 +363,25 @@ class SimulateStock:
             # 初始资金500万应该够了吧？
             self.user_stock_data['data'][uid] = {"totalMoney": 10 ** 6 * 5}
 
+        special_event = ''
+        random_num = randint(0, 99)
+        if random_num < 5:
+            random_chance = choice((0, 1))
+            random_percentage = randint(1, 10)
+            if random_chance == 0:
+                price_now *= (1 + random_percentage / 100)
+            else:
+                price_now *= (1 - random_percentage / 100)
+
+            special_event = f'(在您购买的时候，该产品的价格瞬时{"下降了" if random_chance == 1 else "上涨了"}{random_percentage}%)'
+
         need_money = amount * price_now
         fee = need_money * 0.001
         need_money += fee
 
         user_money = self.user_stock_data['data'][uid]['totalMoney']
         if need_money > user_money:
-            return f'您没钱了（剩余：{user_money:.2f}，需要：{need_money:.2f}）'
+            return f'您没钱了（剩余：{user_money:,.2f}，需要：{need_money:,.2f}）'
 
         self._backfill_nickname(uid, ctx)
 
@@ -348,23 +400,27 @@ class SimulateStock:
 
         self.user_stock_data['data'][uid][stock_code]["purchaseCount"] += amount
         self.user_stock_data['data'][uid][stock_code]["moneySpent"] += need_money
-        self.user_stock_data['data'][uid][stock_code]["purchasePrice"] = round(
-            self.user_stock_data['data'][uid][stock_code]["moneySpent"] /
-            self.user_stock_data['data'][uid][stock_code]["purchaseCount"],
-            2
-        )
+        self.user_stock_data['data'][uid][stock_code]["purchasePrice"] = \
+            self.user_stock_data['data'][uid][stock_code]["moneySpent"] / \
+            self.user_stock_data['data'][uid][stock_code]["purchaseCount"]
+
         self.user_stock_data['data'][uid][stock_code]['margin'] = margin
         self.user_stock_data['data'][uid][stock_code]['name'] = stock_name
         self.user_stock_data['data'][uid][stock_code]['type'] = stock_api.type \
             if isinstance(stock_api, Stock) else 'Crypto'
 
         self._store_user_data()
-        return f'您花费了{need_money:.2f}软妹币已每{"股" if not is_digital_coin else "个"}{price_now:.2f}' \
-               f'软妹币的价格购买了{amount}{"股" if not is_digital_coin else "个"}{stock_name}' \
-               f'\n（印花税：{fee:.2f}软妹币，余额：{self.user_stock_data["data"][uid]["totalMoney"]:.2f}软妹币）'
+        return f'您花费了{_get_price_sn_or_literal(need_money)}软妹币已每' \
+               f'{"股" if not is_digital_coin else "个"}{_get_price_sn_or_literal(price_now)}' \
+               f'软妹币的价格购买了{amount}{"股" if not is_digital_coin else "个"}{stock_name}{special_event}' \
+               f'\n（印花税：{_get_price_sn_or_literal(fee)}软妹币，' \
+               f'余额：{self.user_stock_data["data"][uid]["totalMoney"]:,.2f}软妹币）'
 
     async def _determine_if_has_cache_or_expired(self, stock_code, valid_time=None) -> (bool, dict):
         day_now_timestamp = time.time()
+        if not re.match(r'^[A-Z0-9]+$', stock_code):
+            logger.warning(f'Not seem to be a good stock code. {stock_code}')
+            return False, {}
         if stock_code in self.stock_price_cache:
             last_updated = self.stock_price_cache[stock_code]['lastUpdated']
             time_diff = day_now_timestamp - last_updated
