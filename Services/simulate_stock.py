@@ -378,7 +378,8 @@ class SimulateStock:
                 if not self.stock_price_cache[stock_code]['isDigital']:
                     # 如果本天是周末，且上次价格更新是周五，则直接返回数据，反之需要稍微更新一下
                     if datetime.today().weekday() >= 5:
-                        return datetime.fromtimestamp(last_updated).weekday() >= 4, self.stock_price_cache[stock_code]
+                        return last_updated_exact.weekday() >= 4 \
+                               and time_diff < 60 * 60 * 24 * 2.5, self.stock_price_cache[stock_code]
 
                     # 开盘竞价时可能无数据
                     if datetime.now().hour == 9 and datetime.now().minute <= 25:
