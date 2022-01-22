@@ -506,10 +506,9 @@ class SimulateStock:
                 if get_stored_info:
                     stock_api.set_type(get_stored_info['stockType'])
                 else:
-                    await stock_api.search_to_set_type_and_get_name()
                     stock_code = stock_api.code
 
-                price_now, stock_name = await stock_api.get_purchase_price(iteration=False)
+                price_now, stock_name = await stock_api.get_purchase_price()
                 # 用文字搜的
                 if price_now <= 0:
                     stock_code = await stock_api.get_stock_codes(get_one=True)

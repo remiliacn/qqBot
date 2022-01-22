@@ -10,7 +10,6 @@ import aiohttp
 import pandas
 import plotly.graph_objects as plotter
 from PIL import Image, ImageDraw, ImageFont
-from aiohttp import ContentTypeError
 from loguru import logger
 from plotly.subplots import make_subplots
 
@@ -422,22 +421,31 @@ class Stock:
         if not self.code.isdigit():
             return ''
 
-        url = f'https://dcfm.eastmoney.com/em_mutisvcexpandinterface/api/js/' \
-              f'get?type=QGQP_LB&CMD={self.code}&token=70f12f2f4f091e459a279469fe49eca5'
+        url = f'https://dcfm.eastmoney.com/em_mutisvcexpandinterface/api/js/get?type=' \
+              f'QGQP_LSJGCYD&token=70f12f2f4f091e459a279469fe49eca5&ps=22&filter=(TRADECODE%3D%27{self.code}%27)'
 
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as client:
             async with client.get(url) as response:
                 try:
                     json_data = await response.text()
                     json_data = json.loads(json_data)
+                    json_data = json_data[0]
+                    host_strength = json_data['ZB']
+                    if host_strength > .4:
+                        host_s = '完全控盘'
+                    elif host_strength > 0.25:
+                        host_s = '中度控盘'
+                    elif host_strength > 0.1:
+                        host_s = '轻度控盘'
+                    else:
+                        host_s = '不控盘'
                 except Exception as err:
                     logger.warning(f'Maybe not stock code? {err}')
                     return ''
         if not json_data:
             return ''
 
-        json_data = json_data[0]
-        return f'\n主力控盘迹象：{json_data["JGCYDType"]}（更新时间：{json_data["TDate"]}）'
+        return f'\n主力控盘迹象：{host_s}，资金流入：{json_data["ZLJLR"]}（更新时间：{json_data["TRADEDATE"]}）'
 
     def set_type(self, any_type: str):
         self.type = any_type
@@ -455,11 +463,10 @@ class Stock:
                 except (KeyError, IndexError, TypeError):
                     return ''
 
-    async def get_purchase_price(self, iteration=False) -> (Union[int, float, None], str):
-        purchase_price = -1
+    async def get_purchase_price(self) -> (Union[int, float, None], str):
+        await self.search_to_set_type_and_get_name()
         data_url = f'https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&' \
                    f'fields=f43,f58&secid={self.type}.{self.code}'
-        stock_name = ''
 
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
             async with session.get(data_url) as response:
@@ -467,10 +474,6 @@ class Stock:
                     json_data = await response.json()
                     purchase_price = json_data['data']['f43']
                     stock_name = json_data['data']['f58']
-                except (TypeError, ContentTypeError):
-                    if not iteration:
-                        await self.search_to_set_type_and_get_name()
-                        return await self.get_purchase_price(iteration=True)
                 except Exception as err:
                     logger.warning(f'Error when getting first purchase price for stock: {self.code} -- {err}')
                     return -1, ''
@@ -512,17 +515,14 @@ class Stock:
         host_detection = await self._host_detection()
         return file_name, market_will + host_detection
 
-    async def _request_for_kline_data(self, iteration=False) -> list:
+    async def _request_for_kline_data(self) -> list:
+        if self.code.isdigit():
+            await self.search_to_set_type_and_get_name()
+
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as client:
             async with client.get(self.kline_api) as page:
                 try:
                     json_data = await page.json()
-                except TypeError:
-                    if self.code.isdigit():
-                        await self.search_to_set_type_and_get_name()
-                    elif self.type == 1:
-                        self.kline_api = self.get_api_link(0)
-                        return await self._request_for_kline_data(iteration=True)
                 except Exception as err:
                     logger.warning(f'Maybe not stock code? {err}')
                     return []
@@ -535,11 +535,6 @@ class Stock:
 
         json_data = json_data['data']
         if json_data is None:
-            # Iter once to use the other API to try to fetch the kline data.
-            if not iteration:
-                await self.search_to_set_type_and_get_name()
-                return await self._request_for_kline_data(iteration=True)
-
             return []
 
         if 'name' in json_data:
