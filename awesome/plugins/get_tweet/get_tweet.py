@@ -81,7 +81,6 @@ async def do_file_upload():
 async def send_tweet():
     start_time = time.time()
     if get_status():
-        logger.info('Doing video fetch...')
         Popen(
             ['py', DOWNLODER_FILE_NAME, 'bulk'],
             stdin=None,
@@ -98,7 +97,6 @@ async def send_tweet():
         check_youtube_live()
     )
 
-    logger.info('Auto fetch all done!')
     use_time = time.time() - start_time
     logger.info(f'Scheduled job in get_tweet.py used {use_time:.2f}s')
     if use_time > 15.0:
@@ -201,7 +199,6 @@ async def _async_youtube_live(ch_name, json_data):
 
 
 async def fill_sanity():
-    logger.info('Filling sanity...')
     if setu_control.happy_hours:
         setu_control.fill_sanity(sanity=5)
     else:
@@ -209,7 +206,6 @@ async def fill_sanity():
 
 
 async def do_youtube_update_fetch():
-    logger.info('Checking for video updates...')
     file = open('config/YouTubeNotify.json')
     fl = file.read()
 
@@ -228,7 +224,7 @@ async def do_youtube_update_fetch():
                                     f'Video is now available for group {group_id}\n'
                                     f'Video title: {elements}'
                         )
-                        logger.info(f'Uploading video: {elements}')
+
                         await bot.upload_group_file(
                             group_id=group_id,
                             file=f"{PATH_TO_ONEDRIVE}{name}/{elements}.mp4",
@@ -269,7 +265,6 @@ async def do_youtube_update_fetch():
 
 
 async def do_tweet_update_fetch():
-    logger.info('Automatically fetching tweet info...')
     diff_dict = await tweet.check_update()
     if diff_dict:
         bot = nonebot.get_bot()
@@ -283,11 +278,6 @@ async def do_tweet_update_fetch():
                 message = f'=== {ch_name}回了一条推 ===\n' + message
             else:
                 message = f'=== {ch_name}发了一条推 ===\n' + message
-
-            logger.warning(
-                f'发现新推！来自{ch_name}:\n'
-                f'{message}'
-            )
 
             for element in group_id_list:
                 setu_control.set_user_data(0, 'tweet', 1, True)

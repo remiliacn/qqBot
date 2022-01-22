@@ -1,16 +1,14 @@
-import re
-import time
 from os import getcwd
-from os.path import exists
 
 import aiohttp
 from aiocqhttp import MessageSegment
 from loguru import logger
 
+from Services.util.download_helper import download_image
 from config import SAUCE_API_KEY
 
 
-async def sauce_helper(url):
+async def sauce_helper(url) -> dict:
     params = {
         'output_type': 2,
         'api_key': SAUCE_API_KEY,
@@ -29,21 +27,23 @@ async def sauce_helper(url):
         ) as page:
             json_data = await page.json()
             if json_data['results']:
-                response = await _analyze_saucenao_response(json_data, client)
+                response = await _analyze_saucenao_response(json_data)
 
     return response
 
 
-async def _analyze_saucenao_response(json_data: dict, client):
+async def _analyze_saucenao_response(json_data: dict):
     json_data = json_data['results'][0]
     logger.info(f'Json data: \n'
                 f'{json_data}')
 
     if json_data:
-        simlarity = json_data['header']['similarity'] + '%'
-        thumbnail = json_data['header']['thumbnail']
+        header = json_data['header']
+        simlarity = header['similarity'] + '%'
+        thumbnail = header['thumbnail']
+        index_name = header['index_name'] if 'index_name' in header else '无'
 
-        path = await _download_saunce_nao_thumbnail(client, thumbnail)
+        path = await _download_saunce_nao_thumbnail(thumbnail)
         if not path:
             return {}
 
@@ -55,10 +55,17 @@ async def _analyze_saucenao_response(json_data: dict, client):
                 return {}
 
         ext_url = json_data['ext_urls'][0] if 'ext_urls' in json_data else '[数据删除]'
-        return await _analyze_sauce_nao_content(json_data, simlarity, image_content, ext_url, thumbnail)
+        analyzed_data = await _analyze_sauce_nao_content(json_data, image_content)
+
+        analyzed_data['simlarity'] = simlarity
+        analyzed_data['ext_url'] = ext_url
+        analyzed_data['thumbnail'] = thumbnail
+        analyzed_data['index'] = index_name
+
+        return analyzed_data
 
 
-async def _analyze_sauce_nao_content(json_data, simlarity, image_content, ext_url, thumbnail):
+async def _analyze_sauce_nao_content(json_data, image_content):
     pixiv_id = 'Undefined'
     title = 'Undefined'
     author = 'Undefined'
@@ -80,7 +87,6 @@ async def _analyze_sauce_nao_content(json_data, simlarity, image_content, ext_ur
                 est_time = json_data['est_time']
 
                 return {
-                    'simlarity': simlarity,
                     'year': year,
                     'part': part,
                     'est_time': est_time,
@@ -93,19 +99,18 @@ async def _analyze_sauce_nao_content(json_data, simlarity, image_content, ext_ur
                 if 'tweet_id' in json_data:
                     return {
                         'data': image_content,
-                        'simlarity': simlarity,
                         'title': title,
                         'author': author,
-                        'pixiv_id': pixiv_id,
-                        'ext_url': ext_url,
-                        'thumbnail': thumbnail
+                        'pixiv_id': pixiv_id
                     }
                 return {}
 
             author = json_data['artist']
 
-        if 'jp_name' in json_data:
+        if 'jp_name' in json_data and json_data['jp_name']:
             title = json_data['jp_name']
+        elif 'eng_name' in json_data and json_data['eng_name']:
+            title = json_data['eng_name']
 
     elif 'title' in json_data:
         title = json_data['title']
@@ -118,35 +123,13 @@ async def _analyze_sauce_nao_content(json_data, simlarity, image_content, ext_ur
 
     response = {
         'data': image_content,
-        'simlarity': simlarity,
         'title': title,
         'author': author,
-        'pixiv_id': pixiv_id,
-        'ext_url': ext_url,
-        'thumbnail': thumbnail
+        'pixiv_id': pixiv_id
     }
 
     return response
 
 
-async def _download_saunce_nao_thumbnail(client, thumbnail) -> str:
-    async with client.get(thumbnail) as page:
-        file_name = thumbnail.split('/')[-1]
-        file_name = re.sub(r'\?auth=.*?$', '', file_name)
-        if len(file_name) > 10:
-            file_name = f'{int(time.time())}.jpg'
-
-        path = f'{getcwd()}/data/pixivPic/{file_name}'
-        if not exists(path):
-            try:
-                with open(path, 'wb') as file:
-                    while True:
-                        chunk = await page.content.read(1024 ** 2)
-                        if not chunk:
-                            break
-
-                        file.write(chunk)
-            except IOError:
-                return ''
-
-        return path
+async def _download_saunce_nao_thumbnail(thumbnail) -> str:
+    return await download_image(thumbnail, f'{getcwd()}/data/pixivPic/')

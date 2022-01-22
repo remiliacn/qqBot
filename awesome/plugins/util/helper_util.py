@@ -190,6 +190,11 @@ def anime_reverse_search_response(response_data: dict) -> str:
                        f'Pixiv ID：{response_data["pixiv_id"]}\n' \
                        f'直链：{response_data["ext_url"]}'
 
+    response += f'索引信息：{response_data["index_name"]}'
+
+    if 'simlarity' in response_data and float(response_data["simlarity"].replace('%', '')) < 70:
+        response += '\n\n不过我不是太有信心哦~'
+
     return response
 
 
