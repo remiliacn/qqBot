@@ -145,8 +145,11 @@ async def message_preprocessing(_: nonebot.NoneBot, event: aiocqhttp.event, __: 
                 and not get_privilege(event['user_id'], perm.OWNER):
             raise CanceledException('Group disabled')
 
-    if user_id is not None:
-        if get_privilege(user_id, perm.BANNED) and str(user_id) != str(SUPER_USER):
+        if user_id is not None:
+            if get_privilege(user_id, perm.BANNED) and str(user_id) != str(SUPER_USER):
+                raise CanceledException('User disabled')
+    else:
+        if str(user_id) != str(SUPER_USER):
             raise CanceledException('User disabled')
 
 

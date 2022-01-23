@@ -151,7 +151,7 @@ def _repeat_and_palindrome_fetch(message: str) -> str:
     if fullmatch(repeat_syntax, message):
         word_repeat = findall(repeat_syntax, message)[0]
         count = message.count(word_repeat)
-        if count >= 3 and rand_chance < 6:
+        if count >= 3 and rand_chance < 2:
             return f'{count}个{word_repeat}'
         return ''
 

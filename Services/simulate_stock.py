@@ -464,7 +464,7 @@ class SimulateStock:
                             and (day_now.hour < 9 or day_now.hour >= 15):
                         # 9点前拿上一天15点后的数据
                         if day_now.hour < 9:
-                            if day_now_timestamp - last_updated_exact > 60 * 60 * 18:
+                            if day_now_timestamp - last_updated > 60 * 60 * 18:
                                 return False, self.stock_price_cache[stock_code]
                             elif last_updated_exact.hour < 15:
                                 return False, self.stock_price_cache[stock_code]
@@ -478,7 +478,7 @@ class SimulateStock:
                     if self.stock_price_cache[stock_code]['stockType'] == 116 \
                             and (day_now.hour < 9 or day_now.hour >= 16):
                         if day_now.hour < 9:
-                            if day_now_timestamp - last_updated_exact > 60 * 60 * 17:
+                            if day_now_timestamp - last_updated > 60 * 60 * 17:
                                 return False, self.stock_price_cache[stock_code]
                             elif last_updated_exact.hour < 16:
                                 return False, self.stock_price_cache[stock_code]
