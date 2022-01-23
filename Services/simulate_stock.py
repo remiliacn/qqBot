@@ -5,7 +5,7 @@ from datetime import datetime
 from json import dump, loads
 from os import getcwd
 from os.path import exists
-from random import randint, choice
+from random import randint
 from typing import Union, Dict
 
 from loguru import logger
@@ -163,17 +163,20 @@ class SimulateStock:
 
         return response.strip()
 
-    def set_type_by_stock_code(self, stock_code, stock_name, stock_type):
-        if stock_code not in self.stock_price_cache:
-            self.stock_price_cache[stock_code] = {
-                "priceNow": 0.00,
-                "stockName": stock_name,
-                "lastUpdated": int(time.time()),
-                "isDigital": False,
-                "stockType": stock_type
-            }
+    def set_stock_cache(self, stock_code, stock_name, stock_type, price_now, is_digital):
+        if not re.match(r'^[A-Z0-9]+$', stock_code):
+            logger.warning(f'{stock_code} not valid?')
+            return
 
-            self._store_stock_data()
+        self.stock_price_cache[stock_code] = {
+            "priceNow": price_now,
+            "stockName": stock_name,
+            "lastUpdated": int(time.time()),
+            "isDigital": is_digital,
+            "stockType": stock_type
+        }
+
+        self._store_stock_data()
 
     def get_type_by_stock_code(self, stock_code):
         try:
@@ -222,28 +225,26 @@ class SimulateStock:
 
             special_event = ''
             random_num = randint(0, 99)
-            if random_num < 5:
-                random_chance = choice((0, 1))
-                random_percentage = randint(1, 10)
-                if random_chance == 0:
-                    price_now *= (1 + random_percentage / 100)
-                else:
-                    price_now *= (1 - random_percentage / 100)
+            if random_num < 10 or amount >= 1e4:
+                random_percentage = randint(1, 70)
+                ratio_change = 1 - random_percentage / 1e4
 
-                special_event = f'(在您售出的时候，该产品的价格瞬时{"下降了" if random_chance == 1 else "上涨了"}{random_percentage}%)'
+                price_now *= ratio_change
+                special_event = f'(在您卖出的时候，该产品的价格出现了小幅波动： -{random_percentage / 1e2}%）'
 
-            self.user_stock_data['data'][uid][stock_code]['purchaseCount'] -= amount
+            current_stock = self.user_stock_data['data'][uid][stock_code]
+            current_stock['purchaseCount'] -= amount
 
             price_earned = price_now * amount
             self.user_stock_data['data'][uid]['totalMoney'] += price_earned * 0.999
             fee = price_earned * .001
-            if self.user_stock_data['data'][uid][stock_code]['purchaseCount'] == 0:
+            if current_stock['purchaseCount'] == 0:
                 del self.user_stock_data['data'][uid][stock_code]
             else:
-                self.user_stock_data['data'][uid][stock_code]['moneySpent'] -= price_earned
-                self.user_stock_data['data'][uid][stock_code]['purchasePrice'] = \
-                    self.user_stock_data['data'][uid][stock_code]['moneySpent'] / \
-                    self.user_stock_data['data'][uid][stock_code]['purchaseCount']
+                current_stock['moneySpent'] -= price_earned
+                current_stock['purchasePrice'] = \
+                    current_stock['moneySpent'] / \
+                    current_stock['purchaseCount']
 
             self._backfill_nickname(uid, ctx)
             self._store_user_data()
@@ -332,6 +333,27 @@ class SimulateStock:
 
         return price_now
 
+    @staticmethod
+    async def _get_stock_change_anomaly_text(ratio_change):
+        if ratio_change >= 1.08:
+            anomaly = '涨幅达A股涨停板'
+        elif ratio_change >= 1.06:
+            anomaly = '火箭发射'
+        elif ratio_change >= 1.03:
+            anomaly = '快速上涨'
+        elif ratio_change >= 0.99:
+            anomaly = '未出现大的改变'
+        elif ratio_change >= 0.97:
+            anomaly = '快速回调'
+        elif ratio_change >= 0.94:
+            anomaly = '高台跳水'
+        elif ratio_change >= 0.88:
+            anomaly = '上涨'
+        else:
+            anomaly = '下跌'
+
+        return anomaly
+
     async def buy_with_code_and_amount(
             self, uid: Union[int, str], stock_code: str, amount: Union[str, int], margin=1, ctx=None
     ) -> str:
@@ -363,17 +385,14 @@ class SimulateStock:
             # 初始资金500万应该够了吧？
             self.user_stock_data['data'][uid] = {"totalMoney": 10 ** 6 * 5}
 
-        special_event = ''
         random_num = randint(0, 99)
-        if random_num < 5:
-            random_chance = choice((0, 1))
-            random_percentage = randint(1, 10)
-            if random_chance == 0:
-                price_now *= (1 + random_percentage / 100)
-            else:
-                price_now *= (1 - random_percentage / 100)
+        special_event = ''
+        if random_num < 5 or amount >= 1e4:
+            random_percentage = randint(1, 70)
+            ratio_change = 1 + random_percentage / 1e4
 
-            special_event = f'(在您购买的时候，该产品的价格瞬时{"下降了" if random_chance == 1 else "上涨了"}{random_percentage}%)'
+            price_now *= ratio_change
+            special_event = f'(在您购买的时候，该产品的价格出现了小幅波动：+{random_percentage / 1e2}%）'
 
         need_money = amount * price_now
         fee = need_money * 0.001
@@ -398,16 +417,14 @@ class SimulateStock:
 
         self.user_stock_data['data'][uid]['totalMoney'] = user_money - need_money - fee
 
-        self.user_stock_data['data'][uid][stock_code]["purchaseCount"] += amount
-        self.user_stock_data['data'][uid][stock_code]["moneySpent"] += need_money
-        self.user_stock_data['data'][uid][stock_code]["purchasePrice"] = \
-            self.user_stock_data['data'][uid][stock_code]["moneySpent"] / \
-            self.user_stock_data['data'][uid][stock_code]["purchaseCount"]
+        current_stock = self.user_stock_data['data'][uid][stock_code]
+        current_stock["purchaseCount"] += amount
+        current_stock["moneySpent"] += need_money
+        current_stock["purchasePrice"] = current_stock["moneySpent"] / current_stock["purchaseCount"]
 
-        self.user_stock_data['data'][uid][stock_code]['margin'] = margin
-        self.user_stock_data['data'][uid][stock_code]['name'] = stock_name
-        self.user_stock_data['data'][uid][stock_code]['type'] = stock_api.type \
-            if isinstance(stock_api, Stock) else 'Crypto'
+        current_stock['margin'] = margin
+        current_stock['name'] = stock_name
+        current_stock['type'] = stock_api.type if isinstance(stock_api, Stock) else 'Crypto'
 
         self._store_user_data()
         return f'您花费了{_get_price_sn_or_literal(need_money)}软妹币已每' \
@@ -505,15 +522,15 @@ class SimulateStock:
                 # 如果有stock_type，直接用，就不用猜了ε=(´ο｀*))
                 if get_stored_info:
                     stock_api.set_type(get_stored_info['stockType'])
+                    price_now, stock_name = await stock_api.get_purchase_price(stock_type=get_stored_info['stockType'])
                 else:
-                    stock_code = stock_api.code
-
-                price_now, stock_name = await stock_api.get_purchase_price()
+                    price_now, stock_name = await stock_api.get_purchase_price()
                 # 用文字搜的
                 if price_now <= 0:
                     stock_code = await stock_api.get_stock_codes(get_one=True)
                     if not stock_code.isdigit():
                         return -1, False, '为了最小化bot的响应时间，请使用股票的数字代码购买~', None, stock_code
+                    # 这个else分支非常罕见
                     else:
                         stock_api.code = stock_code
                         price_now, is_digital_coin, \
@@ -528,19 +545,9 @@ class SimulateStock:
             if price_now <= 0:
                 return -1, False, self.STOCK_NOT_EXISTS, None, stock_code
 
-        # 再查一次，因为有递归的情况~
-        is_valid_store, has_existing_data = await self._determine_if_has_cache_or_expired(stock_code)
-        if not is_valid_store and not has_existing_data:
-            self.stock_price_cache[stock_code] = {
-                'priceNow': price_now,
-                'stockName': stock_name,
-                'lastUpdated': int(time.time()),
-                'isDigital': is_digital_coin,
-                'stockType': stock_api.type if isinstance(stock_api, Stock) else stock_api.crypto_name
-            }
-        else:
-            self.stock_price_cache[stock_code]['priceNow'] = price_now
-            self.stock_price_cache[stock_code]['lastUpdated'] = int(time.time())
+        stock_type = stock_api.type if isinstance(stock_api, Stock) else stock_api.crypto_name
+        stock_code = stock_api.code if isinstance(stock_api, Stock) else stock_api.crypto_name
+        self.set_stock_cache(stock_code, stock_name, stock_type, price_now, is_digital_coin)
 
         self._store_stock_data()
         return price_now, is_digital_coin, stock_name, stock_api, stock_code

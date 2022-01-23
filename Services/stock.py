@@ -145,7 +145,7 @@ def do_plot(
         macd_data = _convert_data_frame_to_list(macd_data)
         signal_data = _convert_data_frame_to_list(signal)
 
-        point_of_no_return = len(macd_data) * .7
+        point_of_no_return = len(macd_data) * .8
 
         for i in range(1, len(macd_data) - 1):
             prev_macd = round(macd_data[i - 1], 3)
@@ -463,8 +463,9 @@ class Stock:
                 except (KeyError, IndexError, TypeError):
                     return ''
 
-    async def get_purchase_price(self) -> (Union[int, float, None], str):
-        await self.search_to_set_type_and_get_name()
+    async def get_purchase_price(self, stock_type=None) -> (Union[int, float, None], str):
+        if stock_type is None:
+            await self.search_to_set_type_and_get_name()
         data_url = f'https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&' \
                    f'fields=f43,f58&secid={self.type}.{self.code}'
 

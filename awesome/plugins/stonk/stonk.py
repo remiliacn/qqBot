@@ -22,7 +22,7 @@ def get_attention():
     return f'【{choice(ATTENTION)}】\n'
 
 
-@nonebot.on_command('虚拟货币', only_to_me=False)
+@nonebot.on_command('虚拟货币', aliases={'okex'}, only_to_me=False)
 async def crypto_search(session: nonebot.CommandSession):
     key_word = session.get(
         'key_word',
@@ -73,8 +73,8 @@ async def k_line(session: nonebot.CommandSession):
     try:
         market_type = virtual_market.get_type_by_stock_code(key_word)
         if market_type is None:
-            stock_name = await stock.search_to_set_type_and_get_name()
-            virtual_market.set_type_by_stock_code(key_word, stock_name, stock.type)
+            current_price, stock_name = await stock.get_purchase_price()
+            virtual_market.set_stock_cache(key_word, stock_name, stock.type, current_price, False)
         else:
             stock.set_type(market_type)
 
