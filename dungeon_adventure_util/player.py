@@ -32,8 +32,7 @@ class Player:
         self.game_status = NOT_STARTED  # 游戏进行情况
         self.environment = None  # 探险活动
 
-        self.current_choice = None  # 目前选择
-        self.current_room = None  # 目前位置实体
+        self.current_event = None  # 目前选择
 
         self.total_played = 0  # 玩了几次了
         self.third_wall_ending = 0  # 拿到10次后有惊喜？
@@ -76,7 +75,7 @@ class Player:
     def reset_player(self):
         self.current_true_damage_ratio = 0.0
         self.current_true_damage_literal = 0
-        self.current_choice = None
+        self.current_event = None
         self.current_life = 1
         self.total_played += 1
         self.current_luck = self.base_luck
@@ -164,7 +163,7 @@ class Player:
             for cond in condition:
                 expr_condition = cond['condition']
                 decider = talent.decider
-                decider_value = cond[decider]
+                decider_value = cond[decider] if decider in cond else 0
                 payloads = cond['result']
 
                 if self.condition_compare(expr_condition, decider, decider_value):
@@ -178,7 +177,8 @@ class Player:
                         else:
                             action = action.split('[!]')
                             action_var = action[1]
-                            self._parse_influence(influence, action_var, choice(talent.data[action]))
+                            random_key = choice(list(talent.data[action_var].keys()))
+                            self._parse_influence(influence, action_var, talent.data[action_var][random_key])
 
     def get_random_talents(self):
         return_talent = []

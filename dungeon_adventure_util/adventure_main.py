@@ -1,11 +1,16 @@
+import pickle
+import time
+from os import getcwd
+from os.path import exists
 from random import choice
 
-from player import Player
 from dungeon_adventure_util.achievements import Achievements
-from dungeon_adventure_util.events import Events, Event, NEED_CHOICE, ENDING, SPECIAL_ENDING
+from dungeon_adventure_util.events import Events, Event, NEED_CHOICE, CHOOSE_COMPLETED, \
+    ENDING_TUPLE, START
+from player import Player
 
 
-class Adventure_main:
+class AdventureMain:
     def __init__(self, player: Player):
         self.tempo_message = []
         self.attributes_en_to_zh = {
@@ -15,8 +20,12 @@ class Adventure_main:
         }
         self.status = None
         self.player = player
+        self.player.last_updated_time = time.time()
         self.event = Events()
         self.achievement = Achievements()
+
+    def refresh_event(self):
+        self.event = Events()
 
     def _change_player_luck_event(self, change):
         self.player.current_luck += change
@@ -53,6 +62,9 @@ class Adventure_main:
             self._change_player_luck_event(change['luck'])
 
     def next(self) -> Event:
+        if self.status == NEED_CHOICE:
+            return self.player.current_event
+
         event = self.event.get_next_event(self.player.current_luck, self.player.current_step)
         self.change_player_step_event(1)
 
@@ -64,6 +76,7 @@ class Adventure_main:
                 self.win_achievement(ach)
 
         self.status = event.status
+        self.player.current_event = event
         return event
 
     def win_achievement(self, ach_id: str):
@@ -129,6 +142,8 @@ class Adventure_main:
         else:
             self.choose_b(event)
 
+        self.status = CHOOSE_COMPLETED
+
     def change_player_by_event(self, event: Event):
         if event.change is not None:
             changes = event.change
@@ -150,16 +165,51 @@ class Adventure_main:
         self._change_player_death_total()
         self.event.set_next_event(self.event.get_event_by_event_id('10000'))
 
-
-def init_game():
-    # init player
-    test_player = Player('634915227')
-    game = Adventure_main(test_player)
-    return game
+    def game_finished(self):
+        self.player.total_played += 1
+        self.player.talent_set.clear()
+        self.player.player_talent.clear()
 
 
-def talent_choose_phase(game):
+class UserAdventure:
+    def __init__(self):
+        self.group_stat = {}
+        self.game_file_place = f'{getcwd()}/data/adventure_data/gamefile.dat'
+        self.group_stat = self._read_from_file()
+
+    def _read_from_file(self):
+        if exists(self.game_file_place):
+            with open(self.game_file_place, 'rb') as file:
+                self.group_stat = pickle.load(file)
+
+        return self.group_stat
+
+    def save_game_by_user(self, user_id, adventure: AdventureMain):
+        user_id = str(user_id)
+        if user_id not in self.group_stat:
+            self.group_stat[user_id] = {}
+
+        self.group_stat[user_id] = adventure
+        with open(self.game_file_place, 'wb') as file:
+            pickle.dump(self.group_stat, file, protocol=2)
+
+    def load_game_by_user(self, user_id) -> AdventureMain:
+        try:
+            game = self.group_stat[user_id]
+        except KeyError:
+            player = Player(str(user_id))
+            game = AdventureMain(player)
+
+        return game
+
+
+game_main = UserAdventure()
+
+
+def talent_choose_phase(user_id):
     # talent choose phase
+    game = game_main.load_game_by_user(user_id)
+
     random_talent = game.player.get_random_talents()
     allowed_talent_list = [x.talent_id for x in random_talent]
     print(game.player.talents.get_talent_message_by_list(random_talent))
@@ -180,45 +230,58 @@ def talent_choose_phase(game):
         if not success:
             input(message)
 
+    game_main.save_game_by_user(user_id, game)
     return message
 
 
-def game_start(game):
+def game_start(user_id) -> AdventureMain:
     # get start event
-    a = game.event.get_start_event(True)
+    game = game_main.load_game_by_user(user_id)
+    start_event = game.event.get_start_event(True)
     game.change_player_step_event(1)
-    print(game.event_to_literal(a))
-    game.change_player_by_event(a)
+    game.status = START
+    print(game.event_to_literal(start_event))
+    game.change_player_by_event(start_event)
+    return game
 
 
-def game_next_event(game):
+def game_next_event(user_id) -> AdventureMain:
+    game = game_main.load_game_by_user(user_id)
+
     next_event = game.next()
     print(game.event_to_literal(next_event))
     game.change_player_by_event(next_event)
 
+    game_main.save_game_by_user(user_id, game)
+
     if game.status == NEED_CHOICE:
-        # TODO: show binary choose prompt
         print(next_event.binary_choice.get_option_literal())
         choose = input('your choice?')
         game.binary_choose(choose, next_event)
 
     input('next?')
+    return game
 
 
-def main():
-    game = init_game()
+def main(user_id):
+    game = game_main.load_game_by_user(user_id)
 
-    message = talent_choose_phase(game)
-    if message == 'Death_lol':
-        game.win_achievement('1025')
-        game.game_over()
+    if not game.player.talent_set or game.status in ENDING_TUPLE:
+        game.refresh_event()
+        game.player.reset_player()
+        message = talent_choose_phase(user_id)
+        if message == 'Death_lol':
+            game.win_achievement('1025')
+            game.game_over()
 
-    game_start(game)
+        game = game_start(user_id)
 
     # get next event
-    while game.status != ENDING and game.status != SPECIAL_ENDING:
-        game_next_event(game)
+    while game.status not in ENDING_TUPLE:
+        game = game_next_event(user_id)
+
+    game.game_finished()
 
 
 if __name__ == '__main__':
-    main()
+    main('634915227')

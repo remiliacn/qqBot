@@ -693,6 +693,7 @@
       "activate": [
         {
           "condition": "<",
+          "health": 30,
           "result": [
             {
               "action": "change",
@@ -703,6 +704,7 @@
         },
         {
           "condition": ">=",
+          "health": 30,
           "result": [
             {
               "action": "change",
@@ -1240,6 +1242,7 @@
       "activate": [
         {
           "condition": "%",
+          "step": 1,
           "result": [
             {
               "action": "random[!]change",
@@ -1263,11 +1266,12 @@
       "activate": [
         {
           "condition": "%",
+          "step": 1,
           "result": [
             {
               "action": "random[!]change",
               "prop": ["luck_increase", "luck_decrease"],
-              "influence": "health"
+              "influence": "luck"
             }
           ]
         }

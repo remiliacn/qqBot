@@ -14,8 +14,10 @@ BLAH = "blah"
 ENDING = "ending"
 SPECIAL_ENDING = "special_ending"
 SCRPIPTED = "scripted"
+CHOOSE_COMPLETED = "choose_completed"
 
 STATUS_TUPLE = (BLAH, NEUTRAL, NEED_CHOICE)
+ENDING_TUPLE = (ENDING, SPECIAL_ENDING)
 
 CAN_RANDOM = 'can_random'
 STATUS = 'status'
