@@ -567,15 +567,15 @@ class SimulateStock:
                     price_now, stock_name = await stock_api.get_purchase_price(stock_type=get_stored_info['stockType'])
                 else:
                     price_now, stock_name = await stock_api.get_purchase_price()
-                # 用文字搜的
-                if price_now <= 0:
-                    stock_code = await stock_api.get_stock_codes(get_one=True)
-                    if not stock_code.isdigit():
-                        return -1, False, '为了最小化bot的响应时间，请使用股票的数字代码购买~', None, stock_code
+                    # 用文字搜的
+                    if price_now <= 0:
+                        stock_code = await stock_api.get_stock_codes(get_one=True)
+                        if not stock_code.isdigit():
+                            return -1, False, '为了最小化bot的响应时间，请使用股票的数字代码购买~', None, stock_code
 
-                    stock_api.code = stock_code
-                    price_now, _, \
-                    stock_name, stock_api, stock_code = await self._determine_stock_price_digital_name(stock_code)
+                        stock_api.code = stock_code
+                        price_now, _, \
+                        stock_name, stock_api, stock_code = await self._determine_stock_price_digital_name(stock_code)
 
                 is_digital_coin = False
 

@@ -450,6 +450,8 @@ class Stock:
     async def get_purchase_price(self, stock_type=None) -> (Union[int, float, None], str):
         if stock_type is None:
             await self.search_to_set_type_and_get_name()
+        else:
+            self.type = stock_type
         data_url = f'https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&' \
                    f'fields=f43,f58,f60&secid={self.type}.{self.code}'
 
