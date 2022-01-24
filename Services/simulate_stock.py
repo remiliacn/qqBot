@@ -90,7 +90,8 @@ class SimulateStock:
         response = [await self.my_money_spent_by_stock_code(uid, stock_code) for stock_code in stonk_whole_log]
         time_now = datetime.now()
 
-        if time_now.hour >= 15 or (time_now.hour <= 9 and time_now.minute < 15) or time_now.weekday() >= 5:
+        if time_now.hour >= 15 or (time_now.hour == 9 and time_now.minute < 15 or time_now.hour < 9) \
+                or time_now.weekday() >= 5:
             time_awareness = '【SZ·休市】\n'
         elif time_now.hour == 12:
             time_awareness = '【SZ·午间休市】\n'
@@ -115,7 +116,7 @@ class SimulateStock:
         # backfill
         self._backfill_nickname(uid, ctx)
         response = [x for x in response if x]
-        user_data = await self.get_user_overall_stat(uid)
+        user_data = await self.get_user_overall_stat(uid, 60 * 2)
         money_diff = user_data["total"] - 5 * 10 ** 6
         return f'{time_awareness}\n\n' \
                f'总资产{user_data["total"]:,.2f}软妹币\n' \
@@ -132,13 +133,13 @@ class SimulateStock:
 
             self._store_user_data()
 
-    async def get_all_user_info(self):
+    async def get_all_user_info(self, valid_time=None):
         user_data = copy.deepcopy(self.user_stock_data)
         data = user_data['data']
         response = ''
         user_data_info = []
         for uid in data:
-            data = await self.get_user_overall_stat(uid)
+            data = await self.get_user_overall_stat(uid, valid_time)
             user_data_info.append(data)
 
         if len(user_data_info) > 3:
@@ -164,6 +165,9 @@ class SimulateStock:
         return response.strip()
 
     def set_stock_cache(self, stock_code, stock_name, stock_type, price_now, is_digital):
+        if price_now <= 0:
+            return
+
         if not re.match(r'^[A-Z0-9]+$', stock_code):
             logger.warning(f'{stock_code} not valid?')
             return
@@ -230,7 +234,7 @@ class SimulateStock:
                 ratio_change = 1 - random_percentage / 1e4
 
                 price_now *= ratio_change
-                special_event = f'(在您卖出的时候，该产品的价格出现了小幅波动： -{random_percentage / 1e2}%）'
+                special_event = f'\n(在您卖出的时候，该产品的价格出现了小幅波动： -{random_percentage / 1e2}%）'
 
             current_stock = self.user_stock_data['data'][uid][stock_code]
             current_stock['purchaseCount'] -= amount
@@ -250,13 +254,13 @@ class SimulateStock:
             self._store_user_data()
             return f'您已每{"股" if not is_digital_coin else "个"}{_get_price_sn_or_literal(price_now)}' \
                    f'软妹币的价格卖出了{amount}{"股" if not is_digital_coin else "个"}' \
-                   f'{stock_name}{special_event}（印花税：{_get_price_sn_or_literal(fee)}软妹币），' \
+                   f'{stock_name}{special_event}\n（印花税：{_get_price_sn_or_literal(fee)}软妹币），' \
                    f'现在您有{self.user_stock_data["data"][uid]["totalMoney"]:,.2f}软妹币了~'
 
         except KeyError:
             return self.NO_INFO
 
-    async def get_user_overall_stat(self, uid: Union[int, str]) -> dict:
+    async def get_user_overall_stat(self, uid: Union[int, str], valid_time) -> dict:
         data = self.user_stock_data['data']
         uid = str(uid)
         try:
@@ -275,7 +279,9 @@ class SimulateStock:
                 if stock not in self.stock_price_cache:
                     logger.warning(f'Reading {stock}')
                     price_now, is_digital_coin, \
-                    stock_name, stock_api, _ = await self._determine_stock_price_digital_name(stock)
+                    stock_name, stock_api, _ = await self._determine_stock_price_digital_name(
+                        stock, valid_time=valid_time
+                    )
 
                     if price_now <= 0:
                         return {
@@ -285,6 +291,14 @@ class SimulateStock:
                         }
                 else:
                     price_now = await self._get_stock_price_from_cache_by_identifier(stock)
+                    is_digital_coin = self.stock_price_cache[stock]['isDigital']
+                    stock_name = self.stock_price_cache[stock]['stockName']
+                    stock_api = Stock(stock) if not is_digital_coin else Crypto(stock)
+                    if not is_digital_coin:
+                        stock_api.set_type(self.stock_price_cache[stock]['stockType'])
+
+                stock_type = stock_api.type if isinstance(stock_api, Stock) else 'Crypto'
+                self.set_stock_cache(stock, stock_name, stock_type, price_now, is_digital_coin)
                 current_stock_money += price_now * data[uid][stock]['purchaseCount']
 
             total_money += current_stock_money
@@ -322,6 +336,8 @@ class SimulateStock:
 
         new_price = price_now * total_count
         rate = (new_price - total_money_spent) / total_money_spent * 100
+
+        logger.success(f'Checking {stock_code} succeed: {price_now:,.2f}')
 
         return f'{stock_name}[{stock_code}] x {total_count} -> 成本{_get_price_sn_or_literal(total_money_spent)}软妹币\n' \
                f'（最新市值：{_get_price_sn_or_literal(new_price)}软妹币 | ' \
@@ -392,7 +408,7 @@ class SimulateStock:
             ratio_change = 1 + random_percentage / 1e4
 
             price_now *= ratio_change
-            special_event = f'(在您购买的时候，该产品的价格出现了小幅波动：+{random_percentage / 1e2}%）'
+            special_event = f'\n(在您购买的时候，该产品的价格出现了小幅波动：+{random_percentage / 1e2}%）'
 
         need_money = amount * price_now
         fee = need_money * 0.001
@@ -433,6 +449,60 @@ class SimulateStock:
                f'\n（印花税：{_get_price_sn_or_literal(fee)}软妹币，' \
                f'余额：{self.user_stock_data["data"][uid]["totalMoney"]:,.2f}软妹币）'
 
+    async def _get_western_stock_data(
+            self, last_updated_exact, time_diff, stock_code, day_now
+    ):
+        if datetime.today().weekday() >= 5:
+            return last_updated_exact.weekday() >= 4, self.stock_price_cache[stock_code]
+
+        if (day_now.hour >= 18 or day_now.hour < 6) and time_diff > 120:
+            return False, self.stock_price_cache[stock_code]
+
+        return True, self.stock_price_cache[stock_code]
+
+    async def _get_chinese_stock_data(
+            self, last_updated_exact, stock_code, day_now, day_now_timestamp, last_updated
+    ) -> (bool, dict):
+        if datetime.today().weekday() >= 5:
+            return last_updated_exact.weekday() >= 4, self.stock_price_cache[stock_code]
+
+        # 周1-5逻辑
+        # AB股闭市时间
+        if self.stock_price_cache[stock_code]['stockType'] in (0, 1) \
+                and (day_now.hour < 9 or day_now.hour >= 15):
+            # 9点前拿上一天15点后的数据
+            if day_now.hour < 9:
+                if day_now_timestamp - last_updated > \
+                        (60 * 60 * 18 if day_now.weekday() != 0 else 60 * 60 * 24 * 2.5):
+                    return False, self.stock_price_cache[stock_code]
+                elif last_updated_exact.hour < 15:
+                    return False, self.stock_price_cache[stock_code]
+                else:
+                    return True, self.stock_price_cache[stock_code]
+            else:
+                return last_updated_exact.hour >= 15 and last_updated_exact.day == day_now.day, \
+                       self.stock_price_cache[stock_code]
+
+        # 港股闭市时间
+        if self.stock_price_cache[stock_code]['stockType'] == 116 \
+                and (day_now.hour < 9 or day_now.hour >= 16):
+            if day_now.hour < 9:
+                if day_now_timestamp - last_updated > 60 * 60 * 17:
+                    return False, self.stock_price_cache[stock_code]
+                elif last_updated_exact.hour < 16:
+                    return False, self.stock_price_cache[stock_code]
+                else:
+                    return True, self.stock_price_cache[stock_code]
+            else:
+                return last_updated_exact.hour >= 16 and last_updated_exact.day == day_now.day, \
+                       self.stock_price_cache[stock_code]
+
+        # 开盘竞价时可能无数据
+        if datetime.now().hour == 9 and datetime.now().minute <= 25:
+            return True, self.stock_price_cache[stock_code]
+
+        return False, self.stock_price_cache[stock_code]
+
     async def _determine_if_has_cache_or_expired(self, stock_code, valid_time=None) -> (bool, dict):
         day_now_timestamp = time.time()
         if not re.match(r'^[A-Z0-9]+$', stock_code):
@@ -441,6 +511,8 @@ class SimulateStock:
         if stock_code in self.stock_price_cache:
             last_updated = self.stock_price_cache[stock_code]['lastUpdated']
             time_diff = day_now_timestamp - last_updated
+            if time_diff > 60 * 60 * 24 * 2.5:
+                return False, self.stock_price_cache[stock_code]
             if time_diff < (self.CACHE_EXPIRATION if valid_time is None else valid_time):
                 return True, self.stock_price_cache[stock_code]
             else:
@@ -450,43 +522,14 @@ class SimulateStock:
 
                 if not self.stock_price_cache[stock_code]['isDigital']:
                     # 如果本天是周末，且上次价格更新是周五，则直接返回数据，反之需要稍微更新一下
-                    if datetime.today().weekday() >= 5:
-                        return last_updated_exact.weekday() >= 4 \
-                               and time_diff < 60 * 60 * 24 * 2.5, self.stock_price_cache[stock_code]
-
-                    # 开盘竞价时可能无数据
-                    if datetime.now().hour == 9 and datetime.now().minute <= 25:
-                        return True, self.stock_price_cache[stock_code]
-
-                    # 周1-5逻辑
-                    # AB股闭市时间
-                    if self.stock_price_cache[stock_code]['stockType'] in (0, 1) \
-                            and (day_now.hour < 9 or day_now.hour >= 15):
-                        # 9点前拿上一天15点后的数据
-                        if day_now.hour < 9:
-                            if day_now_timestamp - last_updated > 60 * 60 * 18:
-                                return False, self.stock_price_cache[stock_code]
-                            elif last_updated_exact.hour < 15:
-                                return False, self.stock_price_cache[stock_code]
-                            else:
-                                return True, self.stock_price_cache[stock_code]
-                        else:
-                            return last_updated_exact.hour >= 15 and last_updated_exact.day == day_now.day, \
-                                   self.stock_price_cache[stock_code]
-
-                    # 港股闭市时间
-                    if self.stock_price_cache[stock_code]['stockType'] == 116 \
-                            and (day_now.hour < 9 or day_now.hour >= 16):
-                        if day_now.hour < 9:
-                            if day_now_timestamp - last_updated > 60 * 60 * 17:
-                                return False, self.stock_price_cache[stock_code]
-                            elif last_updated_exact.hour < 16:
-                                return False, self.stock_price_cache[stock_code]
-                            else:
-                                return True, self.stock_price_cache[stock_code]
-                        else:
-                            return last_updated_exact.hour >= 16 and last_updated_exact.day == day_now.day, \
-                                   self.stock_price_cache[stock_code]
+                    if stock_code.isdigit():
+                        return await self._get_chinese_stock_data(
+                            last_updated_exact, stock_code, day_now, day_now_timestamp, last_updated
+                        )
+                    else:
+                        return await self._get_western_stock_data(
+                            last_updated_exact, time_diff, stock_code, day_now
+                        )
 
                 return False, self.stock_price_cache[stock_code]
 
@@ -517,7 +560,6 @@ class SimulateStock:
 
             # Price < 1 代表不是虚拟币，可能是美股？
             if price_now <= 0:
-                is_digital_coin = False
                 stock_api = Stock(stock_code, keyword=stock_code)
                 # 如果有stock_type，直接用，就不用猜了ε=(´ο｀*))
                 if get_stored_info:
@@ -530,24 +572,27 @@ class SimulateStock:
                     stock_code = await stock_api.get_stock_codes(get_one=True)
                     if not stock_code.isdigit():
                         return -1, False, '为了最小化bot的响应时间，请使用股票的数字代码购买~', None, stock_code
-                    # 这个else分支非常罕见
-                    else:
-                        stock_api.code = stock_code
-                        price_now, is_digital_coin, \
-                        stock_name, stock_api, stock_code = await self._determine_stock_price_digital_name(stock_code)
+
+                    stock_api.code = stock_code
+                    price_now, _, \
+                    stock_name, stock_api, stock_code = await self._determine_stock_price_digital_name(stock_code)
+
+                is_digital_coin = False
 
         else:
             stock_api = Stock(stock_code)
-            price_now, stock_name = await stock_api.get_purchase_price()
+            if get_stored_info:
+                price_now, stock_name = await stock_api.get_purchase_price(get_stored_info['stockType'])
+            else:
+                price_now, stock_name = await stock_api.get_purchase_price()
             # debug的时候发现的，wtf？
-            if price_now == '-':
-                price_now = 0
-            if price_now <= 0:
+            if price_now == '-' or price_now <= 0:
                 return -1, False, self.STOCK_NOT_EXISTS, None, stock_code
 
-        stock_type = stock_api.type if isinstance(stock_api, Stock) else stock_api.crypto_name
-        stock_code = stock_api.code if isinstance(stock_api, Stock) else stock_api.crypto_name
+        stock_type = stock_api.type if not is_digital_coin else stock_api.crypto_name
+        stock_code = stock_api.code if not is_digital_coin else stock_api.crypto_name
         self.set_stock_cache(stock_code, stock_name, stock_type, price_now, is_digital_coin)
 
         self._store_stock_data()
+        logger.success(f'Checking {stock_code} succeed.')
         return price_now, is_digital_coin, stock_name, stock_api, stock_code

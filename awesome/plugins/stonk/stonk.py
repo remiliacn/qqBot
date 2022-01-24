@@ -4,6 +4,7 @@ from datetime import datetime
 from random import choice
 
 import nonebot
+from aiohttp import ClientConnectionError
 
 from Services.stock import Crypto, Stock, text_to_image
 from config import SUPER_USER
@@ -19,7 +20,7 @@ ATTENTION = [
 
 
 def get_attention():
-    return f'【{choice(ATTENTION)}】\n'
+    return f'【{choice(ATTENTION)}】\n\n'
 
 
 @nonebot.on_command('虚拟货币', aliases={'okex'}, only_to_me=False)
@@ -103,7 +104,7 @@ async def k_line(session: nonebot.CommandSession):
         )
 
 
-@nonebot.on_command('购买', aliases={'buy'}, only_to_me=False)
+@nonebot.on_command('购买', aliases={'buy', '买入'}, only_to_me=False)
 async def buy_stonk(session: nonebot.CommandSession):
     args = session.current_arg_text
     args = args.split()
@@ -153,7 +154,12 @@ async def my_stonks(session: nonebot.CommandSession):
             user_id = user_id
 
     message_id = ctx['message_id']
-    user_hold = await virtual_market.get_all_stonk_log_by_user(user_id, ctx=ctx if is_same_guy else None)
+    try:
+        user_hold = await virtual_market.get_all_stonk_log_by_user(user_id, ctx=ctx if is_same_guy else None)
+    except ClientConnectionError:
+        await session.finish('加载失败，请重试。')
+        return
+
     await session.finish(
         f'[CQ:reply,id={message_id}]' +
         f'[CQ:image,file=file:///'
@@ -163,7 +169,13 @@ async def my_stonks(session: nonebot.CommandSession):
 
 @nonebot.on_command('战绩', aliases={'炒股战绩', '龙虎榜'}, only_to_me=False)
 async def stonk_stat_send(session: nonebot.CommandSession):
-    leaderboard = await virtual_market.get_all_user_info()
+    try:
+        leaderboard = await virtual_market.get_all_user_info(valid_time=60 * 60)
+    except Exception as err:
+        logger.error(f'战绩功能出错{err}')
+        await session.finish('查询出错， 请重试。')
+        return
+
     await session.finish(
         f'[CQ:image,file=file:///{await text_to_image(get_attention() + leaderboard)}]'
     )

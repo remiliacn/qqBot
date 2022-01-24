@@ -1,6 +1,5 @@
 import asyncio
 import json
-import re
 from datetime import datetime, timedelta
 from os import getcwd
 from time import time_ns
@@ -329,22 +328,7 @@ class Stock:
     def __init__(self, code: str, keyword=''):
         self.code = code
         self.stock_name = '未知股票'
-        self.type = -1
-
-        if str(self.code).isdigit() and re.match(r'\d{6}', self.code):
-            self.type = 1
-
-        elif re.match(r'BK\d{4}', self.code):
-            self.type = 90
-
-        elif re.match(r'[A-Z]+', self.code):
-            self.type = 105
-
-        elif re.match(r'\d{5}', self.code):
-            self.type = 116
-
-        else:
-            self.type = 0
+        self.type = None
 
         self.kline_api = self.get_api_link(self.type)
         self.guba_api = None
@@ -445,7 +429,7 @@ class Stock:
         if not json_data:
             return ''
 
-        return f'\n主力控盘迹象：{host_s}，资金流入：{json_data["ZLJLR"]}（更新时间：{json_data["TRADEDATE"]}）'
+        return f'\n主力控盘迹象：{host_s}，资金流入：{json_data["ZLJLR"]:,.2f}（更新时间：{json_data["TRADEDATE"]}）'
 
     def set_type(self, any_type: str):
         self.type = any_type
@@ -467,13 +451,15 @@ class Stock:
         if stock_type is None:
             await self.search_to_set_type_and_get_name()
         data_url = f'https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&' \
-                   f'fields=f43,f58&secid={self.type}.{self.code}'
+                   f'fields=f43,f58,f60&secid={self.type}.{self.code}'
 
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
             async with session.get(data_url) as response:
                 try:
                     json_data = await response.json()
                     purchase_price = json_data['data']['f43']
+                    if purchase_price == '-':
+                        purchase_price = json_data['data']['f60']
                     stock_name = json_data['data']['f58']
                 except Exception as err:
                     logger.warning(f'Error when getting first purchase price for stock: {self.code} -- {err}')

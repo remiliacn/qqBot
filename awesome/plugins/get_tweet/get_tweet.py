@@ -93,7 +93,6 @@ async def send_tweet():
         do_tweet_update_fetch(),
         # do_bilibili_live_fetch(),
         fill_sanity(),
-        save_stats(),
         check_youtube_live()
     )
 
@@ -124,11 +123,6 @@ def get_status():
     file = open('data/started.json', 'r')
     status_dict = json.loads(str(file.read()))
     return status_dict['status']
-
-
-async def save_stats():
-    setu_control.make_a_json('config/stats.json')
-    setu_control.make_a_json('config/setu.json')
 
 
 async def check_youtube_live():

@@ -70,6 +70,8 @@ class SetuFunction:
         else:
             self.setu_stat['bad_words'][key_word] = multiplier
 
+        self.make_a_json(self.setu_stat_path)
+
     def _init_bad_word(self):
         if exists(self.setu_stat_path):
             with open(self.setu_stat_path, 'r', encoding='utf-8') as file:
@@ -90,6 +92,8 @@ class SetuFunction:
         if key_word not in self.stat_dict['xp']:
             self.stat_dict['xp'][key_word] = 0
 
+        self.make_a_json(self.config_file)
+
     def _get_user_data(self):
         if exists(self.config_file):
             with open(self.config_file, 'r', encoding='utf-8') as file:
@@ -107,7 +111,9 @@ class SetuFunction:
         if tag in self.stat_dict['xp']:
             self.stat_dict['xp'][tag] += 1
         else:
-            return
+            self.stat_dict['xp'][tag] = 1
+
+        self.make_a_json(self.config_file)
 
     def get_xp_data(self) -> dict:
         return self.stat_dict['xp']
@@ -126,6 +132,7 @@ class SetuFunction:
             self.stat_dict['users'][user_id] = {}
 
         self.stat_dict['users'][user_id]['pixiv_id'] = pixiv_id
+        self.make_a_json(self.config_file)
         return True
 
     def get_user_pixiv(self, user_id) -> int:
@@ -177,6 +184,8 @@ class SetuFunction:
                     self.stat_dict['users'][user_id][tag][keyword] = 0
 
                 self.stat_dict['users'][user_id][tag][keyword] += hit_marks
+
+        self.make_a_json(self.config_file)
 
     def get_global_stat(self):
         return self.stat_dict['global']
@@ -300,6 +309,8 @@ class SetuFunction:
             self.stat_dict[group_id]['pull'] += 1
 
         self.updated = False
+        self.make_a_json(self.config_file)
+        self.make_a_json(self.setu_stat_path)
 
     def get_usage(self, group_id) -> (int, int, int, dict, int):
         group_id = str(group_id)
@@ -368,9 +379,9 @@ class SetuFunction:
             self.sanity_dict[group_id] += sanity
 
     def make_a_json(self, file_name):
-        if file_name == 'config/stats.json':
+        if file_name == self.config_file:
             with open(file_name, 'w+', encoding='utf-8') as f:
                 dump(self.stat_dict, f, indent=4, ensure_ascii=False)
-        elif file_name == 'config/setu.json':
+        elif file_name == self.setu_stat_path:
             with open(file_name, 'w+', encoding='utf-8') as f:
                 dump(self.setu_stat, f, indent=4, ensure_ascii=False)

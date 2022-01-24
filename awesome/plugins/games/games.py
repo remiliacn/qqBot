@@ -230,7 +230,7 @@ async def russian_roulette(session: nonebot.CommandSession):
 
     message_id = ctx['message_id']
     if not game.get_result(id_num):
-        await session.send(f'[CQ:reply,id={message_id}]咔')
+        await session.send(f'[CQ:reply,id={message_id}]好像什么也没发生')
     else:
         death = game.get_death(id_num)
         death_dodge = randint(0, 100)
