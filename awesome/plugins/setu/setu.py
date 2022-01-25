@@ -500,7 +500,7 @@ def get_user_bookmark_data(pixiv_id: int):
     if not admin_control.get_if_authed():
         pixiv_api.set_auth(
             access_token=admin_control.get_access_token(),
-            refresh_token='iL51azZw7BWWJmGysAurE3qfOsOhGW-xOZP41FPhG-s'
+            refresh_token=PIXIV_REFRESH_TOKEN
         )
         admin_control.set_if_authed(True)
 
