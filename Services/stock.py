@@ -1,4 +1,3 @@
-import asyncio
 import json
 from datetime import datetime, timedelta
 from os import getcwd
@@ -435,6 +434,10 @@ class Stock:
         self.type = any_type
 
     async def search_to_set_type_and_get_name(self) -> str:
+        """
+        Set stock type and return stock_name
+        :return: stock_name: str
+        """
         try_url = f'https://searchapi.eastmoney.com/api/suggest/get?input={self.code}' \
                   f'&type=14&token=D43BF722C8E33BDC906FB84D85E326E8'
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
@@ -447,28 +450,34 @@ class Stock:
                 except (KeyError, IndexError, TypeError):
                     return ''
 
-    async def get_purchase_price(self, stock_type=None) -> (Union[int, float, None], str):
+    async def get_purchase_price(self, stock_type=None) -> (Union[int, float, None], str, float):
+        """
+        Return purchase_price, stock_name(zh), and price rate
+        :param stock_type: stock_type, optional
+        :return: purchase_price, stock_name, and a tuple where index=0 is high_rate, index=1 is low_rate
+        """
         if stock_type is None:
             await self.search_to_set_type_and_get_name()
         else:
             self.type = stock_type
         data_url = f'https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&' \
-                   f'fields=f43,f58,f60&secid={self.type}.{self.code}'
+                   f'fields=f43,f51,f52,f58,f60&secid={self.type}.{self.code}'
 
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
             async with session.get(data_url) as response:
                 try:
                     json_data = await response.json()
                     purchase_price = json_data['data']['f43']
+                    high_rate = json_data['data']['f51'] if 'f51' in json_data['data'] else 10e16
+                    low_rate = json_data['data']['f52'] if 'f52' in json_data['data'] else -1000
                     if purchase_price == '-':
                         purchase_price = json_data['data']['f60']
                     stock_name = json_data['data']['f58']
                 except Exception as err:
                     logger.warning(f'Error when getting first purchase price for stock: {self.code} -- {err}')
-                    return -1, ''
+                    return -1, '', False
 
-        # 有10%的几率价格变为已目前价格为基础上的跌停
-        return purchase_price, stock_name
+        return purchase_price, stock_name, (high_rate, low_rate)
 
     async def get_kline_map(self, analyze_type='MACD') -> (str, str):
         self.kline_api = self.get_api_link(self.type)
@@ -534,14 +543,3 @@ class Stock:
             return [x.split(',') for x in json_data]
 
         return []
-
-
-# test code
-async def main():
-    test = Stock('002658', keyword='002658')
-    print(await test.get_purchase_price())
-
-
-if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())

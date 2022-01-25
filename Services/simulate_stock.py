@@ -200,7 +200,10 @@ class SimulateStock:
         amount = round(float(amount), 2)
 
         price_now, is_digital_coin, \
-        stock_name, stock_api, _ = await self._determine_stock_price_digital_name(stock_code)
+        stock_name, stock_api, _, stock_rate = await self._determine_stock_price_digital_name(stock_code)
+
+        if price_now - stock_rate[1] <= 0.02:
+            return '目前跌停无法卖出'
 
         if price_now <= 0:
             return stock_name
@@ -222,7 +225,10 @@ class SimulateStock:
                 return '您没那么多谢谢'
 
             price_now, is_digital_coin, \
-            stock_name, stock_api, _ = await self._determine_stock_price_digital_name(stock_code)
+            stock_name, stock_api, _, stock_rate = await self._determine_stock_price_digital_name(stock_code)
+
+            if price_now - stock_rate[1] <= 0.015:
+                return '目前跌停无法卖出'
 
             if price_now <= 0:
                 return stock_name
@@ -279,7 +285,7 @@ class SimulateStock:
                 if stock not in self.stock_price_cache:
                     logger.warning(f'Reading {stock}')
                     price_now, is_digital_coin, \
-                    stock_name, stock_api, _ = await self._determine_stock_price_digital_name(
+                    stock_name, stock_api, _, _ = await self._determine_stock_price_digital_name(
                         stock, valid_time=valid_time
                     )
 
@@ -330,7 +336,7 @@ class SimulateStock:
         avg_money = stock_to_check['purchasePrice']
 
         price_now, is_digital_coin, \
-        stock_name, stock_api, _ = await self._determine_stock_price_digital_name(stock_code)
+        stock_name, stock_api, _, _ = await self._determine_stock_price_digital_name(stock_code)
         if price_now <= 0:
             return stock_name
 
@@ -345,7 +351,7 @@ class SimulateStock:
 
     async def _get_stock_price_from_cache_by_identifier(self, identifier) -> Union[int, float]:
         price_now, is_digital, \
-        stock_name, stock_api, _ = await self._determine_stock_price_digital_name(identifier, 60 * 60 * 1)
+        stock_name, stock_api, _, _ = await self._determine_stock_price_digital_name(identifier, 60 * 60 * 1)
 
         return price_now
 
@@ -384,7 +390,10 @@ class SimulateStock:
             amount = round(float(amount), 2)
 
         price_now, is_digital_coin, \
-        stock_name, stock_api, _ = await self._determine_stock_price_digital_name(stock_code)
+        stock_name, stock_api, _, stock_rate = await self._determine_stock_price_digital_name(stock_code)
+        if stock_rate[0] - price_now <= 0.01:
+            return '产品涨停无法买入'
+
         if price_now <= 0:
             return stock_name
 
@@ -536,16 +545,18 @@ class SimulateStock:
         return False, {}
 
     async def _determine_stock_price_digital_name(self, stock_code, valid_time=None) \
-            -> (Union[float, int], bool, str, Union[Crypto, Stock, None, str]):
+            -> (Union[float, int], bool, str, Union[Crypto, Stock, None, str], bool):
         is_digital_coin = False
         is_valid_store, get_stored_info = await self._determine_if_has_cache_or_expired(stock_code, valid_time)
         stock_api = None
+
+        stock_rate = (10e6, -1000)
 
         if get_stored_info and is_valid_store:
             is_digital_coin = get_stored_info['isDigital']
             return get_stored_info['priceNow'], is_digital_coin, \
                    get_stored_info['stockName'], \
-                   Stock(stock_code) if not is_digital_coin else Crypto(stock_code), stock_code
+                   Stock(stock_code) if not is_digital_coin else Crypto(stock_code), stock_code, stock_rate
 
         if not stock_code.isdigit():
             # 虚拟币一般是全字母，然后有可能有“-USDT”的部分
@@ -564,30 +575,34 @@ class SimulateStock:
                 # 如果有stock_type，直接用，就不用猜了ε=(´ο｀*))
                 if get_stored_info:
                     stock_api.set_type(get_stored_info['stockType'])
-                    price_now, stock_name = await stock_api.get_purchase_price(stock_type=get_stored_info['stockType'])
+                    price_now, stock_name, stock_rate = await stock_api.get_purchase_price(
+                        stock_type=get_stored_info['stockType']
+                    )
                 else:
-                    price_now, stock_name = await stock_api.get_purchase_price()
+                    price_now, stock_name, stock_rate = await stock_api.get_purchase_price()
                     # 用文字搜的
                     if price_now <= 0:
                         stock_code = await stock_api.get_stock_codes(get_one=True)
                         if not stock_code.isdigit():
-                            return -1, False, '为了最小化bot的响应时间，请使用股票的数字代码购买~', None, stock_code
+                            return -1, False, '为了最小化bot的响应时间，请使用股票的数字代码购买~', None, stock_code, False
 
                         stock_api.code = stock_code
                         price_now, _, \
-                        stock_name, stock_api, stock_code = await self._determine_stock_price_digital_name(stock_code)
+                        stock_name, stock_api, stock_code, _ = await self._determine_stock_price_digital_name(
+                            stock_code
+                        )
 
                 is_digital_coin = False
 
         else:
             stock_api = Stock(stock_code)
             if get_stored_info:
-                price_now, stock_name = await stock_api.get_purchase_price(get_stored_info['stockType'])
+                price_now, stock_name, stock_rate = await stock_api.get_purchase_price(get_stored_info['stockType'])
             else:
-                price_now, stock_name = await stock_api.get_purchase_price()
+                price_now, stock_name, stock_rate = await stock_api.get_purchase_price()
             # debug的时候发现的，wtf？
             if price_now == '-' or price_now <= 0:
-                return -1, False, self.STOCK_NOT_EXISTS, None, stock_code
+                return -1, False, self.STOCK_NOT_EXISTS, None, stock_code, False
 
         stock_type = stock_api.type if not is_digital_coin else stock_api.crypto_name
         stock_code = stock_api.code if not is_digital_coin else stock_api.crypto_name
@@ -595,4 +610,4 @@ class SimulateStock:
 
         self._store_stock_data()
         logger.success(f'Checking {stock_code} succeed.')
-        return price_now, is_digital_coin, stock_name, stock_api, stock_code
+        return price_now, is_digital_coin, stock_name, stock_api, stock_code, stock_rate

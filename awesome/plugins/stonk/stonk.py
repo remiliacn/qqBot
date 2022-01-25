@@ -74,7 +74,7 @@ async def k_line(session: nonebot.CommandSession):
     try:
         market_type = virtual_market.get_type_by_stock_code(key_word)
         if market_type is None:
-            current_price, stock_name = await stock.get_purchase_price()
+            current_price, stock_name, _ = await stock.get_purchase_price()
             virtual_market.set_stock_cache(key_word, stock_name, stock.type, current_price, False)
         else:
             stock.set_type(market_type)
