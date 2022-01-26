@@ -63,43 +63,54 @@ virtual_market = SimulateStock()
 
 
 def register_true():
-    if not path.exists('data/started.json'):
-        with open('data/started.json', 'w+') as f:
-            dump({}, f, indent=4)
-
-    if not path.exists('config/downloader_data.json'):
-        with open('config/downloader_data.json', 'w+') as f:
-            dump({}, f, indent=4)
-
-    with open('data/started.json', 'w+') as f:
-        dump({'status': True}, f, indent=4)
-
     try:
-        if not path.exists(f'{getcwd()}/data/biaoqing'):
-            mkdir(f'{getcwd()}/data/biaoqing')
-
-        if not path.exists(f'{getcwd()}/data/bilibiliPic'):
-            mkdir(f'{getcwd()}/data/bilibiliPic')
-
-        if not path.exists(f'{getcwd()}/data/pixivPic/'):
-            mkdir(f'{getcwd()}/data/pixivPic/')
-
-        if not path.exists(f'{getcwd()}/data/lol/'):
-            mkdir(f'{getcwd()}/data/lol/')
-
-        if not path.exists(f'{getcwd()}/data/live/'):
-            mkdir(f'{getcwd()}/data/live/')
-
-        if not path.exists(f'{getcwd()}/config/'):
-            mkdir(f'{getcwd()}/config/')
-
-        if not path.exists(f'{getcwd()}/Waifu/'):
-            mkdir(f'{getcwd()}/Waifu')
+        create_dir(f'{getcwd()}/data/biaoqing')
+        create_dir(f'{getcwd()}/data/bilibiliPic')
+        create_dir(f'{getcwd()}/data/pixivPic/')
+        create_dir(f'{getcwd()}/data/pixivPic/')
+        create_dir(f'{getcwd()}/data/lol/')
+        create_dir(f'{getcwd()}/data/live/')
+        create_dir(f'{getcwd()}/config/')
+        create_dir(f'{getcwd()}/Waifu/')
+        create_dir(f'{getcwd()}/data/')
+        create_dir(f'{getcwd()}/data/bot')
+        create_dir(f'{getcwd()}/data/bot/stock')
 
     except IOError:
         raise IOError(
             'Error occurred while creating directory for biaoqing, and bilibiliPic.'
         )
+
+    create_file('data/started.json')
+    create_file('config/downloader_data.json')
+    create_file('config/YouTubeNotify.json')
+    create_file('data/started.json', {'status': True})
+    create_file('config/downloader.json', {
+        '_comment': {
+            '_comment': '示例downloader配置请见downloader_sample.json', "channel": "UCyIcOCH-VWaRKH9IkR8hz7Q",
+            'qqGroup': 123456789,
+            'videoID': '',
+            'enabled': False,
+            'notify': False,
+            'upcomingID': '',
+            'liveID': ''}
+    })
+
+    with open('data/started.json', 'w+') as f:
+        dump({'status': True}, f, indent=4)
+
+
+def create_dir(path_to_check: str):
+    if not path.exists(path_to_check):
+        mkdir(path_to_check)
+
+
+def create_file(path_to_check: str, dump_data=None):
+    if dump_data is None:
+        dump_data = {}
+    if not path.exists(path_to_check):
+        with open(path_to_check, 'w+', encoding='utf-8') as f:
+            dump(dump_data, f, indent=4, ensure_ascii=False)
 
 
 def main():

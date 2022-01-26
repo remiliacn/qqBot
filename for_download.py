@@ -80,9 +80,9 @@ def get_status():
 
 
 def get_config() -> dict:
-    file = open('config/downloader.json', 'r+')
+    file = open('config/downloader.json', 'r+', encoding='utf-8')
     fl = file.read()
-    import json
+
     try:
         download_dict = json.loads(str(fl))
     except Exception as e:
@@ -189,7 +189,7 @@ def download_video(video_id: str, name: str, groupID, enable: bool):
         'ffmpeg_location': FFMPEG_PATH,  # ffmpeg.exe路径
         'prefer_ffmpeg': True,
         'cachedir': False,
-        'merge_output_format' : 'mp4'
+        'merge_output_format': 'mp4'
     }
 
     # 查看是否视频已经被下载

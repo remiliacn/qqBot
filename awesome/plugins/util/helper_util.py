@@ -1,12 +1,9 @@
 import json
 import os
-import re
 from typing import Union
 
 import requests
 from aiocqhttp import MessageSegment
-from googletrans import Translator
-from nonebot.log import logger
 
 from qq_bot_core import admin_control
 
@@ -94,32 +91,6 @@ class HhshCache:
 
         if function == WIKIPEDIA:
             return _get_result_if_exists(self.wikipedia_dict, query)
-
-
-class Translation:
-    def __init__(self):
-        self.dest = 'zh-cn'
-        self.announc = False
-        self.INFO_NOT_AVAILABLE = '翻译出错了呢'
-
-    def get_translation_result(self, sentence):
-        sentence = str(sentence)
-        syntax = re.compile(r'\[CQ.*?]')
-        sentence = re.sub(syntax, '', sentence)
-        translator = Translator()
-
-        try:
-            if translator.detect(text=sentence).lang != 'zh-CN' and translator.detect(text=sentence).lang != 'zh-TW':
-                result = translator.translate(text=sentence, dest='zh-cn').text
-            else:
-                result = '英文翻译：' + translator.translate(text=sentence, dest='en').text + '\n' \
-                         + '日文翻译：' + translator.translate(text=sentence, dest='ja').text
-
-            return result
-
-        except Exception as e:
-            logger.warning('Something went wrong when trying to translate %s' % e)
-            return self.INFO_NOT_AVAILABLE
 
 
 def ark_helper(args: list) -> str:
