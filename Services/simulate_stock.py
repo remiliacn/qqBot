@@ -22,7 +22,7 @@ def _get_price_sn_or_literal(n: float) -> str:
 
 class SimulateStock:
     def __init__(self):
-        self.STOCK_NOT_EXISTS = '未开盘或股票不存在（如果不确定股票代码，请使用！股票 名称来找一下~）'
+        self.STOCK_NOT_EXISTS = '未开盘、产品不存在、或已退市。（如果不确定股票代码，请使用！股票 名称来找一下~）'
         self.NO_INFO = '您啥还没买呢哦~'
         self.CACHE_EXPIRATION = 80
         self.USD_TO_CNY = 6.35
@@ -162,6 +162,7 @@ class SimulateStock:
                         f'【总资产{data["total"]:,.2f}软妹币' \
                         f'（总收益率：{data["ratio"]:.2f}% {"↑" if data["ratio"] > 0 else "↓"}）】\n'
 
+        logger.success('Leaderboard fetch completed successfully.')
         return response.strip()
 
     def set_stock_cache(self, stock_code, stock_name, stock_type, price_now, is_digital):
@@ -199,8 +200,11 @@ class SimulateStock:
         uid = str(uid)
         amount = round(float(amount), 2)
 
-        price_now, is_digital_coin, \
-        stock_name, stock_api, _, stock_rate = await self._determine_stock_price_digital_name(stock_code)
+        try:
+            price_now, is_digital_coin, \
+            stock_name, stock_api, _, stock_rate = await self._determine_stock_price_digital_name(stock_code)
+        except TypeError:
+            return self.STOCK_NOT_EXISTS
 
         if price_now - stock_rate[1] <= 0.02:
             return '目前跌停无法卖出'
@@ -341,6 +345,8 @@ class SimulateStock:
             return stock_name
 
         new_price = price_now * total_count
+        if total_money_spent < 1e-6:
+            total_money_spent = 1e-6
         rate = (new_price - total_money_spent) / total_money_spent * 100
 
         logger.success(f'Checking {stock_code} succeed: {price_now:,.2f}')
@@ -388,14 +394,17 @@ class SimulateStock:
                     return '购买数量不合法'
 
             amount = round(float(amount), 2)
+        try:
+            price_now, is_digital_coin, \
+            stock_name, stock_api, _, stock_rate = await self._determine_stock_price_digital_name(stock_code)
+        except TypeError:
+            return self.STOCK_NOT_EXISTS
 
-        price_now, is_digital_coin, \
-        stock_name, stock_api, _, stock_rate = await self._determine_stock_price_digital_name(stock_code)
         if stock_rate[0] - price_now <= 0.01:
             return '产品涨停无法买入'
 
         if price_now <= 0:
-            return stock_name
+            return self.STOCK_NOT_EXISTS
 
         if not is_digital_coin:
             if amount < 100 or amount % 100 != 0:
@@ -413,7 +422,7 @@ class SimulateStock:
         random_num = randint(0, 99)
         special_event = ''
         if random_num < 5 or amount >= 1e4:
-            random_percentage = randint(1, 70)
+            random_percentage = randint(1, 15)
             ratio_change = 1 + random_percentage / 1e4
 
             price_now *= ratio_change

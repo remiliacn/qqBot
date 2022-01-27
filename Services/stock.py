@@ -99,6 +99,14 @@ def _get_moving_average_data(df, time: int):
     return _convert_data_frame_to_list(temp)
 
 
+def _ma_comparison(ma_5, ma_10, ma_20):
+    ma_5 = round(ma_5, 5)
+    ma_10 = round(ma_10, 5)
+    ma_20 = round(ma_20, 5)
+
+    return ma_5 == ma_10 or ma_10 == ma_20
+
+
 def do_plot(
         open_data,
         close_data,
@@ -159,6 +167,40 @@ def do_plot(
             elif prev_macd >= prev_signal \
                     and next_macd <= next_signal:
                 market_will = f'检测到MACD死叉，卖出信号{"（信号发出时间较早，可能已失效）" if i < point_of_no_return else ""}'
+
+        last_10_ma_5 = ma5_data[-10:]
+        last_10_ma_10 = ma10_data[-10:]
+        last_10_ma_20 = ma20_data[-10:]
+
+        market_will_ma = ''
+
+        has_cross_up = False
+        has_cross_down = False
+
+        for i in range(len(last_10_ma_5) - 1):
+            if last_10_ma_20[i] < last_10_ma_10[i] < last_10_ma_5[i]:
+                if last_10_ma_5[i + 1] > last_10_ma_10[i + 1] > last_10_ma_20[i + 1]:
+                    if not has_cross_up:
+                        market_will_ma = '均线多头排列，买入信号'
+                    else:
+                        market_will_ma = '均线黄金交叉，买入信号'
+            elif _ma_comparison(last_10_ma_5[i], last_10_ma_10[i], last_10_ma_20[i]):
+                if last_10_ma_5[i + 1] > last_10_ma_10[i + 1] > last_10_ma_20[i + 1]:
+                    has_cross_up = True
+                    has_cross_down = False
+                elif last_10_ma_5[i + 1] < last_10_ma_10[i + 1] < last_10_ma_20[i + 1]:
+                    has_cross_down = True
+                    has_cross_up = False
+            elif last_10_ma_5[i] < last_10_ma_10[i] < last_10_ma_20[i]:
+                if last_10_ma_5[i + 1] < last_10_ma_10[i + 1] < last_10_ma_20[i + 1]:
+                    if not has_cross_down:
+                        market_will_ma = '均线空头排列，卖出信号'
+                    else:
+                        market_will_ma = '均线死亡镰刀， 卖出信号'
+            else:
+                market_will_ma = ''
+
+        market_will += f'\n{market_will_ma}'
 
         # histogram
         histogram_graph = plotter.Bar(
@@ -460,6 +502,10 @@ class Stock:
             await self.search_to_set_type_and_get_name()
         else:
             self.type = stock_type
+
+        if self.type is None or not str(self.type).isdigit():
+            raise TypeError("Invalid type agent.")
+
         data_url = f'https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&' \
                    f'fields=f43,f51,f52,f58,f60&secid={self.type}.{self.code}'
 

@@ -115,11 +115,14 @@ async def buy_stonk(session: nonebot.CommandSession):
 
     user_id = ctx['user_id']
     message_id = ctx['message_id']
-    await session.finish(
-        f'[CQ:reply,id={message_id}]'
-        f'{get_attention()}'
-        f'{await virtual_market.buy_with_code_and_amount(user_id, args[0], args[1], ctx=ctx)}'
-    )
+    try:
+        await session.finish(
+            f'[CQ:reply,id={message_id}]'
+            f'{get_attention()}'
+            f'{await virtual_market.buy_with_code_and_amount(user_id, args[0], args[1], ctx=ctx)}'
+        )
+    except ClientConnectionError:
+        await session.finish('出错了，但是不是你的问题哦~')
 
 
 @nonebot.on_command('卖出', aliases={'sell', '售出', '卖出股票', '出售'}, only_to_me=False)
@@ -157,7 +160,7 @@ async def my_stonks(session: nonebot.CommandSession):
     try:
         user_hold = await virtual_market.get_all_stonk_log_by_user(user_id, ctx=ctx if is_same_guy else None)
     except ClientConnectionError:
-        await session.finish('加载失败，请重试。')
+        await session.finish('加载失败，请求过于频繁。')
         return
 
     await session.finish(
