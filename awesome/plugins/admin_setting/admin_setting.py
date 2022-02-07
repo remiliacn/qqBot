@@ -12,17 +12,27 @@ from loguru import logger
 
 import config
 from awesome.adminControl import permission as perm
+from awesome.adminControl.permission import OWNER
 from awesome.plugins.shadiao.shadiao import setu_control
-from awesome.plugins.util.helper_util import get_downloaded_image_path
+from awesome.plugins.util.helper_util import get_downloaded_image_path, set_group_permission
 from qq_bot_core import alarm_api
 from qq_bot_core import user_control_module
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
 
-@nonebot.on_command('测试', only_to_me=False)
-async def test_json(session: nonebot.CommandSession):
-    await session.send('')
+@nonebot.on_command('自由发言', only_to_me=False)
+async def free_speech_switch(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    user_id = ctx['user_id']
+    group_id = ctx['group_id'] if 'group_id' in ctx else -1
+
+    if group_id == -1 or not get_privilege(user_id, OWNER):
+        await session.finish()
+
+    arg = session.current_arg_text
+    set_group_permission(arg, group_id, 'FREE_SPEECH')
+    await session.finish('我好了')
 
 
 @nonebot.on_command('警报解除', only_to_me=False)

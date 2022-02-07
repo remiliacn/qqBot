@@ -46,35 +46,36 @@ async def natural_language_proc(session: nonebot.NLPSession):
                 await session.send(f'已添加！（当前总语录条数：{admin_control.get_group_quote_count(group_id)})')
                 return
 
-    if match(r'.*?哼{2,}啊+', message):
-        await session.send('别臭了别臭了！孩子要臭傻了')
-        return
-
-    if '为什么' in message and randint(0, 4) == 1:
-        await session.send('因为你不厉害')
-        return
-
-    auto_reply = _do_auto_reply_retrieve(user_id, group_id, message)
-    if auto_reply:
-        await session.send(auto_reply)
-        return
-
     reply_response = await _check_reply_keywords(message, session.self_id)
     if reply_response:
         await session.send(reply_response)
         return
 
-    if admin_control.get_group_permission(group_id, 'flash', default_if_none=False):
-        fetch_flash_image = await _get_flash_image_entry(message)
-        if fetch_flash_image:
-            await session.send(f'已拦截到闪照~\n'
-                               f'[CQ:image,file={fetch_flash_image}]')
+    if admin_control.get_group_permission(group_id, 'FREE_SPEECH'):
+        if match(r'.*?哼{2,}啊+', message):
+            await session.send('别臭了别臭了！孩子要臭傻了')
+            return
 
-    message = message.strip()
-    fetch_result = _repeat_and_palindrome_fetch(message)
-    if fetch_result:
-        await session.send(fetch_result)
-        return
+        if '为什么' in message and randint(0, 4) == 1:
+            await session.send('因为你不厉害')
+            return
+
+        auto_reply = _do_auto_reply_retrieve(user_id, group_id, message)
+        if auto_reply:
+            await session.send(auto_reply)
+            return
+
+        if admin_control.get_group_permission(group_id, 'flash', default_if_none=False):
+            fetch_flash_image = await _get_flash_image_entry(message)
+            if fetch_flash_image:
+                await session.send(f'已拦截到闪照~\n'
+                                   f'[CQ:image,file={fetch_flash_image}]')
+
+        message = message.strip()
+        fetch_result = _repeat_and_palindrome_fetch(message)
+        if fetch_result:
+            await session.send(fetch_result)
+            return
 
     fetch_result = await _check_if_asking_definition(message)
     if fetch_result:
