@@ -91,7 +91,7 @@ class SimulateStock:
         time_now = datetime.now()
 
         if time_now.hour >= 15 or (time_now.hour == 9 and time_now.minute < 15 or time_now.hour < 9) \
-                or time_now.weekday() >= 5:
+                or time_now.weekday() >= 5 or await self._get_if_is_chinese_holiday(time_now):
             time_awareness = '【SZ·休市】\n'
         elif time_now.hour == 12:
             time_awareness = '【SZ·午间休市】\n'
@@ -104,7 +104,8 @@ class SimulateStock:
         else:
             time_awareness = '【SZ·交易中】\n'
 
-        if time_now.weekday() >= 5 or (time_now.hour == 9 and time_now.minute < 30) or time_now.hour < 9:
+        if time_now.weekday() >= 5 or (time_now.hour == 9 and time_now.minute < 30) \
+                or time_now.hour < 9 or await self._get_if_is_chinese_holiday(time_now):
             time_awareness += '【港股·休市】\n'
         elif time_now.hour >= 16:
             time_awareness += "【港股·休市】\n"
@@ -140,12 +141,13 @@ class SimulateStock:
         user_data_info = []
         for uid in data:
             data = await self.get_user_overall_stat(uid, valid_time)
-            user_data_info.append(data)
+            if data:
+                user_data_info.append(data)
 
-        if len(user_data_info) > 3:
+        if len(user_data_info) > 5:
             sorted_list_reverse = sorted(user_data_info, key=lambda d: d["ratio"], reverse=True)
-            sorted_list = sorted_list_reverse[::-1][:3]
-            sorted_list_reverse = sorted_list_reverse[:3]
+            sorted_list = sorted_list_reverse[::-1][:5]
+            sorted_list_reverse = sorted_list_reverse[:5]
         else:
             sorted_list_reverse = sorted(user_data_info, key=lambda d: d["ratio"], reverse=True)
             sorted_list = sorted_list_reverse[::-1]
@@ -312,6 +314,9 @@ class SimulateStock:
                 current_stock_money += price_now * data[uid][stock]['purchaseCount']
 
             total_money += current_stock_money
+            if round(total_money, 2) == 5000000.00:
+                return {}
+
             ratio = ((total_money - (10 ** 6 * 5)) / (10 ** 6 * 5)) * 100
             return {
                 "total": total_money,
@@ -478,11 +483,39 @@ class SimulateStock:
 
         return True, self.stock_price_cache[stock_code]
 
+    @staticmethod
+    async def _get_if_is_chinese_holiday(day_now):
+        if day_now.month == 1 and day_now.day <= 3:
+            return True
+
+        if (day_now.month == 1 and day_now.day >= 29) or (day_now.month == 2 and day_now.day <= 6):
+            return True
+
+        if day_now.month == 4 and 3 <= day_now.day <= 5:
+            return True
+
+        if day_now.month == 5 and day_now.day <= 4:
+            return True
+
+        if day_now.month == 6 and 3 <= day_now.day <= 5:
+            return True
+
+        if day_now.month == 9 and 10 <= day_now.day <= 12:
+            return True
+
+        if day_now.month == 10 and day_now.day <= 7:
+            return True
+
+        return False
+
     async def _get_chinese_stock_data(
             self, last_updated_exact, stock_code, day_now, day_now_timestamp, last_updated
     ) -> (bool, dict):
-        if datetime.today().weekday() >= 5:
+        if day_now.weekday() >= 5:
             return last_updated_exact.weekday() >= 4, self.stock_price_cache[stock_code]
+
+        if await self._get_if_is_chinese_holiday(day_now):
+            return True, self.stock_price_cache[stock_code]
 
         # 周1-5逻辑
         # AB股闭市时间

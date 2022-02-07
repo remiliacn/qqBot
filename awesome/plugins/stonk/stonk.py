@@ -1,4 +1,5 @@
 import re
+import traceback
 from asyncio.log import logger
 from datetime import datetime
 from random import choice
@@ -173,10 +174,16 @@ async def my_stonks(session: nonebot.CommandSession):
 @nonebot.on_command('战绩', aliases={'炒股战绩', '龙虎榜'}, only_to_me=False)
 async def stonk_stat_send(session: nonebot.CommandSession):
     try:
+        await session.send('少女祈祷中……')
         leaderboard = await virtual_market.get_all_user_info(valid_time=60 * 60)
+    except ClientConnectionError:
+        await session.finish('查询过于频繁，请重试。')
+        return
     except Exception as err:
-        logger.error(f'战绩功能出错{err}')
-        await session.finish('查询出错， 请重试。')
+        bot = nonebot.get_bot()
+        logger.error(f'龙虎榜功能未知错误：{err}')
+        await bot.send_private_msg(user_id=SUPER_USER, message=f'战绩功能出错：{err}\n{traceback.format_exc()}')
+        await session.finish('查询出现未知错误')
         return
 
     await session.finish(
