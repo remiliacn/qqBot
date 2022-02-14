@@ -15,6 +15,26 @@ import Services.okex.spot_api as spot
 from config import OKEX_API_KEY, OKEX_PASSPHRASE, OKEX_SECRET_KEY
 
 
+def _is_cross_relation(list1, list2, i):
+    return is_cross_relation(list1[i - 1], list2[i - 1], list1[i], list2[i], list1[i + 1], list2[i + 1])
+
+
+def is_dtpl(list1, list2, i):
+    return list1[i - 1] >= list2[i - 1] and list1[i] >= list2[i] and list1[i + 1] >= list2[i + 1]
+
+
+def is_ktpl(list1, list2, i):
+    return list1[i - 1] <= list2[i - 1] and list1[i] <= list2[i] and list1[i + 1] <= list2[i + 1]
+
+
+def is_cross_relation(*args) -> bool:
+    values = [round(x, 3) for x in args]
+    try:
+        return values[0] < values[1] and values[2] == values[3] and values[4] > values[5]
+    except IndexError:
+        return False
+
+
 def is_trading_hour(is_crypto: bool) -> bool:
     if is_crypto:
         return True
@@ -174,33 +194,26 @@ def do_plot(
 
         market_will_ma = ''
 
-        has_cross_up = False
-        has_cross_down = False
+        for i in range(1, len(last_10_ma_5) - 1):
+            if _is_cross_relation(last_10_ma_5, last_10_ma_10, i):
+                market_will_ma = '5日10日线金叉，买入信号'
 
-        for i in range(len(last_10_ma_5) - 1):
-            if last_10_ma_20[i] < last_10_ma_10[i] < last_10_ma_5[i]:
-                if last_10_ma_5[i + 1] > last_10_ma_10[i + 1] > last_10_ma_20[i + 1]:
-                    if not has_cross_up:
-                        market_will_ma = '均线多头排列，买入信号'
-                    else:
-                        market_will_ma = '均线黄金交叉，买入信号'
-            elif _ma_comparison(last_10_ma_5[i], last_10_ma_10[i], last_10_ma_20[i]):
-                if last_10_ma_5[i + 1] > last_10_ma_10[i + 1] > last_10_ma_20[i + 1]:
-                    has_cross_up = True
-                    has_cross_down = False
-                elif last_10_ma_5[i + 1] < last_10_ma_10[i + 1] < last_10_ma_20[i + 1]:
-                    has_cross_down = True
-                    has_cross_up = False
-            elif last_10_ma_5[i] < last_10_ma_10[i] < last_10_ma_20[i]:
-                if last_10_ma_5[i + 1] < last_10_ma_10[i + 1] < last_10_ma_20[i + 1]:
-                    if not has_cross_down:
-                        market_will_ma = '均线空头排列，卖出信号'
-                    else:
-                        market_will_ma = '均线死亡镰刀， 卖出信号'
-            else:
-                market_will_ma = ''
+            if _is_cross_relation(last_10_ma_10, last_10_ma_5, i):
+                market_will_ma = '5日10日线死叉，卖出信号'
 
-        market_will += f'\n{market_will_ma}'
+        second_last_i = len(last_10_ma_5) - 2
+        if is_dtpl(last_10_ma_5, last_10_ma_10, second_last_i) \
+                and is_dtpl(last_10_ma_10, last_10_ma_20, second_last_i) \
+                and is_dtpl(last_10_ma_5, last_10_ma_20, second_last_i):
+            market_will_ma += '均线多头排列，买入信号'
+
+        elif is_ktpl(last_10_ma_20, last_10_ma_10, second_last_i) \
+                and is_ktpl(last_10_ma_10, last_10_ma_5, second_last_i) \
+                and is_ktpl(last_10_ma_20, last_10_ma_5, second_last_i):
+            market_will_ma += '均线空头排列，卖出信号'
+
+        line_break = "\n" if market_will_ma else ""
+        market_will += f'{line_break}{market_will_ma}'
 
         # histogram
         histogram_graph = plotter.Bar(

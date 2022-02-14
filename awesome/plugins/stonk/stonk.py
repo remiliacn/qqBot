@@ -37,6 +37,7 @@ async def crypto_search(session: nonebot.CommandSession):
         if file_name:
             await session.send(
                 f'[CQ:image,file=file:///{file_name}]\n'
+                f'AI智能分析结果：\n'
                 f'{market_will}'
             )
         else:
@@ -83,7 +84,8 @@ async def k_line(session: nonebot.CommandSession):
         file_name, market_will = await stock.get_kline_map()
         if file_name:
             await session.send(
-                f'[CQ:image,file=file:///{file_name}]\n' +
+                f'[CQ:image,file=file:///{file_name}]\n'
+                f'\nAI智能分析结果\n' +
                 f'{market_will}'
             )
         else:
