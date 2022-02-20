@@ -19,21 +19,21 @@ async def get_definition(
                 f'//*[@id="mw-content-text"]/div[1]/p[{"1" if not recursive else "2"}]//text()'
             )
             if len(text_sections) <= 1 and not recursive:
-                return await get_definition(
+                info_text = await get_definition(
                     key_word,
                     url='https://zh.wikipedia.org/wiki/',
                     recursive=True
                 )
+            else:
+                info_text = ''.join(
+                    [x for x in text_sections if '[' not in x and x != '\n' and 'font' not in x]
+                )
 
-            info_text = ''.join(
-                [x for x in text_sections if '[' not in x and x != '\n' and 'font' not in x]
-            )
+                if info_text[-2:] == '：\n':
+                    list_entry = e.xpath('//*[@id="mw-content-text"]/div[1]/ul[1]//text()')
+                    if list_entry:
+                        info_text += ''.join([x if x != '；' else '\n' for x in list_entry])
 
-            if info_text[-2:] == '：\n':
-                list_entry = e.xpath('//*[@id="mw-content-text"]/div[1]/ul[1]//text()')
-                if list_entry:
-                    info_text += ''.join([x if x != '；' else '\n' for x in list_entry])
-
-            info_text = info_text.strip()
-            info_text = re.sub(r'\[\d+]', '', info_text)
-            return info_text
+                info_text = info_text.strip()
+                info_text = re.sub(r'\[\d+]', '', info_text)
+            return info_text.replace('台湾', '中国台湾').replace('中华民国', '中国台湾地区')
