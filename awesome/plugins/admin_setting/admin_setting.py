@@ -300,7 +300,7 @@ def _simple_ai_process(question: str, ctx: dict) -> str:
     syntax = compile(r'[么嘛吗马][？?]?')
     syntax2 = compile(r'.*?(.*?)不\1')
 
-    response = sub(syntax, '', question)
+    response = sub(syntax, '', question) if '什么' not in question else question
     syntax_question = []
 
     if match(r'.*?是(.*?)还?是(.*?)[？?]', response):
