@@ -232,7 +232,7 @@ async def _do_soutu_operation(message: str) -> str:
     data = await bot.get_msg(message_id=int(reply_id[0]))
     possible_image_content = data['message']
     if not possible_image_content:
-        possible_image_content = data['raw_message']
+        possible_image_content = data['raw_message'] if 'raw_message' in data else ''
 
     has_image = findall(r'[a-z0-9]+\.image', possible_image_content)
     if has_image:

@@ -97,7 +97,7 @@ async def send_tweet():
     )
 
     use_time = time.time() - start_time
-    logger.info(f'Scheduled job in get_tweet.py used {use_time:.2f}s')
+    # logger.info(f'Scheduled job in get_tweet.py used {use_time:.2f}s')
     if use_time > 15.0:
         bot = nonebot.get_bot()
         await bot.send_private_msg(

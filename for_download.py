@@ -17,7 +17,6 @@ def main():
         return
 
     var = sys.argv
-    logger.debug(var)
     if len(var) == 1:
         logger.debug('Missing arguments!')
         exit(1)
@@ -53,7 +52,7 @@ def main():
                 logger.debug(f'Unknown error occurred for {youtube_user}: {err}')
 
     if not get_status():
-        logger.debug('Exiting YouTube downloader...')
+        # logger.debug('Exiting YouTube downloader...')
         register_true()
 
 
