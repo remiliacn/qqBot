@@ -1,3 +1,5 @@
+import requests
+
 from .client import Client
 from .consts import *
 
@@ -164,20 +166,14 @@ class SpotAPI(Client):
         return self._request_with_params(GET, SPOT_DEAL + str(instrument_id) + '/trades', params)
 
     # query k-line info
-    def get_kline(self, instrument_id, start='', end='', granularity=''):
-        params = {}
-        if start:
-            params['start'] = start
-        if end:
-            params['end'] = end
-        if granularity:
-            params['granularity'] = granularity
-        # 按时间倒叙 即由结束时间到开始时间
-        return self._request_with_params(GET, SPOT_KLINE + str(instrument_id) + '/candles', params)
+    def get_kline(self, instrument_id, bar='', start='', end=''):
+        if not bar:
+            bar = '1H'
 
-        # 按时间正序 即由开始时间到结束时间
-        # data = self._request_with_params(GET, SPOT_KLINE + str(instrument_id) + '/candles', params)
-        # return list(reversed(data))
+        # 按时间倒叙 即由结束时间到开始时间
+        return requests.get(
+            f'https://www.okx.com/api/v5/market/candles?instId={instrument_id}&bar={bar}'
+        ).json()['data']
 
     def get_history_kline(self, instrument_id, start='', end='', granularity=''):
         params = {}

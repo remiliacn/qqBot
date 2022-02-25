@@ -330,13 +330,13 @@ class Crypto:
     def __init__(self, crypto: str):
         self.crypto_name = crypto
         self.crypto_usdt = f'{crypto.upper()}-USDT'
-        self.granularity = 60 * 60
+        self.granularity = '1H'
 
     def get_current_value(self):
         try:
             spot_api = spot.SpotAPI(OKEX_API_KEY, OKEX_SECRET_KEY, OKEX_PASSPHRASE)
             # get 1h k-line
-            json_data = spot_api.get_kline(instrument_id=self.crypto_usdt, granularity=self.granularity)[:90]
+            json_data = spot_api.get_kline(instrument_id=self.crypto_usdt, bar=self.granularity)[:90]
             open_data = [float(x[1]) for x in json_data][-1]
 
             return open_data
@@ -348,7 +348,7 @@ class Crypto:
         spot_api = spot.SpotAPI(OKEX_API_KEY, OKEX_SECRET_KEY, OKEX_PASSPHRASE)
 
         # get 1h k-line
-        json_data = spot_api.get_kline(instrument_id=self.crypto_usdt, granularity=self.granularity)[:90]
+        json_data = spot_api.get_kline(instrument_id=self.crypto_usdt, bar=self.granularity)[:90]
 
         self.crypto_usdt += ' （1h）'
         json_data = list(json_data)
@@ -517,7 +517,7 @@ class Stock:
             self.type = stock_type
 
         if self.type is None or not str(self.type).isdigit():
-            raise TypeError("Invalid type agent.")
+            return -1, '', False
 
         data_url = f'https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&' \
                    f'fields=f43,f51,f52,f58,f60&secid={self.type}.{self.code}'

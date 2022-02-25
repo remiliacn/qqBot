@@ -56,7 +56,7 @@ SPOT_DEPTH = '/api/spot/v3/instruments/'
 SPOT_TICKER = '/api/spot/v3/instruments/ticker'
 SPOT_SPECIFIC_TICKER = '/api/spot/v3/instruments/'
 SPOT_DEAL = '/api/spot/v3/instruments/'
-SPOT_KLINE = '/api/spot/v3/instruments/'
+SPOT_KLINE = '/api/v5/market/candles/'
 
 # lever
 LEVER_ACCOUNT = '/api/margin/v3/accounts'
