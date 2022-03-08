@@ -33,7 +33,8 @@
 
 
 # Config
-建议进行以下设置：
+1. 复制提供的sample_config.py文件，然后改名为config.py
+2. 按需填写需要的数据
 
 ## go-cqhttp
 
