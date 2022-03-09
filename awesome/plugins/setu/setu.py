@@ -1,7 +1,6 @@
 import random
 import re
 import time
-from datetime import datetime
 from os import getcwd
 
 import nonebot
@@ -584,15 +583,8 @@ async def reverse_image_search(session: nonebot.CommandSession):
             await session.finish(response)
 
         except Exception as err:
-            bot = nonebot.get_bot()
-            await session.send(f'啊这~出错了！报错信息已发送主人debug~')
-            await bot.send_private_msg(
-                user_id=SUPER_USER,
-                message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
-                        f'搜图功能出错：\n'
-                        f'Error：{err}\n'
-                        f'出错URL：{url}'
-            )
+            logger.warning(f'Error when reverse searching image data {err}')
+            await session.send(f'啊这~无法获取有效逆向数据')
     else:
         await session.finish('¿')
 

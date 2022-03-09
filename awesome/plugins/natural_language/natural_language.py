@@ -1,6 +1,5 @@
 import asyncio
 import re
-from datetime import datetime
 from os import getcwd
 from random import seed, randint
 from re import fullmatch, findall, match, sub
@@ -12,7 +11,6 @@ import jieba.posseg as pos
 import nonebot
 from loguru import logger
 
-import config
 from Services.util.sauce_nao_helper import sauce_helper
 from awesome.adminControl import permission as perm
 from awesome.plugins.util.helper_util import anime_reverse_search_response, get_downloaded_image_path
@@ -249,14 +247,8 @@ async def _do_soutu_operation(message: str) -> str:
                     response += anime_reverse_search_response(response_data)
 
             except Exception as err:
-                await bot.send_private_msg(
-                    user_id=config.SUPER_USER,
-                    message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
-                            f'搜图功能出错：\n'
-                            f'Error：{err}\n'
-                            f'出错URL：{url}'
-                )
-                return f'啊这~图片{idx + 1}搜索出错了！报错信息已发送主人debug~'
+                logger.warning(f'soutu function error: {err}')
+                return f'啊这~图片{idx + 1}无法获取有效逆向数据。'
             finally:
                 response += '\n\n'
 

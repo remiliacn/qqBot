@@ -271,9 +271,6 @@ async def shuffle_gun(session: nonebot.CommandSession):
 async def modify_gun_rounds(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     user_id = ctx['user_id']
-    if not get_privilege(user_id, perm.ADMIN):
-        await session.finish('无权限')
-
     arg = session.current_arg
     if not arg:
         await session.finish('?')
@@ -282,6 +279,10 @@ async def modify_gun_rounds(session: nonebot.CommandSession):
         await session.finish('必须是正整数')
 
     bullet = int(arg)
+
+    if not get_privilege(user_id, perm.ADMIN) and (bullet <= 5 or bullet > 10):
+        await session.finish('非主人只能设置5-10的区间哦')
+
     game.modify_bullets_in_gun(bullet)
     await session.finish('Done!')
 
