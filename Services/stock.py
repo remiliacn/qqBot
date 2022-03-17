@@ -30,7 +30,7 @@ def is_ktpl(list1, list2, i):
 def is_cross_relation(*args) -> bool:
     values = [round(x, 3) for x in args]
     try:
-        return values[0] < values[1] and values[2] == values[3] and values[4] > values[5]
+        return values[0] < values[1] and values[2] <= values[3] and values[4] > values[5]
     except IndexError:
         return False
 
