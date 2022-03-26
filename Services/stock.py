@@ -14,6 +14,8 @@ from plotly.subplots import make_subplots
 import Services.okex.spot_api as spot
 from config import OKEX_API_KEY, OKEX_PASSPHRASE, OKEX_SECRET_KEY
 
+MA_EFFECTIVE_POINT = -5
+
 
 def _is_cross_relation(list1, list2, i):
     return is_cross_relation(list1[i - 1], list2[i - 1], list1[i], list2[i], list1[i + 1], list2[i + 1])
@@ -188,18 +190,18 @@ def do_plot(
                     and next_macd <= next_signal:
                 market_will = f'检测到MACD死叉，卖出信号{"（信号发出时间较早，可能已失效）" if i < point_of_no_return else ""}'
 
-        last_10_ma_5 = ma5_data[-10:]
-        last_10_ma_10 = ma10_data[-10:]
-        last_10_ma_20 = ma20_data[-10:]
+        last_10_ma_5 = ma5_data[MA_EFFECTIVE_POINT:]
+        last_10_ma_10 = ma10_data[MA_EFFECTIVE_POINT:]
+        last_10_ma_20 = ma20_data[MA_EFFECTIVE_POINT:]
 
         market_will_ma = ''
 
         for i in range(1, len(last_10_ma_5) - 1):
             if _is_cross_relation(last_10_ma_5, last_10_ma_10, i):
-                market_will_ma = '5日10日线金叉，买入信号'
+                market_will_ma = '5日10日线金叉，买入信号\n'
 
             if _is_cross_relation(last_10_ma_10, last_10_ma_5, i):
-                market_will_ma = '5日10日线死叉，卖出信号'
+                market_will_ma = '5日10日线死叉，卖出信号\n'
 
         second_last_i = len(last_10_ma_5) - 2
         if is_dtpl(last_10_ma_5, last_10_ma_10, second_last_i) \
