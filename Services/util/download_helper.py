@@ -1,6 +1,6 @@
 from os import makedirs
 from os.path import exists
-from re import sub
+from re import sub, match
 from time import time
 
 import aiohttp
@@ -23,6 +23,8 @@ async def download_image(url, path: str, headers=None) -> str:
                 file_name = f'{int(time())}.jpg'
 
             path = f'{path}/{file_name}'.replace('//', '/')
+            if not match(r'.*?\.[jpgnif]{3,4}$', path):
+                path += '.jpg'
             if not exists(path):
                 try:
                     with open(path, 'wb') as file:

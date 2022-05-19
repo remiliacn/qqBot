@@ -584,7 +584,7 @@ async def reverse_image_search(session: nonebot.CommandSession):
 
         except Exception as err:
             logger.warning(f'Error when reverse searching image data {err}')
-            await session.send(f'啊这~无法获取有效逆向数据')
+            return
     else:
         await session.finish('¿')
 

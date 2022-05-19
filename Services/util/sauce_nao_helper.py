@@ -1,7 +1,4 @@
-from html import unescape
-from json import loads
 from os import getcwd
-from re import findall
 
 import aiohttp
 from aiocqhttp import MessageSegment
@@ -9,32 +6,6 @@ from loguru import logger
 
 from Services.util.download_helper import download_image
 from config import SAUCE_API_KEY
-
-
-async def _analyze_yandex_response(html_data):
-    html_data = unescape(html_data)
-    finding_data = findall(r'data-state="({.*?})"', html_data)
-    finding_data = [loads(x) for x in finding_data]
-
-    try:
-        finding_data = [x for x in finding_data if 'sites' in x.keys()][0]
-        data_found = finding_data['sites'][0]
-        title = data_found['title']
-        description = data_found['description']
-        url = data_found['url']
-        thumb_url = data_found['thumb']['url'].replace('//', 'https://')
-
-        path = await _download_saunce_nao_thumbnail(thumb_url)
-        if path:
-            path = MessageSegment.image(f'file:///{path}')
-
-        return f'{path}' \
-               f'标题：{title}\n' \
-               f'描述：{description}\n' \
-               f'发现直链：{url}'
-
-    except (IndexError, KeyError):
-        return ''
 
 
 async def sauce_helper(url) -> dict:
@@ -88,7 +59,7 @@ async def _analyze_saucenao_response(json_data: dict):
 
         analyzed_data['simlarity'] = simlarity
         analyzed_data['ext_url'] = ext_url
-        analyzed_data['thumbnail'] = thumbnail
+        analyzed_data['thumbnail'] = image_content
         analyzed_data['index_name'] = index_name
 
         return analyzed_data
