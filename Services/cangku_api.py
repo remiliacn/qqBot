@@ -35,14 +35,14 @@ class CangkuResponse:
 
 class CangkuApi:
     def __init__(self):
-        self._search_api = 'https://cangku.io/api/v1/post/search?search='
-        self._info_api = 'https://cangku.io/api/v1/post/info?id='
+        self._search_api = 'https://cangku.icu/api/v1/post/search?search='
+        self._info_api = 'https://cangku.icu/api/v1/post/info?id='
         self.headers = {
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                           'AppleWebKit/537.36 (KHTML, like Gecko) '
                           'Chrome/90.0.4430.212 Safari/537.36',
-            'referer': 'https://cangku.io/',
-            'origin': 'https://cangku.io',
+            'referer': 'https://cangku.icu/',
+            'origin': 'https://cangku.icu',
             'accept': 'application/json, text/plain, */*'
         }
         self.temp_info = {}
@@ -52,7 +52,7 @@ class CangkuApi:
 
     def auth(self):
         _ = self.session.get(
-            'https://cangku.io/login'
+            'https://cangku.icu/login'
         )
 
         payload = {
@@ -67,7 +67,7 @@ class CangkuApi:
         xsrf_token = self.session.cookies.get_dict()['XSRF-TOKEN'].replace('%3D', '')
         self.headers['x-xsrf-token'] = xsrf_token
         self.session.post(
-            'https://cangku.io/api/v1/auth/login',
+            'https://cangku.icu/api/v1/auth/login',
             headers=self.headers,
             json=payload
         )
