@@ -196,13 +196,8 @@ async def pixiv_send(session: nonebot.CommandSession):
                     )
 
                 return
-        else:
-            await session.send(
-                f'该查询关键词在白名单中，支援合约已开启：本次色图搜索将{abs(multiplier)}倍补充理智'
-            )
 
     if key_word in setu_control.get_monitored_keywords():
-        await session.send('该关键词在主人的监控下，本次搜索不消耗理智，且会转发主人一份√')
         monitored = True
         if 'group_id' in ctx:
             setu_control.set_user_data(user_id, 'hit_xp')
