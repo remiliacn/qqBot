@@ -258,19 +258,6 @@ async def get_setu_stat(session: nonebot.CommandSession):
     await session.send(setu_notice + yanche_notice + ark_data)
 
 
-@nonebot.on_command('合并语录', only_to_me=False)
-async def do_combine_quotes(session: nonebot.CommandSession):
-    user_id = session.ctx.copy()['user_id']
-    if not get_privilege(user_id, perm.OWNER):
-        return
-
-    args = session.current_arg
-    if admin_control.combine_group_quote(args.split()):
-        await session.finish('Done')
-
-    await session.finish('Bad')
-
-
 @nonebot.on_command('happy', aliases={'快乐时光'}, only_to_me=False)
 async def start_happy_hours(session: nonebot.CommandSession):
     ctx = session.ctx.copy()

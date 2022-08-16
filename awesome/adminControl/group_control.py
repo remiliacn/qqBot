@@ -1,7 +1,6 @@
 import json
-import re
+import sqlite3
 from os.path import exists
-from random import choice
 from typing import Union
 
 # Tag list meaning hint.
@@ -29,10 +28,13 @@ class Shadiaoadmin:
     def __init__(self):
         self.access_token = 'PLACEHOLDER'
         self.auth_stat = False
+
         self.repeat_dict = {}
 
         self.group_path = 'config/group.json'
-        self.group_quotes_path = 'data/quotes.json'
+        self.group_quotes_path = 'data/db/quotes.db'
+
+        self.group_quote_db = sqlite3.connect(self.group_quotes_path)
         if not exists(self.group_path):
             with open(self.group_path, 'w+') as file:
                 json.dump({}, file)
@@ -41,92 +43,66 @@ class Shadiaoadmin:
         fl = file.read()
         self.group_setting = json.loads(str(fl))
 
-        self.group_quotes = self._get_group_quotes()
-        self.make_a_json(self.group_quotes_path)
-
-    def _get_group_quotes(self) -> dict:
-        group_quotes = {}
-        if not exists(self.group_quotes_path):
-            with open(self.group_quotes_path, 'w+') as file:
-                json.dump(group_quotes, file)
-        else:
-            with open(self.group_quotes_path, 'r', encoding='utf-8') as file:
-                group_quotes = json.loads(file.read())
-
-            # Remove quote if the image does not exist anymore.
-            for element in group_quotes:
-                if group_quotes[element]:
-                    removed_list = []
-                    for quote in group_quotes[element]:
-                        file_name = re.match(r'.*?file=file:///(.*?)]', quote).groups()[0]
-                        if not exists(file_name):
-                            removed_list.append(quote)
-
-                    for idx in removed_list:
-                        group_quotes[element].remove(idx)
-
-        return group_quotes
+    def _get_group_quotes(self):
+        self.group_quote_db.execute(
+            """
+            create table if not exists quotes (
+                "cq_image" text unique on conflict ignore, 
+                "qq_group" text
+            )
+            """
+        )
+        self.group_quote_db.commit()
 
     def add_quote(self, group_id: Union[int, str], quote: str):
         if isinstance(group_id, int):
             group_id = str(group_id)
 
-        if group_id not in self.group_quotes:
-            self.group_quotes[group_id] = []
-
-        if quote not in self.group_quotes[group_id]:
-            self.group_quotes[group_id].append(quote)
-            self.make_a_json(self.group_quotes_path)
+        self.group_quote_db.execute(
+            f"""
+            insert into quotes (cq_image, qq_group) values ('{quote}', '{group_id}')
+            """
+        )
+        self.group_quote_db.commit()
 
     def get_group_quote(self, group_id: Union[int, str]):
         if isinstance(group_id, int):
             group_id = str(group_id)
 
-        if group_id not in self.group_quotes:
+        query = self.group_quote_db.execute(
+            f"""
+            select cq_image from quotes where qq_group = '{group_id}' order by random() limit 1;
+            """
+        ).fetchone()
+
+        if query[0] is None:
             return '本组还没有语录哦~'
 
-        if not self.group_quotes[group_id]:
-            return '本组还没有语录哦~'
-
-        return choice(self.group_quotes[group_id])
-
-    def combine_group_quote(self, args) -> bool:
-        group_id_collection = [str(x) for x in args]
-        for idx, group_id in enumerate(group_id_collection):
-            if group_id not in self.group_quotes:
-                return False
-            if idx != 0:
-                quote_for_group = self.group_quotes[group_id]
-                for element in quote_for_group:
-                    if element not in self.group_quotes[group_id_collection[0]]:
-                        self.group_quotes[group_id_collection[0]].append(element)
-        return True
+        return query[0]
 
     def clear_group_quote(self, group_id: Union[int, str]):
         if isinstance(group_id, int):
             group_id = str(group_id)
 
-        if group_id not in self.group_quotes:
-            return False
-
-        if not self.group_quotes[group_id]:
-            return False
-
-        self.group_quotes[group_id].clear()
-        self.make_a_json(self.group_quotes_path)
+        self.group_quote_db.execute(
+            f"""
+            delete from quotes where qq_group='{group_id}'
+            """
+        )
+        self.group_quote_db.commit()
         return True
 
     def get_group_quote_count(self, group_id: Union[int, str]):
         if isinstance(group_id, int):
             group_id = str(group_id)
 
-        if group_id not in self.group_quotes:
-            return 0
+        query_result = self.group_quote_db.execute(
+            f"""
+            select count(*) from quotes where qq_group='{group_id}'
+            """
+        )
 
-        if not self.group_quotes[group_id]:
-            return 0
-
-        return len(self.group_quotes[group_id])
+        return query_result.fetchone()[0]
 
     def set_group_permission(self, group_id, tag, stat, global_setting=False):
         if isinstance(group_id, int):
@@ -177,5 +153,4 @@ class Shadiaoadmin:
                 json.dump(self.group_setting, f, indent=4)
 
         elif file_name == self.group_quotes_path:
-            with open(self.group_quotes_path, 'w+') as f:
-                json.dump(self.group_quotes, f, indent=4)
+            self.group_quote_db.commit()

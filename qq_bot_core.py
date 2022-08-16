@@ -11,6 +11,7 @@ from Services.cangku_api import CangkuApi
 from Services.simulate_stock import SimulateStock
 from awesome.adminControl import alarm, user_control, setu, group_control
 from awesome.adminControl.weeb_controller import WeebController
+from data.util.quotes_backfill import QuoteBackfill
 
 config_file = \
     """
@@ -113,6 +114,16 @@ def create_file(path_to_check: str, dump_data=None):
             dump(dump_data, f, indent=4, ensure_ascii=False)
 
 
+def quote_backfill():
+    quote_path = f'{getcwd()}/data/db'
+    if not path.exists(quote_path):
+        mkdir(quote_path)
+
+    if not path.exists(f'{quote_path}/quotes.db'):
+        backfiller = QuoteBackfill()
+        backfiller.main_execution()
+
+
 def main():
     # 记着生成config文件后把本文件的import config去掉注释
     nonebot.init(config)
@@ -123,6 +134,7 @@ def main():
         'awesome.plugins'
     )
 
+    quote_backfill()
     logger.warning('Plugins successfully installed.')
     nonebot.run()
 
