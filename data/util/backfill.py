@@ -104,6 +104,7 @@ class Backfill:
                 "user_id" varchar(20) not null,
                 "tag" varchar(20) not null,
                 "hit" integer not null,
+                "nickname" varchar(200) not null,
                 unique(user_id, tag) on conflict ignore 
             )
             """
@@ -114,6 +115,7 @@ class Backfill:
                 "user_id" varchar(20) not null,
                 "keyword" varchar(150) not null,
                 "hit" integer not null,
+                "nickname" varchar(255) not null,
                 unique(user_id, keyword) on conflict ignore
             )
             """

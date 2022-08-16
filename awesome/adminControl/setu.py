@@ -38,7 +38,41 @@ class SetuFunction:
         )
         self.commit_change()
 
-    def get_keyword_usage(self, key_word: str) -> int:
+    def get_user_xp_by_keyword(self, key_word: str, user_id: Union[int, str]) -> List[Tuple[str, Union[None, str]]]:
+        user_id = str(user_id)
+        result = self.stat_db_connection.execute(
+            """
+            select user_id, nickname from user_xp_count 
+            where keyword like ? and user_id = ? and nickname not null order by hit limit 5;
+            """, (f'%{key_word}%', user_id)
+        ).fetchall()
+
+        return result
+
+    def _get_keyword_usage_expand(self, key_word: str):
+        result = self.stat_db_connection.execute(
+            """
+            select nickname, hit from user_xp_count 
+            where keyword like ? and nickname is not null 
+            order by hit desc limit 1;
+            """, (f'%{key_word}%',)
+        ).fetchone()
+
+        if result is not None and result[0] is not None and result[1] is not None:
+            return f'其中，{result[0]}最喜欢该XP，已经查询了{result[1]}次！！'
+
+        return ''
+
+    def get_keyword_usage_literal(self, key_word: str):
+        setu_stat = self._get_keyword_usage(key_word)
+        if setu_stat == 0:
+            return '没人查过这个词呢~'
+
+        setu_user_stat = self._get_keyword_usage_expand(key_word)
+        setu_user_stat_literal = ("\n" + setu_user_stat) if setu_user_stat else ""
+        return f'{key_word}被查询了{setu_stat}次~~{setu_user_stat_literal}'
+
+    def _get_keyword_usage(self, key_word: str) -> int:
         result = self.setu_db_connection.execute(
             """
             select sum(hit) from setu_keyword where keyword like ?
@@ -159,15 +193,15 @@ class SetuFunction:
         )
         self.commit_change()
 
-    def _update_user_activity(self, user_id: str, tag: str):
+    def _update_user_activity(self, user_id: str, tag: str, nickname: str):
         self.stat_db_connection.execute(
             """
-            insert or replace into user_activity_count (user_id, tag, hit) values (
+            insert or replace into user_activity_count (user_id, tag, hit, nickname) values (
                 ?, ?, coalesce(
                     (select hit from user_activity_count where user_id = ? and tag = ?), 0
-                ) + 1
+                ) + 1, ?
             )
-            """, (user_id, tag, user_id, tag)
+            """, (user_id, tag, user_id, tag, nickname)
         )
         self.commit_change()
 
@@ -175,6 +209,7 @@ class SetuFunction:
             self,
             user_id,
             tag: str,
+            user_nickname: str,
             keyword=None,
             is_global=False
     ):
@@ -186,9 +221,9 @@ class SetuFunction:
 
         else:
             if tag != 'user_xp':
-                self._update_user_activity(user_id, tag)
+                self._update_user_activity(user_id, tag, user_nickname)
             else:
-                self._update_user_xp_data(user_id, keyword)
+                self._update_user_xp_data(user_id, keyword, user_nickname)
 
     def get_global_stat(self) -> List[Tuple[str, int]]:
         result = self.stat_db_connection.execute(
@@ -224,20 +259,44 @@ class SetuFunction:
 
         return result[0] if result is not None else 0
 
-    def get_user_data(self, user_id) -> dict:
+    def _get_data_rank(self, user_id: str, tag: str) -> int:
+        result = self.stat_db_connection.execute(
+            f"""
+            select Rank, user_id
+            from (
+                  select rank() over (order by hit desc) Rank, user_id from user_activity_count 
+                  where tag = ?
+            ) where user_id = ?
+            """, (tag, user_id)
+        ).fetchone()
+
+        return result[0] if result is not None and result[0] is not None else -1
+
+    def get_user_data(self, user_id: Union[int, str]) -> dict:
         if isinstance(user_id, int):
             user_id = str(user_id)
 
         result = self.stat_db_connection.execute(
             """
-            select tag, hit from user_activity_count where user_id = ?
+            select tag, hit
+            from user_activity_count where user_id = ?
             """, (user_id,)
         ).fetchall()
 
         if result is None:
             return {}
 
-        stat_dict = {value[0]: value[1] for value in result}
+        stat_dict = {}
+
+        for r in result:
+            if r[0] == 'pixiv_id':
+                continue
+
+            stat_dict[r[0]] = {}
+            stat_dict[r[0]]['count'] = r[1]
+            rank = self._get_data_rank(user_id, r[0])
+            stat_dict[r[0]]['rank'] = rank
+
         return stat_dict
 
     def get_sanity_dict(self):
@@ -400,14 +459,14 @@ class SetuFunction:
         self.stat_db_connection.commit()
         self.setu_db_connection.commit()
 
-    def _update_user_xp_data(self, user_id: str, keyword: str):
+    def _update_user_xp_data(self, user_id: str, keyword: str, nickname: str):
         self.stat_db_connection.execute(
             """
-            insert or replace into user_xp_count (user_id, keyword, hit) values (
+            insert or replace into user_xp_count (user_id, keyword, hit, nickname) values (
                 ?, ?, coalesce(
                     (select hit from user_xp_count where user_id = ? and keyword = ?), 0
-                ) + 1
+                ) + 1, ?
             )
-            """, (user_id, keyword, user_id, keyword)
+            """, (user_id, keyword, user_id, keyword, nickname)
         )
         self.commit_change()

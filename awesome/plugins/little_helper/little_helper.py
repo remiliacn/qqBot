@@ -112,9 +112,13 @@ async def can_you_be_fucking_normal(session: nonebot.CommandSession):
     key_word = session.get('key_word', prompt='请输入一个关键词！')
     key_word = str(key_word)
     try:
+        nickname = ctx['sender']['nickname']
+    except KeyError:
+        nickname = 'null'
+    try:
         await session.send(await hhsh(key_word) + '\n本次查询耗时： %.2fs' % (time.time() - start_time))
         if 'group_id' in ctx:
-            setu_control.set_user_data(ctx['user_id'], 'hhsh')
+            setu_control.set_user_data(ctx['user_id'], 'hhsh', nickname)
 
     except Exception as e:
         logger.debug('Something went wrong %s' % e)

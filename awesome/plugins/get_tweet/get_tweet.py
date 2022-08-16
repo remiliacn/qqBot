@@ -274,7 +274,7 @@ async def do_tweet_update_fetch():
                 message = f'=== {ch_name}发了一条推 ===\n' + message
 
             for element in group_id_list:
-                setu_control.set_user_data(0, 'tweet', 1, True)
+                setu_control.set_user_data(0, 'tweet', 'null', 1, True)
                 await bot.send_group_msg(group_id=element,
                                          message=message)
                 await bot.send_private_msg(

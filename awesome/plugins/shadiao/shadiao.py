@@ -61,6 +61,13 @@ async def get_group_quotes(session: nonebot.CommandSession):
     if 'group_id' not in ctx:
         await session.finish()
 
+    user_id = ctx['user_id']
+    try:
+        nickname = ctx['sender']['nickname']
+    except KeyError:
+        nickname = 'null'
+
+    setu_control.set_user_data(user_id, 'yulu', nickname)
     await session.finish(admin_control.get_group_quote(ctx['group_id']))
 
 
@@ -331,8 +338,13 @@ async def ten_polls(session: nonebot.CommandSession):
             "3": class_list.count(3)
         }
 
+        try:
+            nickname = ctx['sender']['nickname']
+        except KeyError:
+            nickname = 'null'
+
         if six_star_count == 0 and five_star_count == 0:
-            setu_control.set_user_data(ctx['user_id'], 'only_four_three')
+            setu_control.set_user_data(ctx['user_id'], 'only_four_three', nickname)
 
         setu_control.set_group_usage(group_id=ctx['group_id'], tag='pulls', data=data)
         setu_control.set_group_usage(group_id=ctx['group_id'], tag='pull')
@@ -432,40 +444,40 @@ async def add_ark_op(session: nonebot.CommandSession):
     await session.finish(arknights_api.add_op(args[0], args[1]))
 
 
+def get_stat(key: str, lis: dict) -> (int, int):
+    return lis[key]['count'] if key in lis else 0, lis[key]['rank'] if key in lis else 0
+
+
 @nonebot.on_command('统计', only_to_me=False)
 async def stat_player(session: nonebot.CommandSession):
-    get_stat = lambda key, lis: lis[key] if key in lis else 0
     ctx = session.ctx.copy()
     user_id = ctx['user_id']
     stat_dict = setu_control.get_user_data(user_id)
     if not stat_dict:
         await session.send(f'[CQ:at,qq={user_id}]还没有数据哦~')
     else:
-        poker_win = get_stat('poker', stat_dict)
-        six_star_pull = get_stat('six_star_pull', stat_dict)
-        yanche = get_stat('yanche', stat_dict)
-        setu_stat = get_stat('setu', stat_dict)
-        question = get_stat('question', stat_dict)
-        unlucky = get_stat('only_four_three', stat_dict)
-        same = get_stat('hit_xp', stat_dict)
-        zc = get_stat('zc', stat_dict)
-        chp = get_stat('chp', stat_dict)
-        roulette = get_stat('roulette', stat_dict)
-        horse_race = get_stat('horse_race', stat_dict)
+        poker_win, poker_rank = get_stat('poker', stat_dict)
+        six_star_pull, six_star_rank = get_stat('six_star_pull', stat_dict)
+        yanche, yanche_rank = get_stat('yanche', stat_dict)
+        setu_stat, setu_rank = get_stat('setu', stat_dict)
+        question, question_rank = get_stat('question', stat_dict)
+        unlucky, unlucky_rank = get_stat('only_four_three', stat_dict)
+        same, same_rank = get_stat('hit_xp', stat_dict)
+        roulette, roulette_rank = get_stat('roulette', stat_dict)
+        horse_race, horse_rank = get_stat('horse_race', stat_dict)
+        yulu, yulu_rank = get_stat('yulu', stat_dict)
 
         await session.send(f'用户[CQ:at,qq={user_id}]：\n' +
-                           (f'比大小赢得{poker_win}次\n' if poker_win != 0 else '') +
-                           (f'方舟抽卡共抽到{six_star_pull}个六星干员\n' if six_star_pull != 0 else '') +
-                           (f'紫气东来{unlucky}次\n' if unlucky != 0 else '') +
-                           (f'验车{yanche}次\n' if yanche != 0 else '') +
-                           (f'查了{setu_stat}次的色图！\n' if setu_stat != 0 else '') +
-                           (f'问了{question}次问题\n' if question != 0 else '') +
-                           (f'和bot主人 臭 味 相 投{same}次\n' if same != 0 else '') +
-                           (f'嘴臭{zc}次\n' if zc != 0 else '') +
-                           (f'彩虹屁{chp}次\n' if chp != 0 else '') +
-                           (f'轮盘赌被处死{roulette}次\n' if roulette != 0 else '') +
-                           (f'赛马获胜{horse_race}次\n' if horse_race != 0 else '')
-
+                           (f'比大小赢得{poker_win}次（排名第{poker_rank}）\n' if poker_win != 0 else '') +
+                           (f'方舟抽卡共抽到{six_star_pull}个六星干员（排名第{six_star_rank}）\n ' if six_star_pull != 0 else '') +
+                           (f'紫气东来{unlucky}次（排名第{unlucky}）\n' if unlucky != 0 else '') +
+                           (f'验车{yanche}次（排名第{yanche_rank}）\n' if yanche != 0 else '') +
+                           (f'查了{setu_stat}次的色图！（排名第{setu_rank}）\n' if setu_stat != 0 else '') +
+                           (f'问了{question}次问题（排名第{question_rank}）\n' if question != 0 else '') +
+                           (f'和bot主人 臭 味 相 投{same}次（排名第{same_rank}）\n' if same != 0 else '') +
+                           (f'轮盘赌被处死{roulette}次（排名第{roulette_rank}）\n' if roulette != 0 else '') +
+                           (f'赛马获胜{horse_race}次（排名第{horse_rank}）\n' if horse_race != 0 else '') +
+                           (f'查询语录{yulu}次（排名第{yulu_rank}）\n' if yulu != 0 else '')
                            )
 
 
@@ -542,9 +554,14 @@ async def av_validator(session: nonebot.CommandSession):
     key_word = session.get('key_word', prompt='在？你要让我查什么啊baka')
     validator = shadiao.Avalidator(text=key_word)
     await validator.get_page_text()
+    try:
+        nickname = ctx['sender']['nickname']
+    except KeyError:
+        nickname = 'null'
+
     if 'group_id' in ctx:
         setu_control.set_group_usage(ctx['group_id'], tag='yanche')
-        setu_control.set_user_data(ctx['user_id'], 'yanche')
+        setu_control.set_user_data(ctx['user_id'], 'yanche', nickname)
 
     await session.finish(await validator.get_content())
 

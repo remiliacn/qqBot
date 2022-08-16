@@ -198,7 +198,12 @@ async def send_answer(session: nonebot.CommandSession):
     if get_privilege(ctx['user_id'], perm.BANNED):
         await session.finish()
 
-    setu_control.set_user_data(ctx['user_id'], 'question')
+    try:
+        nickname = ctx['sender']['nickname']
+    except KeyError:
+        nickname = 'null'
+
+    setu_control.set_user_data(ctx['user_id'], 'question', user_nickname=nickname)
 
     if match('.*?你.*?(名字|叫什么|是谁|什么东西)', question):
         await session.finish(

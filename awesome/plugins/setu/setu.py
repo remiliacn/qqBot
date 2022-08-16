@@ -67,11 +67,7 @@ async def get_setu_stat(session: nonebot.CommandSession):
     if not arg:
         await session.finish('查啥词啊喂！！')
 
-    setu_stat = setu_control.get_keyword_usage(arg)
-    if setu_stat == 0:
-        await session.finish('没人查过这个词呢~')
-
-    await session.finish(f'{arg}被查询了{setu_stat}次~~')
+    await session.finish(setu_control.get_keyword_usage_literal(arg))
 
 
 @nonebot.on_command('理智查询', only_to_me=False)
@@ -142,6 +138,10 @@ async def set_black_list_group(session: nonebot.CommandSession):
 @nonebot.on_command('色图', aliases='来张色图', only_to_me=False)
 async def pixiv_send(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
+    try:
+        nickname = ctx['sender']['nickname']
+    except KeyError:
+        nickname = 'null'
     message_id, allow_r18, user_id, group_id = get_info_for_setu(ctx)
 
     if group_id != -1 and not get_privilege(user_id, perm.OWNER):
@@ -167,15 +167,13 @@ async def pixiv_send(session: nonebot.CommandSession):
         )
         admin_control.set_if_authed(True)
 
-    is_exempt = group_id != -1 and admin_control.get_group_permission(group_id, 'exempt')
-
     key_word = str(session.get('key_word', prompt='请输入一个关键字进行查询')).lower()
 
     multiplier = setu_control.get_bad_word_penalty(key_word)
     do_multiply = True
     if multiplier > 0:
         if multiplier * 2 > 400:
-            setu_control.set_user_data(user_id, 'ban_count')
+            setu_control.set_user_data(user_id, 'ban_count', nickname)
             if setu_control.get_user_data_by_tag(user_id, 'ban_count') >= ban_count:
                 user_control_module.set_user_privilege(user_id, 'BANNED', True)
                 await session.send(f'用户{user_id}已被封停机器人使用权限')
@@ -198,8 +196,8 @@ async def pixiv_send(session: nonebot.CommandSession):
     if key_word in setu_control.get_monitored_keywords():
         monitored = True
         if 'group_id' in ctx:
-            setu_control.set_user_data(user_id, 'hit_xp')
-            setu_control.set_xp_data(key_word)
+            setu_control.set_user_data(user_id, 'hit_xp', nickname)
+            setu_control.set_user_data(user_id, 'user_xp', nickname, key_word)
 
     elif '色图' in key_word:
         await session.finish(
@@ -255,7 +253,7 @@ async def pixiv_send(session: nonebot.CommandSession):
 
     is_work_r18 = illust.sanity_level == 6
     if not allow_r18:
-        if not is_exempt and is_work_r18 and not key_word.isdigit():
+        if is_work_r18 and not key_word.isdigit():
             # Try 10 times to find a SFW image.
             for i in range(10):
                 illust = random.choice(json_result.illusts)
@@ -337,10 +335,15 @@ async def pixiv_send(session: nonebot.CommandSession):
     if 'group_id' in ctx:
         setu_control.set_group_usage(group_id, 'setu')
 
-    setu_control.set_user_data(user_id, 'setu')
+    try:
+        nickname = ctx['sender']['nickname']
+    except KeyError:
+        nickname = 'null'
+
+    setu_control.set_user_data(user_id, 'setu', nickname)
     key_word_list = re.split(r'[\s\u3000]+', key_word)
     for keyword in key_word_list:
-        setu_control.set_user_data(user_id, 'user_xp', keyword=keyword)
+        setu_control.set_user_data(user_id, 'user_xp', keyword=keyword, user_nickname=nickname)
         setu_control.set_group_usage(group_id, 'groupXP', keyword)
 
     tags = illust.tags
@@ -389,7 +392,12 @@ async def get_some_three_dimension_lewd(session: nonebot.CommandSession):
 
     group_id = ctx['group_id'] if 'group_id' in ctx else -1
     requester_qq = ctx['user_id']
-    setu_control.set_user_data(requester_qq, 'setu')
+    try:
+        nickname = ctx['sender']['nickname']
+    except KeyError:
+        nickname = 'null'
+
+    setu_control.set_user_data(requester_qq, 'setu', user_nickname=nickname)
     if group_id != -1:
         setu_control.set_group_usage(group_id, 'setu')
 
@@ -441,12 +449,12 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
             f'[CQ:reply,id={message_id}]' + friendly_reminder
         )
 
-    result = await get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq, request_search_qq)
+    result = await get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq, request_search_qq, ctx)
     setu_control.drain_sanity(group_id)
     await session.finish(f'[CQ:reply,id={message_id}]{result}\n{friendly_reminder if not has_id else ""}')
 
 
-async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq, request_search_qq) -> str:
+async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq, request_search_qq, ctx) -> str:
     response = ''
     if has_id:
         json_result = get_user_bookmark_data(int(pixiv_id))
@@ -462,14 +470,12 @@ async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq
     illust = random.choice(json_result)
     start_time = time.time()
     path = await _download_pixiv_image_helper(illust)
-
-    is_exempt = group_id != -1 and admin_control.get_group_permission(group_id, 'exempt')
     allow_r18 = group_id != -1 and admin_control.get_group_permission(group_id, 'R18')
     is_r18 = illust.sanity_level == 6
     iteration = 0
 
     if not allow_r18:
-        while not is_exempt and is_r18 and iteration < 10:
+        while is_r18 and iteration < 10:
             if not is_r18:
                 break
 
@@ -479,14 +485,19 @@ async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq
         else:
             return '目前找不到好图呢~'
 
-    setu_control.set_user_data(requester_qq, 'setu')
+    try:
+        nickname = ctx['sender']['nickname']
+    except KeyError:
+        nickname = 'null'
+
+    setu_control.set_user_data(requester_qq, 'setu', nickname)
     if group_id != -1:
         setu_control.set_group_usage(group_id, 'setu')
 
     tags = illust['tags']
 
     for tag in tags:
-        setu_control.set_user_data(request_search_qq, 'user_xp', keyword=tag['name'])
+        setu_control.set_user_data(request_search_qq, 'user_xp', keyword=tag['name'], user_nickname=nickname)
         setu_control.track_keyword(tag['name'])
         setu_control.set_group_usage(group_id, 'groupXP', tag['name'])
 
@@ -498,7 +509,7 @@ async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq
 
     response += f'TA最喜欢的关键词是{xp_result[0]}，已经查询了{xp_result[1]}次。' if not isinstance(xp_result, str) else ''
 
-    setu_control.set_user_data(requester_qq, 'setu')
+    setu_control.set_user_data(requester_qq, 'setu', nickname)
 
     return response.strip()
 

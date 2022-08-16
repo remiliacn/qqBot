@@ -182,6 +182,10 @@ async def horse_race(session: nonebot.CommandSession):
     race = Horseracing(winner)
     ctx = session.ctx.copy()
     user_id = ctx['user_id']
+    try:
+        nickname = ctx['sender']['nickname']
+    except KeyError:
+        nickname = 'null'
 
     if race.if_play():
         while not race.if_win():
@@ -191,7 +195,7 @@ async def horse_race(session: nonebot.CommandSession):
         if race.player_win():
             await session.send("恭喜你猜赢啦！")
             if 'group_id' in ctx:
-                setu_control.set_user_data(user_id, 'horse_race')
+                setu_control.set_user_data(user_id, 'horse_race', user_nickname=nickname)
 
         else:
             await session.send(f"啊哦~猜输了呢！其实是{race.who_win()}号赢了哦")
@@ -229,6 +233,10 @@ async def russian_roulette(session: nonebot.CommandSession):
         game.add_player_play_time(group_id=id_num, user_id=user_id)
 
     message_id = ctx['message_id']
+    try:
+        nickname = ctx['sender']['nickname']
+    except KeyError:
+        nickname = 'null'
     if not game.get_result(id_num):
         await session.send(f'[CQ:reply,id={message_id}]好像什么也没发生')
     else:
@@ -242,7 +250,7 @@ async def russian_roulette(session: nonebot.CommandSession):
             f'[CQ:reply,id={message_id}]boom！你死了。这是第{death}枪，'
             f'理论几率为：{(1 / (game.get_bullet_in_gun() + 1 - death) * 100):.2f}%'
         )
-        setu_control.set_user_data(user_id, 'roulette')
+        setu_control.set_user_data(user_id, 'roulette', nickname)
 
         bot = nonebot.get_bot()
         if id_num == user_id:
@@ -341,6 +349,11 @@ async def the_poker_game(session: nonebot.CommandSession):
     else:
         await session.finish('抱歉哦这是群组游戏。')
 
+    try:
+        nickname = ctx['sender']['nickname']
+    except KeyError:
+        nickname = 'null'
+
     if get_privilege(user_id, perm.OWNER):
         drawed_card, time_seed = poker.get_random_card(user_id, str(ctx['group_id']), rigged=10)
     else:
@@ -373,7 +386,7 @@ async def the_poker_game(session: nonebot.CommandSession):
                                f"{player_one_card}。\n"
                                f"玩家[CQ:at,qq={response}]获胜！")
 
-            setu_control.set_user_data(response, 'poker')
+            setu_control.set_user_data(response, 'poker', nickname)
 
         poker.clear_result(str(ctx['group_id']))
 
