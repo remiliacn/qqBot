@@ -24,7 +24,7 @@ class SetuFunction:
             """
         ).fetchone()
 
-        return result[0] if result is not None else 0
+        return result[0] if result is not None and result[0] is not None else 0
 
     def track_keyword(self, key_word):
         self.setu_db_connection.execute(
@@ -41,11 +41,11 @@ class SetuFunction:
     def get_keyword_usage(self, key_word: str) -> int:
         result = self.setu_db_connection.execute(
             """
-            select hit from setu_keyword where keyword = ?
-            """, (key_word,)
+            select sum(hit) from setu_keyword where keyword like ?
+            """, (f'%{key_word}%',)
         ).fetchone()
 
-        return result[0] if result is not None else 0
+        return result[0] if result is not None and result[0] is not None else 0
 
     def get_high_freq_keyword(self) -> Cursor:
         result = self.setu_db_connection.execute(
