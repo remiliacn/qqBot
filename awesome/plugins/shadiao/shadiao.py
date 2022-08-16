@@ -255,9 +255,12 @@ async def get_setu_stat(session: nonebot.CommandSession):
     delta = group_stat_dict['delta']
     yanche = group_stat_dict['yanche']
     ark_stat = group_stat_dict['pulls']
+    group_xp = group_stat_dict["group_xp"]
+    group_xp_literal = "本群最喜欢的XP为" + group_xp + "\n" if group_xp else ""
     ark_data = ''
     setu_notice = f'自统计功能实装以来，你组查了{group_stat_dict["setu"]}次色图！' \
                   f'{"位居色图查询排行榜的第" + str(rank) + "！" if rank != -1 else ""}\n' \
+                  f'{group_xp_literal}' \
                   f'距离第{2 if rank == 1 else rank - 1}位相差{delta}次搜索！\n'
 
     yanche_notice = ('并且验车了' + str(yanche) + "次！\n") if yanche > 0 else ''

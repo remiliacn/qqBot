@@ -6,7 +6,7 @@ from typing import Union, List, Tuple
 class SetuFunction:
     def __init__(self):
         self.max_sanity = 100
-        self.blacklist_freq_keyword = ('R-18', 'オリジナル')
+        self.blacklist_freq_keyword = ('R-18', 'オリジナル', '女の子')
         self.sanity_dict = {}
         self.happy_hours = False
         self.remind_dict = {}
@@ -81,11 +81,15 @@ class SetuFunction:
 
         return result[0] if result is not None and result[0] is not None else 0
 
+    def _keyword_filter_query(self):
+        result = ['keyword != ?' for _ in self.blacklist_freq_keyword]
+        return ' and '.join(result)
+
     def get_high_freq_keyword(self) -> Cursor:
         result = self.setu_db_connection.execute(
-            """
+            f"""
             select keyword, hit from setu_keyword
-                where keyword != ? and keyword != ?
+                where {self._keyword_filter_query()}
                 order by hit desc limit 10;
             """, self.blacklist_freq_keyword
         ).fetchall()
@@ -239,9 +243,9 @@ class SetuFunction:
             user_id = str(user_id)
 
         result = self.stat_db_connection.execute(
-            """
+            f"""
             select keyword from user_xp_count where user_id = ? 
-            and keyword != ? and keyword != ? order by hit desc limit 1;
+            and {self._keyword_filter_query()} order by hit desc limit 1;
             """, (user_id, *self.blacklist_freq_keyword)
         ).fetchone()
 
@@ -402,10 +406,23 @@ class SetuFunction:
 
         return result[0] if result is not None else 0
 
-    def get_group_usage_literal(self, group_id) -> dict:
+    def get_group_top_xp(self, group_id: Union[int, str]) -> str:
+        group_id = str(group_id)
+        query_result = self.setu_db_connection.execute(
+            f"""
+            select keyword from setu_group_keyword 
+            where group_id = ? and {self._keyword_filter_query()}
+            order by hit desc limit 1;
+            """, (group_id, *self.blacklist_freq_keyword)
+        ).fetchone()
+
+        return query_result[0] if query_result is not None and query_result[0] is not None else ''
+
+    def get_group_usage_literal(self, group_id: Union[int, str]) -> dict:
         group_id = str(group_id)
         setu_stat = self.get_group_usage(group_id, 'setu')
         yanche_stat = self.get_group_usage(group_id, 'yanche')
+        freq_xp_keyword = self.get_group_top_xp(group_id)
 
         rank = self.get_group_activity_rank(group_id, 'setu')
         delta = self.compare_group_activity_rank('setu', rank, setu_stat)
@@ -428,7 +445,8 @@ class SetuFunction:
             'yanche': yanche_stat,
             'rank': rank,
             'delta': delta,
-            'pulls': pulls_dict
+            'pulls': pulls_dict,
+            'group_xp': freq_xp_keyword
         }
 
     def set_remind_dict(self, group_id, stats):
