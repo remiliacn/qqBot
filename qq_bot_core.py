@@ -11,7 +11,7 @@ from Services.cangku_api import CangkuApi
 from Services.simulate_stock import SimulateStock
 from awesome.adminControl import alarm, user_control, setu, group_control
 from awesome.adminControl.weeb_controller import WeebController
-from data.util.quotes_backfill import QuoteBackfill
+from data.util.backfill import Backfill
 
 config_file = \
     """
@@ -119,9 +119,13 @@ def quote_backfill():
     if not path.exists(quote_path):
         mkdir(quote_path)
 
+    backfiller = Backfill()
+
     if not path.exists(f'{quote_path}/quotes.db'):
-        backfiller = QuoteBackfill()
-        backfiller.main_execution()
+        backfiller.main_execution_quote()
+
+    if not path.exists(f'{quote_path}/setu.db'):
+        backfiller.main_execution_setu()
 
 
 def main():

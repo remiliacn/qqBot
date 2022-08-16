@@ -1,11 +1,14 @@
+import sqlite3
 from json import loads, dump
 from os.path import exists
+from sqlite3 import Cursor
 from typing import Union
 
 
 class SetuFunction:
     def __init__(self):
         self.max_sanity = 100
+        self.blacklist_freq_keyword = ('R-18', 'オリジナル')
         self.sanity_dict = {}
         self.happy_hours = False
         self.remind_dict = {}
@@ -14,9 +17,8 @@ class SetuFunction:
         self.updated = False
         self.config_file = 'config/stats.json'
         self._get_user_data()
-        self.setu_stat_path = 'config/setu.json'
-        self.setu_stat = {}
-        self._init_bad_word()
+        self.setu_db_path = 'data/db/setu.db'
+        self.setu_db_connection = sqlite3.connect(self.setu_db_path)
 
     def get_setu_usage(self) -> int:
         total = 0
@@ -27,63 +29,64 @@ class SetuFunction:
         return total
 
     def track_keyword(self, key_word):
-        if 'keyword' not in self.setu_stat:
-            self.setu_stat['keyword'] = {}
-
-        if key_word not in self.setu_stat['keyword']:
-            self.setu_stat['keyword'][key_word] = 0
-
-        self.setu_stat['keyword'][key_word] += 1
-        self.make_a_json(self.setu_stat_path)
+        self.setu_db_connection.execute(
+            """
+            insert or replace into setu_keyword values (?, 
+                coalesce(
+                    (select hit from setu_keyword where keyword = ?), 0
+                ) + 1
+            )
+            """, (key_word, key_word)
+        )
+        self.commit_change(self.setu_db_path)
 
     def get_keyword_usage(self, key_word: str) -> int:
-        if 'keyword' not in self.setu_stat:
-            self.setu_stat['keyword'] = {}
-            return 0
+        result = self.setu_db_connection.execute(
+            """
+            select hit from setu_keyword where keyword = ?
+            """, (key_word,)
+        ).fetchone()
 
-        if key_word not in self.setu_stat['keyword']:
-            self.setu_stat['keyword'][key_word] = 0
-            return 0
+        return result[0] if result is not None else 0
 
-        return self.setu_stat['keyword'][key_word]
+    def get_high_freq_keyword(self) -> Cursor:
+        result = self.setu_db_connection.execute(
+            """
+            select keyword, hit from setu_keyword
+                where keyword != ? and keyword != ?
+                order by hit desc limit 10;
+            """, self.blacklist_freq_keyword
+        ).fetchall()
 
-    def get_high_freq_keyword(self) -> list:
-        if 'keyword' not in self.setu_stat:
-            return []
-
-        if not self.setu_stat['keyword']:
-            return []
-
-        sort_orders = self.reverse_sort_dictionary(self.setu_stat['keyword'])
-        return sort_orders
+        return result
 
     def get_max_sanity(self) -> int:
         return self.max_sanity
 
-    def get_bad_word_dict(self) -> dict:
-        return self.setu_stat['bad_words']
+    def get_bad_word_penalty(self, keyword: str) -> int:
+        result = self.setu_db_connection.execute(
+            """
+            select penalty from bad_words where keyword = ?
+            """, (keyword,)
+        ).fetchone()
+
+        return result[0] if result is not None else 1
 
     def add_bad_word_dict(self, key_word, multiplier):
         if multiplier == 1:
-            if key_word in self.setu_stat['bad_words']:
-                del self.setu_stat['bad_words'][key_word]
+            self.setu_db_connection.execute(
+                """
+                delete from bad_words where keyword = ?
+                """, (key_word,)
+            )
         else:
-            self.setu_stat['bad_words'][key_word] = multiplier
+            self.setu_db_connection.execute(
+                """
+                insert or replace into bad_words values(?, ?)
+                """, (key_word, multiplier)
+            )
 
-        self.make_a_json(self.setu_stat_path)
-
-    def _init_bad_word(self):
-        if exists(self.setu_stat_path):
-            with open(self.setu_stat_path, 'r', encoding='utf-8') as file:
-                fl = file.read()
-                self.setu_stat = loads(str(fl))
-                if 'bad_words' not in self.setu_stat:
-                    self.setu_stat['bad_words'] = {}
-                    self.make_a_json(self.setu_stat_path)
-
-        else:
-            with open(self.setu_stat_path, 'w+') as f:
-                dump({'bad_words': {}}, f, indent=4)
+        self.commit_change(self.setu_db_path)
 
     def get_monitored_keywords(self) -> dict:
         return self.stat_dict['xp']
@@ -92,7 +95,7 @@ class SetuFunction:
         if key_word not in self.stat_dict['xp']:
             self.stat_dict['xp'][key_word] = 0
 
-        self.make_a_json(self.config_file)
+        self.commit_change(self.config_file)
 
     def _get_user_data(self):
         if exists(self.config_file):
@@ -101,7 +104,7 @@ class SetuFunction:
                 self.stat_dict = loads(str(fl))
                 if 'users' not in self.stat_dict:
                     self.stat_dict['users'] = {}
-                    self.make_a_json(self.config_file)
+                    self.commit_change(self.config_file)
 
         else:
             with open(self.config_file, 'w+') as f:
@@ -113,7 +116,7 @@ class SetuFunction:
         else:
             self.stat_dict['xp'][tag] = 1
 
-        self.make_a_json(self.config_file)
+        self.commit_change(self.config_file)
 
     def get_xp_data(self) -> dict:
         return self.stat_dict['xp']
@@ -132,7 +135,7 @@ class SetuFunction:
             self.stat_dict['users'][user_id] = {}
 
         self.stat_dict['users'][user_id]['pixiv_id'] = pixiv_id
-        self.make_a_json(self.config_file)
+        self.commit_change(self.config_file)
         return True
 
     def get_user_pixiv(self, user_id) -> int:
@@ -185,7 +188,7 @@ class SetuFunction:
 
                 self.stat_dict['users'][user_id][tag][keyword] += hit_marks
 
-        self.make_a_json(self.config_file)
+        self.commit_change(self.config_file)
 
     def get_global_stat(self):
         return self.stat_dict['global']
@@ -228,24 +231,27 @@ class SetuFunction:
     def get_sanity_dict(self):
         return self.sanity_dict
 
-    def get_group_xp(self, group_id):
+    def get_group_xp(self, group_id) -> Cursor:
         group_id = str(group_id)
-        if 'group' not in self.setu_stat:
-            self.setu_stat['group'] = {}
-            return ''
+        result = self.setu_db_connection.execute(
+            """
+            select keyword, hit from setu_group_keyword where group_id = ?
+                order by hit desc limit 5;
+            """, (group_id,)
+        ).fetchall()
+        return result
 
-        if group_id not in self.setu_stat['group']:
-            self.setu_stat['group'][group_id] = {}
-
-        if 'groupXP' not in self.setu_stat['group'][group_id]:
-            self.setu_stat['group'][group_id]['groupXP'] = {}
-            return ''
-
-        if not self.setu_stat['group'][group_id]['groupXP']:
-            return ''
-
-        sorted_item = self.reverse_sort_dictionary(self.setu_stat['group'][group_id]['groupXP'])
-        return self.filter_overused_keyword(sorted_item)
+    def update_group_xp(self, group_id: Union[str, int], keyword):
+        group_id = str(group_id)
+        self.setu_db_connection.execute(
+            """
+            insert or replace into setu_group_keyword 
+                values (?, coalesce(
+                    (select hit from setu_group_keyword where keyword = ? and group_id = ?), 0
+                ) + 1, ?)
+            """, (keyword, keyword, group_id, group_id)
+        )
+        self.setu_db_connection.commit()
 
     @staticmethod
     def filter_overused_keyword(xp_list: list) -> tuple:
@@ -273,9 +279,6 @@ class SetuFunction:
                 "pull": 0
             }
 
-        if 'group' not in self.setu_stat:
-            self.setu_stat['group'] = {}
-
         if tag == 'setu' or tag == 'yanche':
             self.stat_dict[group_id][tag] += 1
 
@@ -283,17 +286,7 @@ class SetuFunction:
             if data is None:
                 return
 
-            if group_id not in self.setu_stat['group']:
-                self.setu_stat['group'][group_id] = {}
-
-            if tag not in self.setu_stat['group'][group_id]:
-                self.setu_stat['group'][group_id][tag] = {}
-
-            if data not in self.setu_stat['group'][group_id][tag]:
-                self.setu_stat['group'][group_id][tag][data] = 1
-            else:
-                self.setu_stat['group'][group_id][tag][data] += 1
-
+            self.update_group_xp(group_id, data)
         elif tag == 'pulls':
             if '3' in self.stat_dict[group_id][tag] or '4' in self.stat_dict[group_id][tag] \
                     or '5' in self.stat_dict[group_id][tag] or '6' in self.stat_dict[group_id][tag]:
@@ -309,8 +302,8 @@ class SetuFunction:
             self.stat_dict[group_id]['pull'] += 1
 
         self.updated = False
-        self.make_a_json(self.config_file)
-        self.make_a_json(self.setu_stat_path)
+        self.commit_change(self.config_file)
+        self.commit_change(self.setu_db_path)
 
     def get_usage(self, group_id) -> (int, int, int, dict, int):
         group_id = str(group_id)
@@ -378,10 +371,9 @@ class SetuFunction:
                 self.remind_dict[group_id] = False
             self.sanity_dict[group_id] += sanity
 
-    def make_a_json(self, file_name):
+    def commit_change(self, file_name):
         if file_name == self.config_file:
             with open(file_name, 'w+', encoding='utf-8') as f:
                 dump(self.stat_dict, f, indent=4, ensure_ascii=False)
-        elif file_name == self.setu_stat_path:
-            with open(file_name, 'w+', encoding='utf-8') as f:
-                dump(self.setu_stat, f, indent=4, ensure_ascii=False)
+        elif file_name == self.setu_db_path:
+            self.setu_db_connection.commit()

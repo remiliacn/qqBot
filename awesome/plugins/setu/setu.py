@@ -41,7 +41,7 @@ async def set_user_pixiv(session: nonebot.CommandSession):
 @nonebot.on_command('色图数据', only_to_me=False)
 async def get_setu_stat(session: nonebot.CommandSession):
     setu_stat = setu_control.get_setu_usage()
-    setu_high_freq_keyword = setu_control.get_high_freq_keyword()[2:12]
+    setu_high_freq_keyword = setu_control.get_high_freq_keyword()
     setu_high_freq_keyword_to_string = "\n".join(f"{x[0]}: {x[1]}次" for x in setu_high_freq_keyword)
     await session.finish(f'色图功能共被使用了{setu_stat}次，被查最多的关键词前10名为：\n{setu_high_freq_keyword_to_string}')
 
@@ -58,7 +58,7 @@ async def fetch_group_xp(session: nonebot.CommandSession):
     if not group_xp:
         await session.finish('本群还无数据哦~')
 
-    await session.finish(f'本群XP查询第一名为{group_xp[0]} -> {group_xp[1]}')
+    await session.finish(f'本群XP查询第一名为{group_xp[0][0]} -> {group_xp[0][1]}')
 
 
 @nonebot.on_command('词频', only_to_me=False)
@@ -172,30 +172,29 @@ async def pixiv_send(session: nonebot.CommandSession):
 
     key_word = str(session.get('key_word', prompt='请输入一个关键字进行查询')).lower()
 
-    if key_word in setu_control.get_bad_word_dict():
-        multiplier = setu_control.get_bad_word_dict()[key_word]
-        do_multiply = True
-        if multiplier > 0:
-            if multiplier * 2 > 400:
-                setu_control.set_user_data(user_id, 'ban_count')
-                if setu_control.get_user_data_by_tag(user_id, 'ban_count') >= ban_count:
-                    user_control_module.set_user_privilege(user_id, 'BANNED', True)
-                    await session.send(f'用户{user_id}已被封停机器人使用权限')
-                    bot = nonebot.get_bot()
-                    await bot.send_private_msg(
-                        user_id=SUPER_USER,
-                        message=f'User {user_id} has been banned for triggering prtection. Keyword = {key_word}'
-                    )
+    multiplier = setu_control.get_bad_word_penalty(key_word)
+    do_multiply = True
+    if multiplier > 0:
+        if multiplier * 2 > 400:
+            setu_control.set_user_data(user_id, 'ban_count')
+            if setu_control.get_user_data_by_tag(user_id, 'ban_count') >= ban_count:
+                user_control_module.set_user_privilege(user_id, 'BANNED', True)
+                await session.send(f'用户{user_id}已被封停机器人使用权限')
+                bot = nonebot.get_bot()
+                await bot.send_private_msg(
+                    user_id=SUPER_USER,
+                    message=f'User {user_id} has been banned for triggering prtection. Keyword = {key_word}'
+                )
 
-                else:
-                    await session.send('我劝这位年轻人好自为之，管理好自己的XP，不要污染图池')
-                    bot = nonebot.get_bot()
-                    await bot.send_private_msg(
-                        user_id=SUPER_USER,
-                        message=f'User {user_id} triggered protection mechanism. Keyword = {key_word}'
-                    )
+            else:
+                await session.send('我劝这位年轻人好自为之，管理好自己的XP，不要污染图池')
+                bot = nonebot.get_bot()
+                await bot.send_private_msg(
+                    user_id=SUPER_USER,
+                    message=f'User {user_id} triggered protection mechanism. Keyword = {key_word}'
+                )
 
-                return
+            return
 
     if key_word in setu_control.get_monitored_keywords():
         monitored = True
