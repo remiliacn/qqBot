@@ -158,7 +158,7 @@ async def pixiv_send(session: nonebot.CommandSession):
 
     if sanity <= 0:
         if group_id not in setu_control.remind_dict or not setu_control.remind_dict[group_id]:
-            setu_control.set_remid_dict(group_id, True)
+            setu_control.set_remind_dict(group_id, True)
         await session.finish('差不多得了嗷')
 
     if not admin_control.get_if_authed():
@@ -332,19 +332,19 @@ async def pixiv_send(session: nonebot.CommandSession):
         )
 
     if 'group_id' in ctx:
-        setu_control.set_usage(group_id, 'setu')
+        setu_control.set_group_usage(group_id, 'setu')
 
     setu_control.set_user_data(user_id, 'setu')
     key_word_list = re.split(r'[\s\u3000]+', key_word)
     for keyword in key_word_list:
         setu_control.set_user_data(user_id, 'user_xp', keyword=keyword)
-        setu_control.set_usage(group_id, 'groupXP', keyword)
+        setu_control.set_group_usage(group_id, 'groupXP', keyword)
 
     tags = illust.tags
     if len(tags) > 5:
         tags = tags[:5]
     for tag in tags:
-        setu_control.set_usage(group_id, 'groupXP', tag['name'])
+        setu_control.set_group_usage(group_id, 'groupXP', tag['name'])
 
     if monitored and not get_privilege(user_id, perm.OWNER):
         await bot.send_private_msg(
@@ -388,7 +388,7 @@ async def get_some_three_dimension_lewd(session: nonebot.CommandSession):
     requester_qq = ctx['user_id']
     setu_control.set_user_data(requester_qq, 'setu')
     if group_id != -1:
-        setu_control.set_usage(group_id, 'setu')
+        setu_control.set_group_usage(group_id, 'setu')
 
 
 @nonebot.on_command('看看XP', aliases={'看看xp'}, only_to_me=False)
@@ -410,7 +410,7 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
 
     if sanity <= 0:
         if group_id not in setu_control.remind_dict or not setu_control.remind_dict[group_id]:
-            setu_control.set_remid_dict(group_id, True)
+            setu_control.set_remind_dict(group_id, True)
 
         await session.finish('差不多得了嗷')
 
@@ -428,10 +428,8 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
 
     request_search_qq = int(request_search_qq)
     pixiv_id = setu_control.get_user_pixiv(request_search_qq)
-    if pixiv_id == -1:
-        has_id = False
-    else:
-        has_id = True
+
+    has_id = pixiv_id == -1
 
     message_id = ctx['message_id']
     xp_result = setu_control.get_user_xp(request_search_qq)
@@ -467,14 +465,14 @@ async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq
 
     setu_control.set_user_data(requester_qq, 'setu')
     if group_id != -1:
-        setu_control.set_usage(group_id, 'setu')
+        setu_control.set_group_usage(group_id, 'setu')
 
     tags = illust['tags']
 
     for tag in tags:
         setu_control.set_user_data(request_search_qq, 'user_xp', keyword=tag['name'])
         setu_control.track_keyword(tag['name'])
-        setu_control.set_usage(group_id, 'groupXP', tag['name'])
+        setu_control.set_group_usage(group_id, 'groupXP', tag['name'])
 
     response += f'标题：{illust.title}\n' \
                 f'Pixiv ID： {illust.id}\n' \

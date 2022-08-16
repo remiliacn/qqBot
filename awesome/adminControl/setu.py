@@ -1,8 +1,6 @@
 import sqlite3
-from json import loads, dump
-from os.path import exists
 from sqlite3 import Cursor
-from typing import Union
+from typing import Union, List, Tuple
 
 
 class SetuFunction:
@@ -12,21 +10,21 @@ class SetuFunction:
         self.sanity_dict = {}
         self.happy_hours = False
         self.remind_dict = {}
-        self.stat_dict = {}
         self.ordered_stat = {}
-        self.updated = False
-        self.config_file = 'config/stats.json'
-        self._get_user_data()
+
         self.setu_db_path = 'data/db/setu.db'
+        self.stat_db_path = 'data/db/stats.db'
         self.setu_db_connection = sqlite3.connect(self.setu_db_path)
+        self.stat_db_connection = sqlite3.connect(self.stat_db_path)
 
     def get_setu_usage(self) -> int:
-        total = 0
-        for element in self.stat_dict:
-            personal_stat = self.stat_dict[element]
-            total += personal_stat['setu'] if 'setu' in personal_stat else 0
+        result = self.stat_db_connection.execute(
+            """
+            select sum(hit) from group_activity_count where tag = 'setu'
+            """
+        ).fetchone()
 
-        return total
+        return result[0] if result is not None else 0
 
     def track_keyword(self, key_word):
         self.setu_db_connection.execute(
@@ -38,7 +36,7 @@ class SetuFunction:
             )
             """, (key_word, key_word)
         )
-        self.commit_change(self.setu_db_path)
+        self.commit_change()
 
     def get_keyword_usage(self, key_word: str) -> int:
         result = self.setu_db_connection.execute(
@@ -86,40 +84,35 @@ class SetuFunction:
                 """, (key_word, multiplier)
             )
 
-        self.commit_change(self.setu_db_path)
+        self.commit_change()
 
-    def get_monitored_keywords(self) -> dict:
-        return self.stat_dict['xp']
+    def get_monitored_keywords(self) -> set:
+        result = self.stat_db_connection.execute(
+            """
+            select keyword from monitor_xp_data
+            """
+        ).fetchall()
+
+        return set([x[0] for x in result])
 
     def set_new_xp(self, key_word):
-        if key_word not in self.stat_dict['xp']:
-            self.stat_dict['xp'][key_word] = 0
+        self.stat_db_connection.execute(
+            """
+            insert or replace into monitor_xp_data (keyword, hit) values (
+                ?, 0
+            ) 
+            """, (key_word,)
+        )
+        self.commit_change()
 
-        self.commit_change(self.config_file)
+    def get_xp_data(self) -> List[Tuple[str, str]]:
+        result = self.stat_db_connection.execute(
+            """
+            select keyword, hit from monitor_xp_data order by hit desc limit 10;
+            """
+        ).fetchall()
 
-    def _get_user_data(self):
-        if exists(self.config_file):
-            with open(self.config_file, 'r', encoding='utf-8') as file:
-                fl = file.read()
-                self.stat_dict = loads(str(fl))
-                if 'users' not in self.stat_dict:
-                    self.stat_dict['users'] = {}
-                    self.commit_change(self.config_file)
-
-        else:
-            with open(self.config_file, 'w+') as f:
-                dump({'users': {}}, f, indent=4)
-
-    def set_xp_data(self, tag: str):
-        if tag in self.stat_dict['xp']:
-            self.stat_dict['xp'][tag] += 1
-        else:
-            self.stat_dict['xp'][tag] = 1
-
-        self.commit_change(self.config_file)
-
-    def get_xp_data(self) -> dict:
-        return self.stat_dict['xp']
+        return result
 
     def set_user_pixiv(self, user_id, pixiv_id) -> bool:
         if isinstance(user_id, int):
@@ -131,102 +124,121 @@ class SetuFunction:
 
             pixiv_id = int(pixiv_id)
 
-        if user_id not in self.stat_dict['users']:
-            self.stat_dict['users'][user_id] = {}
+        self.stat_db_connection.execute(
+            """
+            insert or replace into user_activity_count (user_id, tag, hit) values (
+                ?, ?, ?
+            )
+            """, (user_id, 'pixiv_id', pixiv_id)
+        )
 
-        self.stat_dict['users'][user_id]['pixiv_id'] = pixiv_id
-        self.commit_change(self.config_file)
+        self.commit_change()
         return True
 
     def get_user_pixiv(self, user_id) -> int:
         if isinstance(user_id, int):
             user_id = str(user_id)
 
-        try:
-            return self.stat_dict['users'][user_id]['pixiv_id']
-        except KeyError:
-            return -1
+        result = self.stat_db_connection.execute(
+            """
+            select hit from user_activity_count where user_id = ? and tag = ? limit 1;
+            """, (user_id, 'pixiv_id')
+        ).fetchone()
+
+        return result[0] if result is not None else -1
+
+    def _update_global_tag(self, tag: str):
+        self.stat_db_connection.execute(
+            """
+            insert or replace into global_stat (keyword, hit) values (
+                ?, coalesce(
+                    (select hit from global_stat where keyword = ?), 0
+                ) + 1
+            )
+            """, (tag, tag)
+        )
+        self.commit_change()
+
+    def _update_user_activity(self, user_id: str, tag: str):
+        self.stat_db_connection.execute(
+            """
+            insert or replace into user_activity_count (user_id, tag, hit) values (
+                ?, ?, coalesce(
+                    (select hit from user_activity_count where user_id = ? and tag = ?), 0
+                ) + 1
+            )
+            """, (user_id, tag, user_id, tag)
+        )
+        self.commit_change()
 
     def set_user_data(
             self,
             user_id,
             tag: str,
             keyword=None,
-            hit_marks=1,
             is_global=False
     ):
         if isinstance(user_id, int):
             user_id = str(user_id)
 
-        if user_id not in self.stat_dict['users']:
-            self.stat_dict['users'][user_id] = {
-                tag: 0
-            }
-
         if is_global:
-            if 'global' not in self.stat_dict:
-                self.stat_dict['global'] = {}
-
-            if tag not in self.stat_dict['global']:
-                self.stat_dict['global'][tag] = 0
-
-            self.stat_dict['global'][tag] += 1
+            self._update_global_tag(tag)
 
         else:
-            user_dict = self.stat_dict['users'][user_id]
             if tag != 'user_xp':
-                if tag not in user_dict:
-                    self.stat_dict['users'][user_id][tag] = hit_marks
-                else:
-                    self.stat_dict['users'][user_id][tag] += hit_marks
+                self._update_user_activity(user_id, tag)
             else:
-                if 'user_xp' not in user_dict:
-                    self.stat_dict['users'][user_id][tag] = {}
+                self._update_user_xp_data(user_id, keyword)
 
-                if keyword not in self.stat_dict['users'][user_id][tag]:
-                    self.stat_dict['users'][user_id][tag][keyword] = 0
+    def get_global_stat(self) -> List[Tuple[str, int]]:
+        result = self.stat_db_connection.execute(
+            """
+            select keyword, hit from global_stat
+            """
+        ).fetchall()
 
-                self.stat_dict['users'][user_id][tag][keyword] += hit_marks
+        return result
 
-        self.commit_change(self.config_file)
-
-    def get_global_stat(self):
-        return self.stat_dict['global']
-
-    def get_user_xp(self, user_id) -> Union[tuple, str]:
+    def get_user_xp(self, user_id) -> Union[List[Tuple[str, int]], str]:
         if isinstance(user_id, int):
             user_id = str(user_id)
 
-        try:
-            user_xp_dict = self.stat_dict['users'][user_id]['user_xp']
-        except KeyError:
-            return '暂无数据'
+        result = self.stat_db_connection.execute(
+            """
+            select keyword from user_xp_count where user_id = ? 
+            and keyword != ? and keyword != ? order by hit desc limit 1;
+            """, (user_id, *self.blacklist_freq_keyword)
+        ).fetchone()
 
-        user_xp_first = self.reverse_sort_dictionary(user_xp_dict)
-        if not user_xp_first:
-            return '暂无数据'
-
-        return self.filter_overused_keyword(user_xp_first)
+        return result[0] if result is not None else '暂无数据'
 
     def get_user_data_by_tag(self, user_id, tag: str):
         if isinstance(user_id, int):
             user_id = str(user_id)
 
-        if user_id not in self.stat_dict['users']:
-            return 0
-        if tag not in self.stat_dict['users'][user_id]:
-            return 0
+        result = self.stat_db_connection.execute(
+            """
+            select hit from user_activity_count where user_id = ? and tag = ? limit 1;
+            """, (user_id, tag)
+        ).fetchone()
 
-        return self.stat_dict['users'][user_id][tag]
+        return result[0] if result is not None else 0
 
-    def get_user_data(self, user_id):
+    def get_user_data(self, user_id) -> dict:
         if isinstance(user_id, int):
             user_id = str(user_id)
 
-        if user_id not in self.stat_dict['users']:
+        result = self.stat_db_connection.execute(
+            """
+            select tag, hit from user_activity_count where user_id = ?
+            """, (user_id,)
+        ).fetchall()
+
+        if result is None:
             return {}
 
-        return self.stat_dict['users'][user_id]
+        stat_dict = {value[0]: value[1] for value in result}
+        return stat_dict
 
     def get_sanity_dict(self):
         return self.sanity_dict
@@ -253,97 +265,110 @@ class SetuFunction:
         )
         self.setu_db_connection.commit()
 
-    @staticmethod
-    def filter_overused_keyword(xp_list: list) -> tuple:
-        for element in xp_list:
-            if element[0] not in ('R-18', 'オリジナル'):
-                return element
+    def _set_group_usage_helper(self, group_id, tag, hit=1):
+        self.stat_db_connection.execute(
+            """
+            insert or replace into group_activity_count (group_id, tag, hit) values (
+                ?, ?, coalesce(
+                    (select hit from group_activity_count where group_id = ? and tag = ?), 0
+                ) + ?
+            )
+            """, (group_id, tag, group_id, tag, hit)
+        )
 
-        return xp_list[0]
-
-    @staticmethod
-    def reverse_sort_dictionary(dictionary: dict) -> Union[dict, list]:
-        if not dictionary:
-            return dictionary
-
-        sorted_item = sorted(dictionary.items(), key=lambda x: x[1], reverse=True)
-        return sorted_item
-
-    def set_usage(self, group_id, tag, data=None):
+    def set_group_usage(self, group_id, tag, data=None):
         group_id = str(group_id)
-        if group_id not in self.stat_dict:
-            self.stat_dict[group_id] = {
-                "setu": 0,
-                "yanche": 0,
-                "pulls": {},
-                "pull": 0
-            }
 
-        if tag == 'setu' or tag == 'yanche':
-            self.stat_dict[group_id][tag] += 1
+        if tag == 'setu' or tag == 'yanche' or tag == 'pull':
+            self._set_group_usage_helper(group_id, tag)
 
         elif tag == 'groupXP':
             if data is None:
                 return
 
             self.update_group_xp(group_id, data)
+
         elif tag == 'pulls':
-            if '3' in self.stat_dict[group_id][tag] or '4' in self.stat_dict[group_id][tag] \
-                    or '5' in self.stat_dict[group_id][tag] or '6' in self.stat_dict[group_id][tag]:
+            self._set_group_usage_helper(group_id, 'pulls3', data['3'])
+            self._set_group_usage_helper(group_id, 'pulls4', data['4'])
+            self._set_group_usage_helper(group_id, 'pulls5', data['5'])
+            self._set_group_usage_helper(group_id, 'pulls6', data['6'])
 
-                self.stat_dict[group_id]['pulls']['3'] += data['3']
-                self.stat_dict[group_id]['pulls']['4'] += data['4']
-                self.stat_dict[group_id]['pulls']['5'] += data['5']
-                self.stat_dict[group_id]['pulls']['6'] += data['6']
+        self.commit_change()
 
-            else:
-                self.stat_dict[group_id]['pulls'] = data
-        elif tag == 'pull':
-            self.stat_dict[group_id]['pull'] += 1
+    def compare_group_activity_rank(self, tag: str, original_rank: int, hit: int) -> int:
+        if original_rank <= 0:
+            return original_rank
 
-        self.updated = False
-        self.commit_change(self.config_file)
-        self.commit_change(self.setu_db_path)
+        if original_rank == 1:
+            original_rank += 1
+        else:
+            original_rank -= 1
 
-    def get_usage(self, group_id) -> (int, int, int, dict, int):
+        result = self.stat_db_connection.execute(
+            """
+            select * from (
+                select hit, rank () over ( 
+                        partition by tag
+                        order by hit desc
+                ) rank from group_activity_count where tag = ?
+            ) where rank = ?;
+            """, (tag, original_rank)
+        ).fetchone()
+
+        return abs(hit - result[0]) if result is not None else -1
+
+    def get_group_activity_rank(self, group_id: Union[int, str], tag: str) -> int:
         group_id = str(group_id)
-        if group_id not in self.stat_dict:
-            return 0, -1, 0, {}, 0
-        else:
-            if 'setu' not in self.stat_dict[group_id] and 'yanche' not in self.stat_dict[group_id]:
-                return 0, -1, 0, {}, 0
-            if 'setu' not in self.stat_dict[group_id]:
-                return 0, -1, self.stat_dict[group_id]['yanche'], {}, 0
+        result = self.stat_db_connection.execute(
+            """
+            select rank() over(order by hit desc) 
+            from group_activity_count where group_id = ? and tag = ?
+            """, (group_id, tag)
+        ).fetchone()
 
-        times = self.stat_dict[group_id]['setu']
-        if self.updated:
-            sorted_item = self.ordered_stat
-        else:
-            sorted_item = sorted(self.stat_dict.items(), key=lambda x: x[1]["setu"] if 'setu' in x[1] else 0,
-                                 reverse=True)
-            self.ordered_stat = sorted_item
-            self.updated = True
+        return result[0] if result is not None else -1
 
-        rank = -1
-        delta = -1
-        for idx, item in enumerate(sorted_item):
-            if item[0] == group_id:
-                rank = idx + 1
-                break
+    def get_group_usage(self, group_id: Union[int, str], tag: str) -> int:
+        group_id = str(group_id)
+        result = self.stat_db_connection.execute(
+            """
+            select hit from group_activity_count where group_id = ? and tag = ? limit 1
+            """, (group_id, tag)
+        ).fetchone()
 
-        if rank != -1:
-            rank_temp = rank - 1
-            if rank == 1:
-                delta = abs(sorted_item[rank_temp][1]['setu'] - sorted_item[rank_temp + 1][1]['setu'])
-            else:
-                delta = abs(sorted_item[rank_temp - 1][1]['setu'] - sorted_item[rank_temp][1]['setu'])
+        return result[0] if result is not None else 0
 
-        pulls_dict = self.stat_dict[group_id]['pulls']
-        return times, rank, \
-               self.stat_dict[group_id]['yanche'] if 'yanche' in self.stat_dict[group_id] else -1, \
-               delta, pulls_dict, self.stat_dict[group_id]['pull']
+    def get_group_usage_literal(self, group_id) -> dict:
+        group_id = str(group_id)
+        setu_stat = self.get_group_usage(group_id, 'setu')
+        yanche_stat = self.get_group_usage(group_id, 'yanche')
 
-    def set_remid_dict(self, group_id, stats):
+        rank = self.get_group_activity_rank(group_id, 'setu')
+        delta = self.compare_group_activity_rank('setu', rank, setu_stat)
+
+        pulls_dict = {
+            'pulls3': self.get_group_usage(group_id, 'pulls3'),
+            'pulls4': self.get_group_usage(group_id, 'pulls4'),
+            'pulls5': self.get_group_usage(group_id, 'pulls5'),
+            'pulls6': self.get_group_usage(group_id, 'pulls6')
+        }
+
+        pulls = 0
+        for _, v in pulls_dict.items():
+            pulls += v
+
+        pulls_dict['pulls'] = pulls
+
+        return {
+            'setu': setu_stat,
+            'yanche': yanche_stat,
+            'rank': rank,
+            'delta': delta,
+            'pulls': pulls_dict
+        }
+
+    def set_remind_dict(self, group_id, stats):
         self.remind_dict[group_id] = stats
 
     def set_sanity(self, group_id, sanity=2000):
@@ -371,9 +396,18 @@ class SetuFunction:
                 self.remind_dict[group_id] = False
             self.sanity_dict[group_id] += sanity
 
-    def commit_change(self, file_name):
-        if file_name == self.config_file:
-            with open(file_name, 'w+', encoding='utf-8') as f:
-                dump(self.stat_dict, f, indent=4, ensure_ascii=False)
-        elif file_name == self.setu_db_path:
-            self.setu_db_connection.commit()
+    def commit_change(self):
+        self.stat_db_connection.commit()
+        self.setu_db_connection.commit()
+
+    def _update_user_xp_data(self, user_id: str, keyword: str):
+        self.stat_db_connection.execute(
+            """
+            insert or replace into user_xp_count (user_id, keyword, hit) values (
+                ?, ?, coalesce(
+                    (select hit from user_xp_count where user_id = ? and keyword = ?), 0
+                ) + 1
+            )
+            """, (user_id, keyword, user_id, keyword)
+        )
+        self.commit_change()

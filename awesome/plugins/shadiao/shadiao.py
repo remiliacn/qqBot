@@ -1,7 +1,6 @@
 import os
 import random
 import re
-import time
 
 import aiocqhttp.event
 import aiohttp
@@ -244,16 +243,21 @@ async def get_setu_stat(session: nonebot.CommandSession):
     if 'group_id' not in ctx:
         await session.finish('本功能是群组功能')
 
-    times, rank, yanche, delta, ark_stat, ark_pull = setu_control.get_usage(ctx['group_id'])
-    setu_notice = f'自统计功能实装以来，你组查了{times}次色图！' \
+    group_stat_dict = setu_control.get_group_usage_literal(ctx['group_id'])
+    rank = group_stat_dict['rank']
+    delta = group_stat_dict['delta']
+    yanche = group_stat_dict['yanche']
+    ark_stat = group_stat_dict['pulls']
+    ark_data = ''
+    setu_notice = f'自统计功能实装以来，你组查了{group_stat_dict["setu"]}次色图！' \
                   f'{"位居色图查询排行榜的第" + str(rank) + "！" if rank != -1 else ""}\n' \
                   f'距离第{2 if rank == 1 else rank - 1}位相差{delta}次搜索！\n'
 
     yanche_notice = ('并且验车了' + str(yanche) + "次！\n") if yanche > 0 else ''
-    ark_data = ''
-    if ark_stat:
-        ark_data += f'十连抽卡共{ark_pull}次，理论消耗合成玉{ark_pull * 6000}。抽到了：\n' \
-                    f"3星{ark_stat['3']}个，4星{ark_stat['4']}个，5星{ark_stat['5']}个，6星{ark_stat['6']}个"
+    if ark_stat['pulls'] != 0:
+        ark_data += f'十连抽卡共{ark_stat["pulls"]}次，理论消耗合成玉{ark_stat["pulls"] * 6000}。抽到了：\n' \
+                    f"3星{ark_stat['pulls3']}个，4星{ark_stat['pulls4']}个，" \
+                    f"5星{ark_stat['pulls5']}个，6星{ark_stat['pulls6']}个"
 
     await session.send(setu_notice + yanche_notice + ark_data)
 
@@ -330,8 +334,8 @@ async def ten_polls(session: nonebot.CommandSession):
         if six_star_count == 0 and five_star_count == 0:
             setu_control.set_user_data(ctx['user_id'], 'only_four_three')
 
-        setu_control.set_usage(group_id=ctx['group_id'], tag='pulls', data=data)
-        setu_control.set_usage(group_id=ctx['group_id'], tag='pull')
+        setu_control.set_group_usage(group_id=ctx['group_id'], tag='pulls', data=data)
+        setu_control.set_group_usage(group_id=ctx['group_id'], tag='pull')
         setu_control.set_user_data(ctx['user_id'], 'six_star_pull', six_star_count)
 
     qq_num = ctx['user_id']
@@ -469,8 +473,8 @@ async def stat_player(session: nonebot.CommandSession):
 async def get_xp_stat_data(session: nonebot.CommandSession):
     xp_stat = setu_control.get_xp_data()
     response = ''
-    for item, keys in xp_stat.items():
-        response += f'关键词：{item} --> Hit: {keys}\n'
+    for item in xp_stat:
+        response += f'关键词：{item[0]} --> Hit: {item[1]}\n'
 
     await session.finish(response)
 
@@ -539,7 +543,7 @@ async def av_validator(session: nonebot.CommandSession):
     validator = shadiao.Avalidator(text=key_word)
     await validator.get_page_text()
     if 'group_id' in ctx:
-        setu_control.set_usage(ctx['group_id'], tag='yanche')
+        setu_control.set_group_usage(ctx['group_id'], tag='yanche')
         setu_control.set_user_data(ctx['user_id'], 'yanche')
 
     await session.finish(await validator.get_content())
@@ -563,91 +567,9 @@ async def _(session: nonebot.CommandSession):
 
 @nonebot.on_command('嘴臭一个', aliases=('骂我', '你再骂', '小嘴抹蜜', '嘴臭一下', '机器人骂我'), only_to_me=False)
 async def zui_chou(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-
-    if get_privilege(ctx['user_id'], perm.BANNED):
-        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
-
-    if 'group_id' in ctx:
-        setu_control.set_user_data(ctx['user_id'], 'zc')
-
-    random.seed(time.time_ns())
-    rand_num = random.randint(0, 100)
-    if rand_num > 25:
-        try:
-            async with aiohttp.ClientSession(timeout=timeout) as client:
-                async with client.get(
-                        'https://nmsl.shadiao.app/api.php?level=min&from=qiyu'
-                ) as page:
-                    text = await page.text()
-
-        except Exception as err:
-            await session.send('骂不出来了！')
-            logger.warning(f'Request to nmsl API failed. {err}')
-            return
-
-    elif rand_num > 10:
-        try:
-            async with aiohttp.ClientSession(timeout=timeout) as client:
-                async with client.get(
-                        'https://nmsl.shadiao.app/api.php?level=max&from=qiyu'
-                ) as page:
-                    text = await page.text()
-
-        except Exception as err:
-            await session.send('骂不出来了！')
-            logger.warning(f'Request to nmsl API failed. {err}')
-            return
-
-    else:
-        file = os.listdir('data/dl/zuichou')
-        file = random.choice(file)
-        text = f"[CQ:image,file=file:///{os.getcwd()}/data/dl/zuichou/{file}]"
-
-    msg = str(ctx['raw_message'])
-
-    if re.match(r'.*?\[CQ:at,qq=.*?]', msg):
-        qq = re.findall(r'\[CQ:at,qq=(.*?)]', msg)[0]
-        if qq != "all":
-            if not get_privilege(qq, perm.ADMIN):
-                await session.finish(f"[CQ:at,qq={int(qq)}] {text}")
-            else:
-                await session.finish(f"[CQ:at,qq={ctx['user_id']}] {text}")
-
-    await session.send(text)
+    await session.finish('功能已停用。')
 
 
 @nonebot.on_command('彩虹屁', aliases=('拍个马屁', '拍马屁', '舔TA'), only_to_me=False)
 async def cai_hong_pi(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-
-    if get_privilege(ctx['user_id'], perm.BANNED):
-        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
-
-    if 'group_id' in ctx:
-        setu_control.set_user_data(ctx['user_id'], 'chp')
-
-    try:
-        async with aiohttp.ClientSession(timeout=timeout) as client:
-            async with client.get(
-                    'https://chp.shadiao.app/api.php?from=qiyu'
-            ) as req:
-                text = await req.text()
-
-    except Exception as err:
-        await session.send('拍马蹄上了_(:зゝ∠)_')
-        logger.warning(f'Reqeust to chp API failed, {err}')
-        return
-
-    msg = str(ctx['raw_message'])
-
-    do_tts = '语音' in msg
-
-    if re.match(r'.*?\[CQ:at,qq=.*?]', msg):
-        qq = re.findall(r'\[CQ:at,qq=(.*?)]', msg)[0]
-        if qq != "all":
-            if not do_tts:
-                await session.send(f"[CQ:at,qq={int(qq)}] {text}")
-                return
-
-    await session.send(f'[CQ:tts,text={text}]' if do_tts else f'[CQ:reply,id={ctx["message_id"]}]/{text}')
+    await session.finish('功能已停用。')

@@ -115,17 +115,20 @@ def create_file(path_to_check: str, dump_data=None):
 
 
 def quote_backfill():
-    quote_path = f'{getcwd()}/data/db'
-    if not path.exists(quote_path):
-        mkdir(quote_path)
+    db_path = f'{getcwd()}/data/db'
+    if not path.exists(db_path):
+        mkdir(db_path)
 
     backfiller = Backfill()
 
-    if not path.exists(f'{quote_path}/quotes.db'):
+    if not path.exists(f'{db_path}/quotes.db'):
         backfiller.main_execution_quote()
 
-    if not path.exists(f'{quote_path}/setu.db'):
+    if not path.exists(f'{db_path}/setu.db'):
         backfiller.main_execution_setu()
+
+    if not path.exists(f'{db_path}/stats.db'):
+        backfiller.main_execution_stat()
 
 
 def main():
