@@ -264,7 +264,7 @@ class SetuFunction:
             f"""
             select Rank, user_id
             from (
-                  select rank() over (order by hit desc) Rank, user_id from user_activity_count 
+                  select dense_rank() over (order by hit desc) Rank, user_id from user_activity_count 
                   where tag = ?
             ) where user_id = ?
             """, (tag, user_id)
@@ -381,9 +381,13 @@ class SetuFunction:
         group_id = str(group_id)
         result = self.stat_db_connection.execute(
             """
-            select rank() over(order by hit desc) 
-            from group_activity_count where group_id = ? and tag = ?
-            """, (group_id, tag)
+            select rank, group_id from (
+                select rank () over (
+                        partition by tag
+                        order by hit desc
+                ) rank, group_id from group_activity_count where tag = ?
+            ) where group_id = ?
+            """, (tag, group_id)
         ).fetchone()
 
         return result[0] if result is not None else -1
