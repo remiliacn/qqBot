@@ -148,8 +148,7 @@ async def pixiv_send(session: nonebot.CommandSession):
         if admin_control.get_group_permission(group_id, 'banned'):
             await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
 
-    monitored = do_multiply = False
-    multiplier = 1
+    monitored = False
     ban_count = 3
 
     warn, sanity = _sanity_check(group_id, user_id)
@@ -254,19 +253,23 @@ async def pixiv_send(session: nonebot.CommandSession):
         setu_control.track_keyword(key_word)
         illust = random.choice(json_result.illusts)
 
-    is_r18 = illust.sanity_level == 6
-    if not allow_r18 and not key_word.isdigit():
-        # Try 10 times to find a SFW image.
-        for i in range(10):
-            illust = random.choice(json_result.illusts)
-            is_r18 = illust.sanity_level == 6
-            if not is_r18:
-                break
+    is_work_r18 = illust.sanity_level == 6
+    if not allow_r18:
+        if not is_exempt and is_work_r18 and not key_word.isdigit():
+            # Try 10 times to find a SFW image.
+            for i in range(10):
+                illust = random.choice(json_result.illusts)
+                is_work_r18 = illust.sanity_level == 6
+                if not is_work_r18:
+                    break
+            else:
+                await session.finish('太色了发不了（')
+
     elif not allow_r18 and key_word.isdigit():
         await session.finish('太色了发不了（')
 
     if not monitored:
-        if is_r18:
+        if is_work_r18:
             setu_control.drain_sanity(
                 group_id=group_id,
                 sanity=3 if not do_multiply else 2 * multiplier
@@ -285,7 +288,7 @@ async def pixiv_send(session: nonebot.CommandSession):
         nickname = 'null'
 
     bot = nonebot.get_bot()
-    if not is_r18:
+    if not is_work_r18:
         try:
             await session.send(
                 f'[CQ:reply,id={message_id}]'
@@ -304,7 +307,7 @@ async def pixiv_send(session: nonebot.CommandSession):
             await session.send('悲，屑TX不收我图。')
             return
 
-    elif is_r18 and (group_id == -1 or allow_r18):
+    elif is_work_r18 and (group_id == -1 or allow_r18):
         await session.send(
             f'[CQ:reply,id={message_id}]'
             f'芜湖~好图来了ww\n'
@@ -312,7 +315,7 @@ async def pixiv_send(session: nonebot.CommandSession):
             f'Pixiv ID: {illust.id}\n'
             f'关键词：{key_word}\n'
             f'画师：{illust["user"]["name"]}\n'
-            f'[CQ:image,file=file:///{path}{",type=flash" if not is_exempt else ""}]' +
+            f'[CQ:image,file=file:///{path}]' +
             f'Download Time: {(time.time() - start_time):.2f}s'
         )
 
@@ -429,7 +432,7 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
     request_search_qq = int(request_search_qq)
     pixiv_id = setu_control.get_user_pixiv(request_search_qq)
 
-    has_id = pixiv_id == -1
+    has_id = pixiv_id != -1
 
     message_id = ctx['message_id']
     xp_result = setu_control.get_user_xp(request_search_qq)
@@ -461,7 +464,20 @@ async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq
     path = await _download_pixiv_image_helper(illust)
 
     is_exempt = group_id != -1 and admin_control.get_group_permission(group_id, 'exempt')
+    allow_r18 = group_id != -1 and admin_control.get_group_permission(group_id, 'R18')
     is_r18 = illust.sanity_level == 6
+    iteration = 0
+
+    if not allow_r18:
+        while not is_exempt and is_r18 and iteration < 10:
+            if not is_r18:
+                break
+
+            illust = random.choice(json_result)
+            is_r18 = illust.sanity_level == 6
+            iteration += 1
+        else:
+            return '目前找不到好图呢~'
 
     setu_control.set_user_data(requester_qq, 'setu')
     if group_id != -1:
@@ -477,7 +493,7 @@ async def get_xp_information(has_id, group_id, pixiv_id, xp_result, requester_qq
     response += f'标题：{illust.title}\n' \
                 f'Pixiv ID： {illust.id}\n' \
                 f'画师：{illust["user"]["name"]}\n' \
-                f'[CQ:image,file=file:///{path}{",type=flash" if (not is_exempt and is_r18) else ""}]\n' \
+                f'[CQ:image,file=file:///{path}]\n' \
                 f'Download Time: {(time.time() - start_time):.2f}s\n'
 
     response += f'TA最喜欢的关键词是{xp_result[0]}，已经查询了{xp_result[1]}次。' if not isinstance(xp_result, str) else ''
