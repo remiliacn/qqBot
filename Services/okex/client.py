@@ -1,5 +1,8 @@
-import requests
 import json
+
+import httpx
+import requests
+
 from . import consts as c, utils, exceptions
 
 
@@ -14,7 +17,7 @@ class Client(object):
         self.first = first
         self.test = test
 
-    def _request(self, method, request_path, params, cursor=False):
+    async def _request(self, method, request_path, params, cursor=False):
         if method == c.GET:
             request_path = request_path + utils.parse_params_to_str(params)
         # url
@@ -44,12 +47,11 @@ class Client(object):
 
         # send request
         response = None
-        if method == c.GET:
-            response = requests.get(url, headers=header)
-        elif method == c.POST:
-            response = requests.post(url, data=body, headers=header)
-        elif method == c.DELETE:
-            response = requests.delete(url, headers=header)
+        async with httpx.AsyncClient(headers=header) as client:
+            if method == c.GET:
+                response = await client.get(url)
+            elif method == c.POST:
+                response = await client.post(url, data=body)
 
         # exception handle
         if not str(response.status_code).startswith('2'):
@@ -70,13 +72,14 @@ class Client(object):
         except ValueError:
             raise exceptions.OkexRequestException('Invalid Response: %s' % response.text)
 
-    def _request_without_params(self, method, request_path):
-        return self._request(method, request_path, {})
+    async def _request_without_params(self, method, request_path):
+        return await self._request(method, request_path, {})
 
-    def _request_with_params(self, method, request_path, params, cursor=False):
-        return self._request(method, request_path, params, cursor)
+    async def _request_with_params(self, method, request_path, params, cursor=False):
+        return await self._request(method, request_path, params, cursor)
 
-    def _get_timestamp(self):
+    @staticmethod
+    def _get_timestamp():
         url = c.API_URL + c.SERVER_TIMESTAMP_URL
         response = requests.get(url)
         if response.status_code == 200:

@@ -334,11 +334,12 @@ class Crypto:
         self.crypto_usdt = f'{crypto.upper()}-USDT'
         self.granularity = '1H'
 
-    def get_current_value(self):
+    async def get_current_value(self):
         try:
             spot_api = spot.SpotAPI(OKEX_API_KEY, OKEX_SECRET_KEY, OKEX_PASSPHRASE)
             # get 1h k-line
-            json_data = spot_api.get_kline(instrument_id=self.crypto_usdt, bar=self.granularity)[:90]
+            json_data = await spot_api.get_kline(instrument_id=self.crypto_usdt, bar=self.granularity)
+            json_data = json_data[:90]
             open_data = [float(x[1]) for x in json_data][-1]
 
             return open_data
@@ -346,11 +347,12 @@ class Crypto:
             logger.warning(f'Seemly no crypto like this: {err}')
             return -1
 
-    def get_kline(self, analyze_type='MACD'):
+    async def get_kline(self, analyze_type='MACD'):
         spot_api = spot.SpotAPI(OKEX_API_KEY, OKEX_SECRET_KEY, OKEX_PASSPHRASE)
 
         # get 1h k-line
-        json_data = spot_api.get_kline(instrument_id=self.crypto_usdt, bar=self.granularity)[:90]
+        json_data = await spot_api.get_kline(instrument_id=self.crypto_usdt, bar=self.granularity)
+        json_data = json_data[:90]
 
         self.crypto_usdt += ' （1h）'
         json_data = list(json_data)
@@ -519,7 +521,7 @@ class Stock:
             self.type = stock_type
 
         if self.type is None or not str(self.type).isdigit():
-            return -1, '', False
+            return -1, '', (10e6, -1000)
 
         data_url = f'https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&' \
                    f'fields=f43,f51,f52,f58,f60&secid={self.type}.{self.code}'
@@ -536,7 +538,7 @@ class Stock:
                     stock_name = json_data['data']['f58']
                 except Exception as err:
                     logger.warning(f'Error when getting first purchase price for stock: {self.code} -- {err}')
-                    return -1, '', False
+                    return -1, '', (10e6, -1000)
 
         return purchase_price, stock_name, (high_rate, low_rate)
 

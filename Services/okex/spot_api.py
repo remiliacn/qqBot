@@ -1,4 +1,4 @@
-import requests
+import httpx
 
 from .client import Client
 from .consts import *
@@ -166,14 +166,15 @@ class SpotAPI(Client):
         return self._request_with_params(GET, SPOT_DEAL + str(instrument_id) + '/trades', params)
 
     # query k-line info
-    def get_kline(self, instrument_id, bar='', start='', end=''):
+    @staticmethod
+    async def get_kline(instrument_id, bar='', start='', end=''):
         if not bar:
             bar = '1H'
 
         # 按时间倒叙 即由结束时间到开始时间
-        return requests.get(
-            f'https://www.okx.com/api/v5/market/candles?instId={instrument_id}&bar={bar}'
-        ).json()['data']
+        async with httpx.AsyncClient() as client:
+            data = await client.get(f'https://www.okx.com/api/v5/market/candles?instId={instrument_id}&bar={bar}')
+            return data.json()['data']
 
     def get_history_kline(self, instrument_id, start='', end='', granularity=''):
         params = {}
