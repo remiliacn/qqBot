@@ -367,7 +367,7 @@ async def up_ten_polls(session: nonebot.CommandSession):
 
     key_word: str = session.get(
         'key_word',
-        prompt='使用方法：！方舟up 干员名 星级（数字）限定UP选项（可选，输入-1代表同意）'
+        prompt='使用方法：！方舟up 干员名 星级（数字）是否限定(y/n) 是否二级限定(y/n)'
     )
 
     args = key_word.split()
@@ -376,27 +376,13 @@ async def up_ten_polls(session: nonebot.CommandSession):
         await session.finish(validation)
 
     await session.finish(
-        arknights_api.set_up(
+        arknights_api.up_op(
             args[0],
             args[1],
-            args[-1] == '-1'
+            args[2].lower() == 'y',
+            args[3].lower() == 'y'
         )
     )
-
-
-@nonebot.on_command('方舟限定', only_to_me=False)
-async def set_limited_arknights(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.OWNER):
-        return
-
-    arg = session.current_arg
-    if '开' in arg:
-        arknights_api.set_if_banner_limited(True)
-    else:
-        arknights_api.set_if_banner_limited(False)
-
-    await session.finish('Done')
 
 
 @nonebot.on_command('帮我做选择', only_to_me=False)
@@ -418,7 +404,7 @@ async def do_mcq(session: nonebot.CommandSession):
     await session.send(answer + '。')
 
 
-@nonebot.on_command('方舟up重置', aliases='方舟UP重置', only_to_me=False)
+@nonebot.on_command('方舟up重置', aliases={'方舟UP重置', 'UP重置'}, only_to_me=False)
 async def reset_ark_up(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if not get_privilege(ctx['user_id'], perm.OWNER):

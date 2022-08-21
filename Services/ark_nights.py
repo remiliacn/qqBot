@@ -1,11 +1,9 @@
 """
 Arknights headhunt recruitment simulator.
 """
-
 import random
+import sqlite3
 import time
-from json import loads, dump
-from os.path import exists
 from typing import Union
 
 
@@ -24,11 +22,11 @@ class ArknightsPity:
             self.record_poll(group_id)
             return 0
         else:
-            pollCount = self.sanity_poll_dict[group_id]
-            if pollCount <= 50:
+            poll_count = self.sanity_poll_dict[group_id]
+            if poll_count <= 50:
                 return 0
             else:
-                return (pollCount - 50) * 2
+                return (poll_count - 50) * 2
 
     def reset_offset(self, group_id):
         self.sanity_poll_dict[group_id] = 0
@@ -43,20 +41,35 @@ class ArkHeadhunt:
         self.times = times
         self.count = 0
         self.offset = 0
-        self.agent_dict = self._get_agent_dict()
+        self.arknights_agent_db = sqlite3.connect('data/db/stats.db')
+
+        self._init()
+
         self.random_agent = []
         self.random_class = []
 
-    @staticmethod
-    def _get_agent_dict() -> dict:
-        if not exists('Services/util/agent.json'):
-            with open('Services/util/agent.json', 'w+', encoding='utf8') as file:
-                dump({}, file, indent=4)
+    def _init(self) -> dict:
+        self.arknights_agent_db.execute(
+            """
+            create table if not exists arknights_op (
+                "ch_name" varchar(50) unique on conflict ignore,
+                "stars" integer, 
+                "is_limited" boolean,
+                "is_secondary_up" boolean,
+                "is_up" boolean
+            )
+            """
+        )
+        self.arknights_agent_db.commit()
 
-        with open('Services/util/agent.json', 'r', encoding='utf8') as file:
-            agent_dict = loads(file.read())
+    def _get_if_limit_banner_on(self):
+        result = self.arknights_agent_db.execute(
+            """
+            select ch_name from arknights_op where is_limited = true
+            """
+        ).fetchone()
 
-        return agent_dict
+        return result if result and result is not None else ''
 
     def get_randomized_results(self, offset_setting=0):
         """
@@ -87,6 +100,55 @@ class ArkHeadhunt:
         self.random_class = random_class
         self.random_agent = self._get_ops()
 
+    def _get_uped_op(self, star: int):
+        result = self._get_op_from_db(star, is_up=True)
+        if result is None or not result:
+            return self._get_op_from_db(star)
+
+        return result
+
+    def _get_secondary_up_op(self, star: int):
+        result = self._get_op_from_db(star, is_secondary_up=True)
+        if result is None:
+            return self._get_op_from_db(star)
+
+        return result
+
+    def _get_op_count_by_stars(self, star: int) -> int:
+        result = self.arknights_agent_db.execute(
+            """
+            select count(ch_name) from arknights_op where stars = ?
+            """, (star,)
+        ).fetchone()
+
+        return int(result[0])
+
+    def _get_op_from_db(self, star: int, is_up=False, is_secondary_up=False):
+        if is_up or is_secondary_up:
+            where_query = f'where stars = ? and (is_up = {is_up.__str__().lower()} ' \
+                          f'or is_secondary_up = {is_secondary_up.__str__().lower()})'
+        else:
+            where_query = 'where stars = ?'
+        result = self.arknights_agent_db.execute(
+            f"""
+            select ch_name from arknights_op 
+            {where_query} order by random() limit 1
+            """, (star,)
+        ).fetchone()
+
+        return result if result and result is not None else ''
+
+    def _insert_op(self, star: int, name: str, is_limited=False, is_sec_up=False, is_up=False):
+        is_up = is_limited or is_sec_up or is_up
+        self.arknights_agent_db.execute(
+            """
+            insert or replace into arknights_op (ch_name, stars, is_limited, is_secondary_up, is_up) values (
+                ?, ?, ?, ?, ?
+            )
+            """, (name, star, is_limited, is_sec_up, is_up)
+        )
+        self._commit_change()
+
     def _get_ops(self) -> list:
         """
         Get a list of agent's name.
@@ -96,105 +158,89 @@ class ArkHeadhunt:
         random.seed(time.time_ns())
         for elements in self.random_class:
             random_int = random.randint(0, 100)
-            if self.agent_dict['limited'] and elements == 6:
+            if self._get_if_limit_banner_on() and elements == 6:
                 if random_int < 70:
-                    random_agent.append(random.choice(self.agent_dict[f'UP6']))
+                    random_agent.append(self._get_uped_op(6))
                 else:
                     # 30%中的五倍权值爆率。
-                    second_random = random.randint(0, len(self.agent_dict['6']))
-                    if second_random < 5 and 'sixSecondaryUp' in self.agent_dict and self.agent_dict['sixSecondaryUp']:
-                        random_agent.append(random.choice(self.agent_dict['sixSecondaryUp']))
+                    second_random = random.randint(0, self._get_op_count_by_stars(6))
+                    if second_random < 5 and self._get_if_limit_banner_on():
+                        random_agent.append(self._get_secondary_up_op(6))
                     else:
-                        random_agent.append(random.choice(self.agent_dict['6']))
+                        random_agent.append(self._get_op_from_db(6))
 
             else:
-                if random_int < 50 and self.agent_dict[f'UP{elements}']:
-                    random_agent.append(random.choice(self.agent_dict[f'UP{elements}']))
+                if random_int < 50:
+                    random_agent.append(self._get_uped_op(elements))
                 else:
-                    random_agent.append(random.choice(self.agent_dict[str(elements)]))
+                    random_agent.append(self._get_op_from_db(elements))
 
         return random_agent
 
-    def set_if_banner_limited(self, setting=False):
-        self.agent_dict['limited'] = setting
-        self.update_content()
+    def _get_all_secondary_up_op(self, star: int):
+        result = self.arknights_agent_db.execute(
+            """
+            select ch_name, stars from arknights_op where stars = ? and is_secondary_up = true
+            """, (star,)
+        ).fetchall()
 
-    def set_up(self, agent: str, star: Union[int, str], is_second_up=False):
-        if isinstance(star, int):
-            star = str(star)
+        result = [x[0] for x in result if x is not None and x[0] is not None]
+        return result
 
-        if agent in self.agent_dict[star]:
-            if agent not in self.agent_dict[f'UP{star}']:
-                if not is_second_up:
-                    self.agent_dict[f'UP{star}'].append(agent)
-                else:
-                    self.agent_dict['sixSecondaryUp'] = []
-                    self.agent_dict['sixSecondaryUp'].append(agent)
+    def _get_all_uped_op(self, star: int):
+        result = self.arknights_agent_db.execute(
+            """
+            select ch_name, stars from arknights_op where stars = ? and is_up = true
+            """, (star,)
+        ).fetchall()
 
-                self.update_content()
-                return 'Done'
+        result = [x[0] for x in result if x is not None and x[0] is not None]
+        return result
 
-            return f'干员{agent}已被UP'
+    def up_op(self, agent: str, star: Union[int, str], is_limited=False, is_second_up=False, is_up=True):
+        if isinstance(star, str) and not star.isdigit():
+            return '?'
 
-        return f'干员{agent}不是{star}星或不在游戏内。'
+        star = int(star)
+        self._insert_op(star, agent, is_limited, is_second_up, is_up)
+        return 'Done'
 
-    def update_content(self):
-        with open('Services/util/agent.json', 'w+', encoding='utf8') as file:
-            dump(self.agent_dict, file, indent=4, ensure_ascii=False)
+    def _commit_change(self):
+        self.arknights_agent_db.commit()
 
     def clear_ups(self):
-        self.agent_dict['UP3'] = []
-        self.agent_dict['UP4'] = []
-        self.agent_dict['UP5'] = []
-        self.agent_dict['UP6'] = []
-
-        self.agent_dict['limited'] = False
-
-        if 'sixSecondaryUp' in self.agent_dict:
-            self.agent_dict['sixSecondaryUp'] = []
-
-        self.update_content()
+        self.arknights_agent_db.execute(
+            """
+            delete from arknights_op where is_limited = true
+            """
+        )
+        self.arknights_agent_db.execute(
+            """
+            update arknights_op set is_secondary_up = false, is_up = false, is_limited = false
+            """
+        )
+        self._commit_change()
 
     def add_op(self, agent: str, star: Union[int, str]):
-        if isinstance(star, int):
-            star = str(star)
+        if isinstance(star, str) and not star.isdigit():
+            return '?'
 
-        if agent not in self.agent_dict[star]:
-            self.agent_dict[star].append(agent)
-            self.update_content()
-            return f'成功将{agent}加入{star}星干员组'
-
-        return f'{agent}已存在与{star}星干员组'
+        star = int(star)
+        self._insert_op(star, agent)
+        return f'成功将{agent}加入{star}星干员组'
 
     def get_up(self) -> str:
         result = ''
-        four_up = self.agent_dict['UP4']
-        five_up = self.agent_dict['UP5']
-        six_up = self.agent_dict['UP6']
-        if 'sixSecondaryUp' in self.agent_dict and self.agent_dict['sixSecondaryUp']:
-            secondary_up = self.agent_dict['sixSecondaryUp']
-        else:
-            secondary_up = ''
+        four_up = self._get_all_uped_op(4)
+        five_up = self._get_all_uped_op(5)
+        six_up = self._get_all_uped_op(6)
 
-        if four_up:
-            result += '四星：'
-            result += '，'.join(map(str, four_up))
-            result += '\n'
+        secondary_up = self._get_all_secondary_up_op(6)
 
-        if five_up:
-            result += '五星：'
-            result += '，'.join(map(str, five_up))
-            result += '\n'
-
-        if six_up:
-            result += '六星：'
-            result += '，'.join(map(str, six_up))
-            result += '\n'
-
-        if secondary_up:
-            result += '六星保底UP：'
-            result += '，'.join(map(str, secondary_up))
-            result += '\n'
+        result += '四星：' + '，'.join(four_up) + '\n'
+        result += '五星：' + '，'.join(five_up) + '\n'
+        result += '六星：' + '，'.join(six_up) + '\n'
+        result += ('六星小UP：' + '，'.join(secondary_up) + '\n') if self._get_if_limit_banner_on() else ''
 
         return result if result else '无\n'
 
@@ -237,6 +283,5 @@ class ArkHeadhunt:
 # Test
 if __name__ == '__main__':
     api = ArkHeadhunt(times=10)
-    print(api.set_up('W', 6))
-    api.get_randomized_results(offset_setting=98)
+    api.get_randomized_results()
     print(api.__str__())
