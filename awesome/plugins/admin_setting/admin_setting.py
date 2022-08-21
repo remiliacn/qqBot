@@ -11,6 +11,7 @@ import nonebot
 from loguru import logger
 
 import config
+from Services.util.ctx_utility import get_user_id, get_group_id, get_nickname
 from awesome.adminControl import permission as perm
 from awesome.adminControl.permission import OWNER
 from awesome.plugins.shadiao.shadiao import setu_control
@@ -24,8 +25,8 @@ get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 @nonebot.on_command('自由发言', only_to_me=False)
 async def free_speech_switch(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    user_id = ctx['user_id']
-    group_id = ctx['group_id'] if 'group_id' in ctx else -1
+    user_id = get_user_id(ctx)
+    group_id = get_group_id(ctx)
 
     if group_id == -1 or not get_privilege(user_id, OWNER):
         await session.finish()
@@ -38,7 +39,7 @@ async def free_speech_switch(session: nonebot.CommandSession):
 @nonebot.on_command('警报解除', only_to_me=False)
 async def lower_alarm(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.OWNER):
+    if not get_privilege(get_user_id(ctx), perm.OWNER):
         await session.finish()
 
     alarm_api.clear_alarm()
@@ -49,7 +50,7 @@ async def lower_alarm(session: nonebot.CommandSession):
 async def add_monitor_word(session: nonebot.CommandSession):
     key_word = session.get('key_word', prompt='要加什么进来呢？')
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.OWNER):
+    if not get_privilege(get_user_id(ctx), perm.OWNER):
         await session.finish('您无权使用本命令')
 
     setu_control.set_new_xp(key_word)
@@ -60,7 +61,7 @@ async def add_monitor_word(session: nonebot.CommandSession):
 async def add_blacklist_word(session: nonebot.CommandSession):
     key_word = session.get('key_word', prompt='要加什么进来呢？')
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.OWNER):
+    if not get_privilege(get_user_id(ctx), perm.OWNER):
         await session.finish('您无权使用本命令')
 
     key_words = key_word.split()
@@ -78,7 +79,7 @@ async def add_blacklist_word(session: nonebot.CommandSession):
 @nonebot.on_command('添加信任', only_to_me=False)
 async def add_whitelist(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.OWNER):
+    if not get_privilege(get_user_id(ctx), perm.OWNER):
         await session.finish('您无权使用该功能')
 
     user_id = session.get('user_id', prompt='请输入要添加的qq号')
@@ -96,7 +97,7 @@ async def add_whitelist(session: nonebot.CommandSession):
 @nonebot.on_command('移除信任', aliases={'删除信任', '解除信任'}, only_to_me=False)
 async def delete_whitelist(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.OWNER):
+    if not get_privilege(get_user_id(ctx), perm.OWNER):
         await session.finish('您无权使用该功能')
 
     user_id = session.get('user_id', prompt='请输入要添加的qq号')
@@ -112,7 +113,7 @@ async def delete_whitelist(session: nonebot.CommandSession):
 @nonebot.on_command('添加管理', only_to_me=False)
 async def add_admin(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.OWNER):
+    if not get_privilege(get_user_id(ctx), perm.OWNER):
         await session.finish('您无权使用该功能')
 
     user_id = session.get('user_id', prompt='请输入要添加的qq号')
@@ -131,7 +132,7 @@ async def add_admin(session: nonebot.CommandSession):
 @nonebot.on_command('删除管理', only_to_me=False)
 async def delete_admin(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.OWNER):
+    if not get_privilege(get_user_id(ctx), perm.OWNER):
         await session.finish('您无权使用该功能')
 
     user_id = session.get('user_id', prompt='请输入要添加的qq号')
@@ -149,7 +150,7 @@ async def delete_admin(session: nonebot.CommandSession):
 @nonebot.on_command('我懂了', only_to_me=False)
 async def add_ai_real_response(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.WHITELIST):
+    if not get_privilege(get_user_id(ctx), perm.WHITELIST):
         await session.finish()
 
     question = session.get('question', prompt='请输入回答的问题')
@@ -161,7 +162,7 @@ async def add_ai_real_response(session: nonebot.CommandSession):
     answer = session.get('answer', prompt='已删除该回答的原始回答，请加入新的回答')
     answer = str(answer).replace('\n', ' ')
 
-    if match(r'\$', answer) and not get_privilege(ctx['user_id'], perm.OWNER):
+    if match(r'\$', answer) and not get_privilege(get_user_id(ctx), perm.OWNER):
         await session.finish('您无权封印此语料')
 
     has_image = findall(r'[a-z0-9]+\.image', answer)
@@ -179,9 +180,9 @@ async def add_ai_real_response(session: nonebot.CommandSession):
 
     answer_dict = {
         'answer': answer,
-        'from_group': ctx['group_id'] if 'group_id' in ctx else -1,
-        'from_user': ctx['user_id'],
-        'user_nickname': ctx['sender']['nickname'],
+        'from_group': get_group_id(ctx),
+        'from_user': get_user_id(ctx),
+        'user_nickname': get_nickname(ctx),
         'restriction': True
     }
 
@@ -195,15 +196,12 @@ async def send_answer(session: nonebot.CommandSession):
     question = session.get('question', prompt='啊？你要问我什么？')
     question = str(question).lower()
     ctx = session.ctx.copy()
-    if get_privilege(ctx['user_id'], perm.BANNED):
+    if get_privilege(get_user_id(ctx), perm.BANNED):
         await session.finish()
 
-    try:
-        nickname = ctx['sender']['nickname']
-    except KeyError:
-        nickname = 'null'
+    nickname = get_nickname(ctx)
 
-    setu_control.set_user_data(ctx['user_id'], 'question', user_nickname=nickname)
+    setu_control.set_user_data(get_user_id(ctx), 'question', user_nickname=nickname)
 
     if match('.*?你.*?(名字|叫什么|是谁|什么东西)', question):
         await session.finish(
@@ -212,7 +210,7 @@ async def send_answer(session: nonebot.CommandSession):
         )
 
     # pre-processing
-    response = _prefetch(question, ctx['user_id'])
+    response = _prefetch(question, get_user_id(ctx))
     if response:
         await session.send(
             response + '\n'
@@ -221,7 +219,7 @@ async def send_answer(session: nonebot.CommandSession):
     else:
         # math processing
         try:
-            response = _math_fetch(question, ctx['user_id'])
+            response = _math_fetch(question, get_user_id(ctx))
 
         except Exception as err:
             await session.send('计算时遇到了问题，本事件已上报bot主人进行分析。')
@@ -290,7 +288,7 @@ def _simple_ai_process(question: str, ctx: dict) -> str:
     if '你' in question:
         if '我' in question:
             me_word_index = [index for index, c in enumerate(question) if c == '我']
-            response = question.replace('你', ctx['sender']['nickname'])
+            response = question.replace('你', get_nickname(ctx))
             temp = list(response)
             for i in me_word_index:
                 temp[i] = '你'
@@ -299,7 +297,7 @@ def _simple_ai_process(question: str, ctx: dict) -> str:
             return response
 
     elif match(r'.*?(我|吾|俺|私|本人)', question):
-        response = sub(r'(我|吾|俺|私|本人)', ctx['sender']['nickname'], question)
+        response = sub(r'(我|吾|俺|私|本人)', get_nickname(ctx), question)
         return response
 
     syntax = compile(r'[么嘛吗马][？?]?')
@@ -527,7 +525,7 @@ async def _request_api_response(question: str) -> str:
 @nonebot.on_command('移除语料', only_to_me=False)
 async def delete_ai_response(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if get_privilege(ctx['user_id'], perm.WHITELIST):
+    if get_privilege(get_user_id(ctx), perm.WHITELIST):
         key_word = session.get('key_word', prompt='请输入要移除的语料')
         if user_control_module.delete_response(key_word):
             await session.send('已删除该语料')
@@ -564,7 +562,7 @@ async def _delete_ai_response(session: nonebot.CommandSession):
 @nonebot.on_command('ban', only_to_me=False)
 async def ban_someone(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if get_privilege(ctx['user_id'], perm.ADMIN):
+    if get_privilege(get_user_id(ctx), perm.ADMIN):
         try:
             user_id = int(session.get('user_id', prompt='请输入要封禁的qq'))
         except ValueError:
@@ -582,7 +580,7 @@ async def ban_someone(session: nonebot.CommandSession):
 @nonebot.on_command('unban', only_to_me=False)
 async def unban_someone(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if get_privilege(ctx['user_id'], perm.ADMIN):
+    if get_privilege(get_user_id(ctx), perm.ADMIN):
         try:
             user_id = int(session.get('user_id', prompt='请输入要封禁的qq'))
         except ValueError:

@@ -26,7 +26,7 @@ class SetuFunction:
 
         return result[0] if result is not None and result[0] is not None else 0
 
-    def track_keyword(self, key_word):
+    def track_keyword(self, key_word: str):
         self.setu_db_connection.execute(
             """
             insert or replace into setu_keyword values (?, 
@@ -49,17 +49,33 @@ class SetuFunction:
 
         return result
 
-    def _get_keyword_usage_expand(self, key_word: str):
+    def _get_user_nickname(self, user_id: str) -> Union[str, None]:
         result = self.stat_db_connection.execute(
             """
-            select nickname, hit from user_xp_count 
-            where keyword like ? and nickname is not null 
-            order by hit desc limit 1;
-            """, (f'%{key_word}%',)
+            select nickname from user_activity_count where user_id = ? and nickname is not null limit 1;
+            """, (user_id,)
         ).fetchone()
 
-        if result is not None and result[0] is not None and result[1] is not None:
-            return f'其中，{result[0]}最喜欢该XP，已经查询了{result[1]}次！！'
+        return result[0] if result is not None and result[0] is not None else None
+
+    def _get_keyword_usage_expand(self, key_word: str):
+        results = self.stat_db_connection.execute(
+            """
+            select user_id, hit from user_xp_count 
+            where keyword like ?
+            order by hit desc limit 5;
+            """, (f'%{key_word}%',)
+        ).fetchall()
+
+        if results is None:
+            return ''
+
+        for result in results:
+            if result[0] is not None and result[1] is not None:
+                user_id = result[0]
+                nickname = self._get_user_nickname(user_id)
+                if nickname is not None:
+                    return f'其中，{nickname}最喜欢该XP，已经查询了{result[1]}次！！'
 
         return ''
 
@@ -152,7 +168,7 @@ class SetuFunction:
 
         return result
 
-    def set_user_pixiv(self, user_id, pixiv_id) -> bool:
+    def set_user_pixiv(self, user_id: Union[str, int], pixiv_id: Union[str, int], nickname: str) -> bool:
         if isinstance(user_id, int):
             user_id = str(user_id)
 
@@ -164,10 +180,10 @@ class SetuFunction:
 
         self.stat_db_connection.execute(
             """
-            insert or replace into user_activity_count (user_id, tag, hit) values (
-                ?, ?, ?
+            insert or replace into user_activity_count (user_id, tag, hit, nickname) values (
+                ?, ?, ?, ?
             )
-            """, (user_id, 'pixiv_id', pixiv_id)
+            """, (user_id, 'pixiv_id', pixiv_id, nickname)
         )
 
         self.commit_change()
@@ -208,6 +224,9 @@ class SetuFunction:
             """, (user_id, tag, user_id, tag, nickname)
         )
         self.commit_change()
+
+    def set_user_xp(self, user_id: Union[int, str], keyword: str, nickname: str):
+        self.set_user_data(user_id, 'user_xp', nickname, keyword)
 
     def set_user_data(
             self,
@@ -306,7 +325,7 @@ class SetuFunction:
     def get_sanity_dict(self):
         return self.sanity_dict
 
-    def get_group_xp(self, group_id) -> Cursor:
+    def get_group_xp(self, group_id: Union[int, str]) -> Cursor:
         group_id = str(group_id)
         result = self.setu_db_connection.execute(
             """
@@ -316,7 +335,7 @@ class SetuFunction:
         ).fetchall()
         return result
 
-    def update_group_xp(self, group_id: Union[str, int], keyword):
+    def _update_group_xp(self, group_id: Union[str, int], keyword):
         group_id = str(group_id)
         self.setu_db_connection.execute(
             """
@@ -339,17 +358,17 @@ class SetuFunction:
             """, (group_id, tag, group_id, tag, hit)
         )
 
-    def set_group_usage(self, group_id, tag, data=None):
+    def set_group_xp(self, group_id, data):
+        if data is None or not data:
+            return
+
+        self._update_group_xp(group_id, data)
+
+    def set_group_data(self, group_id, tag, data=None):
         group_id = str(group_id)
 
         if tag == 'setu' or tag == 'yanche' or tag == 'pull':
             self._set_group_usage_helper(group_id, tag)
-
-        elif tag == 'groupXP':
-            if data is None:
-                return
-
-            self.update_group_xp(group_id, data)
 
         elif tag == 'pulls':
             self._set_group_usage_helper(group_id, 'pulls3', data['3'])

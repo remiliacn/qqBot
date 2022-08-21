@@ -5,6 +5,7 @@ import time
 
 import nonebot
 
+from Services.util.ctx_utility import get_user_id, get_nickname
 from awesome.adminControl import permission as perm
 from awesome.plugins.util.helper_util import get_downloaded_image_path
 from qq_bot_core import user_control_module
@@ -71,10 +72,10 @@ async def change_question_mark(session: nonebot.CommandSession):
 @nonebot.on_command('你好', only_to_me=False)
 async def send_hello_world(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if get_privilege(ctx['user_id'], perm.OWNER):
+    if get_privilege(get_user_id(ctx), perm.OWNER):
         await session.send('妈妈好~')
     else:
-        await session.send('你好呀~' + ctx['sender']['nickname'])
+        await session.send('你好呀~' + get_nickname(ctx))
 
 
 @nonebot.on_command('内鬼', aliases='有没有内鬼', only_to_me=False)
@@ -82,11 +83,11 @@ async def nei_gui_response(session: nonebot.CommandSession):
     random.seed(time.time_ns())
     rand_num = random.randint(0, 50)
     ctx = session.ctx.copy()
-    if rand_num >= 26 and not get_privilege(ctx['user_id'], perm.OWNER):
-        qq_num = ctx['user_id']
+    if rand_num >= 26 and not get_privilege(get_user_id(ctx), perm.OWNER):
+        qq_num = get_user_id(ctx)
         await session.send(f'哦屑！有内鬼！终止交易！！ \n'
                            f'TA的QQ号是：{qq_num}！！！ \n'
-                           f'QQ昵称是：{ctx["sender"]["nickname"]}')
+                           f'QQ昵称是：{get_nickname(ctx)}')
 
     else:
         await session.send('一切安全！开始交易！')

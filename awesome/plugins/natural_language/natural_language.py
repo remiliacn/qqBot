@@ -11,6 +11,7 @@ import jieba.posseg as pos
 import nonebot
 from loguru import logger
 
+from Services.util.ctx_utility import get_group_id, get_user_id
 from Services.util.sauce_nao_helper import sauce_helper
 from awesome.adminControl import permission as perm
 from awesome.plugins.util.helper_util import anime_reverse_search_response, get_downloaded_image_path
@@ -28,8 +29,8 @@ async def natural_language_proc(session: nonebot.NLPSession):
     if 'group_id' not in context:
         return
 
-    group_id = context['group_id']
-    user_id = context['user_id']
+    group_id = get_group_id(context)
+    user_id = get_user_id(context)
     message = str(context['raw_message'])
 
     if '添加语录' in message:

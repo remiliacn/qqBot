@@ -4,6 +4,7 @@ from subprocess import Popen
 
 import nonebot
 
+from Services.util.ctx_utility import get_user_id, get_group_id
 from awesome.adminControl import permission as perm
 from qq_bot_core import user_control_module
 
@@ -13,7 +14,7 @@ get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 @nonebot.on_command('添加下源', only_to_me=False)
 async def add_auto_video_download(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.WHITELIST):
+    if not get_privilege(get_user_id(ctx), perm.WHITELIST):
         await session.finish()
 
     if 'group_id' not in ctx:
@@ -39,7 +40,7 @@ async def add_auto_video_download(session: nonebot.CommandSession):
 
     ch_name = args[0]
     channel = args[1]
-    group_id = ctx['group_id']
+    group_id = get_group_id(ctx)
     enabled = args[2] == 'Y'
 
     with open('config/downloader.json', 'r') as file:
@@ -77,7 +78,7 @@ async def get_video_from_id(session: nonebot.CommandSession):
         return
 
     ctx = session.ctx.copy()
-    id_num = ctx['user_id']
+    id_num = get_user_id(ctx)
 
     video_id = session.get('video_id', prompt='需要一个YouTube视频ID，请提供！')
     if len(video_id) > 12:
@@ -93,14 +94,14 @@ async def get_video_from_id(session: nonebot.CommandSession):
 
     await session.send('我要开始了，源下载好了会尝试上传群文件，请保证充足群空间~')
     if 'group_id' in ctx:
-        id_num = ctx['group_id']
+        id_num = get_group_id(ctx)
     Popen('py for_download.py single %s %d' % (video_id, id_num), stdin=None, stdout=None, stderr=None, close_fds=True)
 
 
 @nonebot.on_command('checkNow', only_to_me=False)
 async def check_now(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if get_privilege(ctx['user_id'], perm.OWNER):
+    if get_privilege(get_user_id(ctx), perm.OWNER):
         Popen('py for_download.py bulk', stdin=None, stdout=None, stderr=None, close_fds=True, shell=True)
 
 

@@ -8,6 +8,7 @@ import nonebot
 from aiohttp import ClientConnectionError
 
 from Services.stock import Crypto, Stock, text_to_image
+from Services.util.ctx_utility import get_user_id, get_nickname
 from config import SUPER_USER
 from qq_bot_core import virtual_market
 
@@ -53,8 +54,8 @@ async def crypto_search(session: nonebot.CommandSession):
 @nonebot.on_command('把钱还我', only_to_me=False)
 async def reset_user_stock_data(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    user_id = ctx['user_id']
-    nickname = ctx['sender']['nickname']
+    user_id = get_user_id(ctx)
+    nickname = get_nickname(ctx)
 
     user_response = session.get('user_response', prompt='您确定要重置持仓么？该操作不能撤回！（回复Y，YES 或 是确认）').strip()
     if user_response.upper() in ('Y', 'YES', '是'):
@@ -117,7 +118,7 @@ async def buy_stonk(session: nonebot.CommandSession):
     if len(args) != 2:
         await session.finish('用法是！购买 股票名称/代码/缩写 数量')
 
-    user_id = ctx['user_id']
+    user_id = get_user_id(ctx)
     message_id = ctx['message_id']
     try:
         await session.finish(
@@ -137,7 +138,7 @@ async def sell_stonk(session: nonebot.CommandSession):
         await session.finish('用法是！卖出 股票代码 数量')
 
     ctx = session.ctx.copy()
-    user_id = ctx['user_id']
+    user_id = get_user_id(ctx)
     message_id = ctx['message_id']
     await session.finish(
         f'[CQ:reply,id={message_id}]'
@@ -149,7 +150,7 @@ async def sell_stonk(session: nonebot.CommandSession):
 @nonebot.on_command('持仓', only_to_me=False)
 async def my_stonks(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    user_id = ctx['user_id']
+    user_id = get_user_id(ctx)
 
     arg = ctx['raw_message']
     if arg:

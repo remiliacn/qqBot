@@ -7,6 +7,7 @@ from loguru import logger
 from Services import random_services
 from Services.currency import Currency
 from Services.keylol_update import KeylolFreeGame
+from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao.shadiao import setu_control
 from awesome.plugins.util import helper_util, search_helper
@@ -50,7 +51,7 @@ async def get_free_game(session: nonebot.CommandSession):
 @nonebot.on_command('最新地震', only_to_me=False)
 async def send_earth_quake_info(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if user_control_module.get_user_privilege(ctx['user_id'], perm.BANNED):
+    if user_control_module.get_user_privilege(get_user_id(ctx), perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     earth_quake_api_new = random_services.Earthquakeinfo()
@@ -71,9 +72,9 @@ async def reverse_code(session: nonebot.CommandSession):
     if_group = False
     if 'group_id' in ctx:
         if_group = True
-        id_num = ctx['group_id']
+        id_num = get_group_id(ctx)
     else:
-        id_num = ctx['user_id']
+        id_num = get_user_id(ctx)
 
     bot = nonebot.get_bot()
 
@@ -111,14 +112,11 @@ async def can_you_be_fucking_normal(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     key_word = session.get('key_word', prompt='请输入一个关键词！')
     key_word = str(key_word)
-    try:
-        nickname = ctx['sender']['nickname']
-    except KeyError:
-        nickname = 'null'
+    nickname = get_nickname(ctx)
     try:
         await session.send(await hhsh(key_word) + '\n本次查询耗时： %.2fs' % (time.time() - start_time))
         if 'group_id' in ctx:
-            setu_control.set_user_data(ctx['user_id'], 'hhsh', nickname)
+            setu_control.set_user_data(get_user_id(ctx), 'hhsh', nickname)
 
     except Exception as e:
         logger.debug('Something went wrong %s' % e)

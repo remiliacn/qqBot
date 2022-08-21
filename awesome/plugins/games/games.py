@@ -8,6 +8,7 @@ import china_idiom as idiom
 import nonebot
 
 from Services import poker_game, ru_game
+from Services.util.ctx_utility import get_group_id, get_user_id, get_nickname
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao.shadiao import admin_control, setu_control
 from qq_bot_core import user_control_module
@@ -180,12 +181,10 @@ async def pao_tuan_shai_zi(session: nonebot.CommandSession):
 async def horse_race(session: nonebot.CommandSession):
     winner = session.get('winner', prompt='请输入一个胜方编号进行猜测（1-6）')
     race = Horseracing(winner)
+
     ctx = session.ctx.copy()
-    user_id = ctx['user_id']
-    try:
-        nickname = ctx['sender']['nickname']
-    except KeyError:
-        nickname = 'null'
+    user_id = get_user_id(ctx)
+    nickname = get_nickname(ctx)
 
     if race.if_play():
         while not race.if_win():
@@ -218,8 +217,8 @@ async def _(session: nonebot.CommandSession):
 @nonebot.on_command('轮盘赌', only_to_me=False)
 async def russian_roulette(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    id_num = ctx['group_id'] if 'group_id' in ctx else ctx['user_id']
-    user_id = ctx['user_id']
+    id_num = get_group_id(ctx) if 'group_id' in ctx else get_user_id(ctx)
+    user_id = get_user_id(ctx)
 
     if 'group_id' not in ctx:
         await session.finish('这是群组游戏！')
@@ -233,10 +232,8 @@ async def russian_roulette(session: nonebot.CommandSession):
         game.add_player_play_time(group_id=id_num, user_id=user_id)
 
     message_id = ctx['message_id']
-    try:
-        nickname = ctx['sender']['nickname']
-    except KeyError:
-        nickname = 'null'
+    nickname = get_nickname(ctx)
+
     if not game.get_result(id_num):
         await session.send(f'[CQ:reply,id={message_id}]好像什么也没发生')
     else:
@@ -271,14 +268,14 @@ async def shuffle_gun(session: nonebot.CommandSession):
     if 'group_id' not in ctx:
         await session.finish('这是群组游戏！')
 
-    game.reset_gun(ctx['group_id'])
-    await session.send('%s转动了弹夹！流向改变了！' % ctx['sender']['nickname'])
+    game.reset_gun(get_group_id(ctx))
+    await session.send(f'{get_nickname(ctx)}转动了弹夹！流向改变了！')
 
 
 @nonebot.on_command('设置子弹', only_to_me=False)
 async def modify_gun_rounds(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    user_id = ctx['user_id']
+    user_id = get_user_id(ctx)
     arg = session.current_arg
     if not arg:
         await session.finish('?')
@@ -300,10 +297,10 @@ async def jielong(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     user_choice = session.current_arg_text
     random_idiom = GLOBAL_STORE.get_store(
-        group_id=str(ctx['group_id']) if 'group_id' in ctx else "-1",
+        group_id=get_group_id(ctx),
         function='solitaire',
         is_global=True,
-        user_id=str(ctx['user_id']),
+        user_id=str(get_user_id(ctx)),
         clear_after_use=False
     )
 
@@ -315,9 +312,9 @@ async def jielong(session: nonebot.CommandSession):
     GLOBAL_STORE.set_store(
         function='solitaire',
         ref=random_idiom,
-        group_id=str(ctx['group_id']) if 'group_id' in ctx else "-1",
+        group_id=str(get_group_id(ctx)),
         is_global=True,
-        user_id=str(ctx['user_id'])
+        user_id=str(get_user_id(ctx))
     )
 
     if first_play or not user_choice:
@@ -327,9 +324,9 @@ async def jielong(session: nonebot.CommandSession):
         GLOBAL_STORE.set_store(
             function='solitaire',
             ref=user_choice,
-            group_id=str(ctx['group_id']) if 'group_id' in ctx else "-1",
+            group_id=str(get_group_id(ctx)),
             is_global=True,
-            user_id=str(ctx['user_id'])
+            user_id=str(get_user_id(ctx))
         )
         await session.finish(f'啧啧啧，什么嘛~还不错嘛~（好感度 +1）请继续~当前成语：{user_choice}')
     else:
@@ -339,33 +336,30 @@ async def jielong(session: nonebot.CommandSession):
 @nonebot.on_command('比大小', only_to_me=False)
 async def the_poker_game(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    user_id = ctx['user_id']
+    user_id = get_user_id(ctx)
 
     if 'group_id' in ctx:
-        if admin_control.get_group_permission(ctx['group_id'], 'banned'):
+        if admin_control.get_group_permission(get_group_id(ctx), 'banned'):
             await session.send('已设置禁止该群的娱乐功能。如果确认这是错误的话，请联系bot制作者')
             return
 
     else:
         await session.finish('抱歉哦这是群组游戏。')
 
-    try:
-        nickname = ctx['sender']['nickname']
-    except KeyError:
-        nickname = 'null'
+    nickname = get_nickname(ctx)
 
     if get_privilege(user_id, perm.OWNER):
-        drawed_card, time_seed = poker.get_random_card(user_id, str(ctx['group_id']), rigged=10)
+        drawed_card, time_seed = poker.get_random_card(user_id, str(get_group_id(ctx)), rigged=10)
     else:
-        drawed_card, time_seed = poker.get_random_card(user_id, str(ctx['group_id']))
+        drawed_card, time_seed = poker.get_random_card(user_id, str(get_group_id(ctx)))
 
-    stat, response = poker.compare_two(str(ctx['group_id']))
+    stat, response = poker.compare_two(str(get_group_id(ctx)))
 
     if not stat and response == -1:
         GLOBAL_STORE.set_store(
             'guess',
             drawed_card,
-            ctx['group_id'] if 'group_id' in ctx else '-1',
+            get_group_id(ctx),
             is_global=True
         )
         await session.send(f"玩家[CQ:at,qq={user_id}]拿到了加密过的卡：{encrypt_card(drawed_card, time_seed)}\n"
@@ -374,7 +368,7 @@ async def the_poker_game(session: nonebot.CommandSession):
 
     else:
         player_one_card = GLOBAL_STORE.get_store(
-            ctx['group_id'] if 'group_id' in ctx else '-1',
+            get_group_id(ctx),
             'guess',
             is_global=True
         )
@@ -388,7 +382,7 @@ async def the_poker_game(session: nonebot.CommandSession):
 
             setu_control.set_user_data(response, 'poker', nickname)
 
-        poker.clear_result(str(ctx['group_id']))
+        poker.clear_result(str(get_group_id(ctx)))
 
 
 def encrypt_card(card, time_seed):

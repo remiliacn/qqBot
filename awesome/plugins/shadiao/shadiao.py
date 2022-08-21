@@ -10,6 +10,7 @@ from nonebot.message import CanceledException
 from nonebot.plugin import PluginManager
 
 from Services import waifu_finder, ark_nights, shadiao, pcr_news
+from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
 from awesome.adminControl import permission as perm
 from awesome.plugins.util.helper_util import get_downloaded_image_path, ark_helper, set_group_permission
 from config import SUPER_USER
@@ -38,14 +39,14 @@ OCR_DICT = {
 async def do_joke_flatter(session: nonebot.CommandSession):
     flatter_api = shadiao.Flatter()
     ctx = session.ctx.copy()
-    user_id = ctx['user_id']
+    user_id = get_user_id(ctx)
     await session.send(flatter_api.get_flatter_result(user_id))
 
 
 @nonebot.on_command('清空语录', only_to_me=False)
 async def clear_group_quotes(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.OWNER):
+    if not get_privilege(get_user_id(ctx), perm.OWNER):
         await session.finish()
 
     group_id = session.get('group_id', prompt='群号？')
@@ -61,14 +62,11 @@ async def get_group_quotes(session: nonebot.CommandSession):
     if 'group_id' not in ctx:
         await session.finish()
 
-    user_id = ctx['user_id']
-    try:
-        nickname = ctx['sender']['nickname']
-    except KeyError:
-        nickname = 'null'
+    user_id = get_user_id(ctx)
+    nickname = get_nickname(ctx)
 
     setu_control.set_user_data(user_id, 'yulu', nickname)
-    await session.finish(admin_control.get_group_quote(ctx['group_id']))
+    await session.finish(admin_control.get_group_quote(get_group_id(ctx)))
 
 
 @nonebot.on_command('添加语录', only_to_me=False)
@@ -88,8 +86,8 @@ async def add_group_quotes(session: nonebot.CommandSession):
         key_word = get_downloaded_image_path(response, f'{os.getcwd()}/data/lol')
 
         if key_word:
-            admin_control.add_quote(ctx['group_id'], key_word)
-            await session.finish(f'已添加！（当前总语录条数：{admin_control.get_group_quote_count(ctx["group_id"])})')
+            admin_control.add_quote(get_group_id(ctx), key_word)
+            await session.finish(f'已添加！（当前总语录条数：{admin_control.get_group_quote_count(get_group_id(ctx))})')
     else:
         await session.finish('啊这……')
 
@@ -137,7 +135,7 @@ async def send_voice_message(session: nonebot.CommandSession):
         message = ''.join(args[1:])
 
     text = re.sub(r'\[CQ:.*?]', '', message)
-    text = re.sub('祈.*?雨', f'{ctx["sender"]["nickname"]}', text)
+    text = re.sub('祈.*?雨', f'{get_nickname(ctx)}', text)
     await session.send(f'[CQ:tts,text={text}]')
 
 
@@ -214,9 +212,9 @@ async def teach_you_weeb_shit(session: nonebot.CommandSession):
                     f'uuid: {uuid}\n'
                     f'关键词：{keyword}\n'
                     f'回复：{response}\n'
-                    f'添加人qq：{ctx["user_id"]}\n'
-                    f'添加人昵称：{ctx["sender"]["nickname"]}\n'
-                    f'来自群：{ctx["group_id"] if "group_id" in ctx else "-1"}'
+                    f'添加人qq：{get_user_id(ctx)}\n'
+                    f'添加人昵称：{get_nickname(ctx)}\n'
+                    f'来自群：{get_group_id(ctx)}'
         )
     else:
         await session.finish('已检测到该词条存在，将拒绝添加。')
@@ -225,7 +223,7 @@ async def teach_you_weeb_shit(session: nonebot.CommandSession):
 @nonebot.on_command('决定怪话', only_to_me=False)
 async def decision_on_weeb_shit(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    user_id = ctx['user_id']
+    user_id = get_user_id(ctx)
     if not get_privilege(user_id, perm.OWNER):
         await session.finish('您无权使用本命令')
 
@@ -250,7 +248,7 @@ async def get_setu_stat(session: nonebot.CommandSession):
     if 'group_id' not in ctx:
         await session.finish('本功能是群组功能')
 
-    group_stat_dict = setu_control.get_group_usage_literal(ctx['group_id'])
+    group_stat_dict = setu_control.get_group_usage_literal(get_group_id(ctx))
     rank = group_stat_dict['rank']
     delta = group_stat_dict['delta']
     yanche = group_stat_dict['yanche']
@@ -275,7 +273,7 @@ async def get_setu_stat(session: nonebot.CommandSession):
 @nonebot.on_command('happy', aliases={'快乐时光'}, only_to_me=False)
 async def start_happy_hours(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    id_num = str(ctx['user_id'])
+    id_num = str(get_user_id(ctx))
     if get_privilege(id_num, perm.OWNER):
         if setu_control.happy_hours:
             setu_control.happy_hours = False
@@ -291,11 +289,11 @@ async def start_happy_hours(session: nonebot.CommandSession):
 @nonebot.on_command('设置R18', only_to_me=False)
 async def set_r18(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.WHITELIST):
+    if not get_privilege(get_user_id(ctx), perm.WHITELIST):
         await session.finish('您无权进行该操作')
 
     if 'group_id' in ctx:
-        id_num = ctx['group_id']
+        id_num = get_group_id(ctx)
     else:
         await session.finish('请在需要禁用或开启R18的群内使用本指令')
         id_num = -1
@@ -321,16 +319,16 @@ async def ten_polls(session: nonebot.CommandSession):
         await session.send('这是群组功能')
         return
 
-    if get_privilege(ctx['user_id'], perm.OWNER):
+    if get_privilege(get_user_id(ctx), perm.OWNER):
         arknights_api.get_randomized_results(98)
 
     else:
-        offset = ark_pool_pity.get_offset_setting(ctx['group_id'])
+        offset = ark_pool_pity.get_offset_setting(get_group_id(ctx))
         arknights_api.get_randomized_results(offset)
         class_list = arknights_api.random_class
         six_star_count = class_list.count(6) + class_list.count(-1)
         if 6 in class_list or -1 in class_list:
-            ark_pool_pity.reset_offset(ctx['group_id'])
+            ark_pool_pity.reset_offset(get_group_id(ctx))
 
         five_star_count = class_list.count(5)
 
@@ -341,19 +339,16 @@ async def ten_polls(session: nonebot.CommandSession):
             "3": class_list.count(3)
         }
 
-        try:
-            nickname = ctx['sender']['nickname']
-        except KeyError:
-            nickname = 'null'
+        nickname = get_nickname(ctx)
 
         if six_star_count == 0 and five_star_count == 0:
-            setu_control.set_user_data(ctx['user_id'], 'only_four_three', nickname)
+            setu_control.set_user_data(get_user_id(ctx), 'only_four_three', nickname)
 
-        setu_control.set_group_usage(group_id=ctx['group_id'], tag='pulls', data=data)
-        setu_control.set_group_usage(group_id=ctx['group_id'], tag='pull')
-        setu_control.set_user_data(ctx['user_id'], 'six_star_pull', six_star_count)
+        setu_control.set_group_data(group_id=get_group_id(ctx), tag='pulls', data=data)
+        setu_control.set_group_data(group_id=get_group_id(ctx), tag='pull')
+        setu_control.set_user_data(get_user_id(ctx), 'six_star_pull', six_star_count)
 
-    qq_num = ctx['user_id']
+    qq_num = get_user_id(ctx)
     await session.send(
         f'[CQ:at,qq={qq_num}]\n{arknights_api.__str__()}'
     )
@@ -362,7 +357,7 @@ async def ten_polls(session: nonebot.CommandSession):
 @nonebot.on_command('方舟up', aliases='方舟UP', only_to_me=False)
 async def up_ten_polls(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.OWNER):
+    if not get_privilege(get_user_id(ctx), perm.OWNER):
         await session.finish('您无权使用本功能')
 
     key_word: str = session.get(
@@ -407,7 +402,7 @@ async def do_mcq(session: nonebot.CommandSession):
 @nonebot.on_command('方舟up重置', aliases={'方舟UP重置', 'UP重置'}, only_to_me=False)
 async def reset_ark_up(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.OWNER):
+    if not get_privilege(get_user_id(ctx), perm.OWNER):
         await session.finish('您无权使用本功能')
 
     arknights_api.clear_ups()
@@ -417,7 +412,7 @@ async def reset_ark_up(session: nonebot.CommandSession):
 @nonebot.on_command('添加干员', aliases='', only_to_me=False)
 async def add_ark_op(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.OWNER):
+    if not get_privilege(get_user_id(ctx), perm.OWNER):
         await session.finish('您无权使用本功能')
 
     key_word: str = session.get(
@@ -440,7 +435,7 @@ def get_stat(key: str, lis: dict) -> (int, int):
 @nonebot.on_command('统计', only_to_me=False)
 async def stat_player(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    user_id = ctx['user_id']
+    user_id = get_user_id(ctx)
     stat_dict = setu_control.get_user_data(user_id)
     if not stat_dict:
         await session.send(f'[CQ:at,qq={user_id}]还没有数据哦~')
@@ -483,7 +478,7 @@ async def get_xp_stat_data(session: nonebot.CommandSession):
 @nonebot.on_command('娱乐开关', only_to_me=False)
 async def entertain_switch(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    id_num = str(ctx['user_id'])
+    id_num = str(get_user_id(ctx))
     if not get_privilege(id_num, perm.WHITELIST):
         await session.finish('您无权进行该操作')
 
@@ -518,10 +513,10 @@ async def _set_group_property(session: nonebot.CommandSession):
 @nonebot.on_command('闪照设置', only_to_me=False)
 async def set_exempt(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.ADMIN) or 'group_id' not in ctx:
+    if not get_privilege(get_user_id(ctx), perm.ADMIN) or 'group_id' not in ctx:
         return
 
-    group_id = ctx['group_id']
+    group_id = get_group_id(ctx)
     if admin_control.get_group_permission(group_id, 'exempt'):
         admin_control.set_group_permission(group_id, 'exempt', False)
         await session.finish('已打开R18闪照发送模式')
@@ -534,23 +529,20 @@ async def set_exempt(session: nonebot.CommandSession):
 @nonebot.on_command('验车', only_to_me=False)
 async def av_validator(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if get_privilege(ctx['user_id'], perm.BANNED):
+    if get_privilege(get_user_id(ctx), perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
-    if not admin_control.get_group_permission(ctx['group_id'], 'R18'):
+    if not admin_control.get_group_permission(get_group_id(ctx), 'R18'):
         await session.finish('请联系BOT管理员开启本群R18权限')
 
     key_word = session.get('key_word', prompt='在？你要让我查什么啊baka')
     validator = shadiao.Avalidator(text=key_word)
     await validator.get_page_text()
-    try:
-        nickname = ctx['sender']['nickname']
-    except KeyError:
-        nickname = 'null'
+    nickname = get_nickname(ctx)
 
     if 'group_id' in ctx:
-        setu_control.set_group_usage(ctx['group_id'], tag='yanche')
-        setu_control.set_user_data(ctx['user_id'], 'yanche', nickname)
+        setu_control.set_group_data(get_group_id(ctx), tag='yanche')
+        setu_control.set_user_data(get_user_id(ctx), 'yanche', nickname)
 
     await session.finish(await validator.get_content())
 

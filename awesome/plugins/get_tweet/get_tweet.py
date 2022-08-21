@@ -9,6 +9,7 @@ import nonebot
 from loguru import logger
 
 from Services.random_services import YouTubeLiveTracker
+from Services.util.ctx_utility import get_user_id, get_group_id
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao.shadiao import setu_control
 from awesome.plugins.util.tweetHelper import tweeter
@@ -27,7 +28,7 @@ async def add_new_tweeter_function(session: nonebot.CommandSession):
             '推特ID和直播间id可使用下划线 _ 忽略参数'
 
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.ADMIN):
+    if not get_privilege(get_user_id(ctx), perm.ADMIN):
         await session.finish('您无权使用本指令')
 
     if 'group_id' not in ctx:
@@ -52,13 +53,13 @@ async def add_new_tweeter_function(session: nonebot.CommandSession):
     if not (args[3].upper() == 'Y' or args[3].upper() == 'N'):
         await session.finish('是否启用应该输入为Y或N')
 
-    await session.finish(tweet.add_to_config(args, ctx['group_id']))
+    await session.finish(tweet.add_to_config(args, get_group_id(ctx)))
 
 
 @nonebot.on_command('跟推移除', only_to_me=False)
 async def remove_tweet_following(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], perm.ADMIN):
+    if not get_privilege(get_user_id(ctx), perm.ADMIN):
         await session.finish('您无权使用本指令')
 
     key_word = session.get(

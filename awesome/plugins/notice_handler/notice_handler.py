@@ -1,6 +1,7 @@
 import nonebot
 from aiocqhttp import MessageSegment
 
+from Services.util.ctx_utility import get_user_id, get_group_id
 from awesome.adminControl.permission import OWNER
 from awesome.plugins.admin_setting.admin_setting import get_privilege
 from awesome.plugins.util.helper_util import set_group_permission
@@ -10,13 +11,13 @@ from qq_bot_core import admin_control
 @nonebot.on_command('antiflash', only_to_me=False)
 async def anti_flash_setting(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], OWNER):
+    if not get_privilege(get_user_id(ctx), OWNER):
         return
 
     if 'group_id' not in ctx:
         return
 
-    group_id = ctx['group_id']
+    group_id = get_group_id(ctx)
     arg = session.current_arg
     set_group_permission(arg, group_id, 'flash')
 
@@ -26,13 +27,13 @@ async def anti_flash_setting(session: nonebot.CommandSession):
 @nonebot.on_command('antirecall', only_to_me=False)
 async def anti_recall_setting(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
-    if not get_privilege(ctx['user_id'], OWNER):
+    if not get_privilege(get_user_id(ctx), OWNER):
         return
 
     if 'group_id' not in ctx:
         return
 
-    group_id = ctx['group_id']
+    group_id = get_group_id(ctx)
     arg = session.current_arg
 
     set_group_permission(arg, group_id, 'recall')
@@ -43,7 +44,7 @@ async def anti_recall_setting(session: nonebot.CommandSession):
 @nonebot.on_notice('group_recall')
 async def _recall_handler(session: nonebot.NoticeSession):
     ctx = session.ctx.copy()
-    group_id = ctx['group_id']
+    group_id = get_group_id(ctx)
 
     recall_setting = admin_control.get_group_permission(
         group_id=group_id,
@@ -56,8 +57,8 @@ async def _recall_handler(session: nonebot.NoticeSession):
 
     ctx = session.ctx.copy()
     message_id = ctx['message_id']
-    group_id = ctx['group_id']
-    user_id = ctx['user_id']
+    group_id = get_group_id(ctx)
+    user_id = get_user_id(ctx)
 
     if ctx['operator_id'] != user_id:
         return
