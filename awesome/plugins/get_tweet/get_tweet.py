@@ -1,20 +1,21 @@
 import asyncio
 import json
 import re
-import time
 from datetime import datetime
 from subprocess import Popen
 
 import nonebot
+from aiocqhttp import ActionFailed
 from loguru import logger
 
 from Services.random_services import YouTubeLiveTracker
+from Services.stock import text_to_image
 from Services.util.ctx_utility import get_user_id, get_group_id
 from awesome.adminControl import permission as perm
 from awesome.plugins.shadiao.shadiao import setu_control
 from awesome.plugins.util.tweetHelper import tweeter
-from config import SUPER_USER, DOWNLODER_FILE_NAME, PATH_TO_ONEDRIVE
-from qq_bot_core import alarm_api
+from config import SUPER_USER, DOWNLODER_FILE_NAME, PATH_TO_ONEDRIVE, STEAM_UTIL_GROUP_NUM
+from qq_bot_core import buff_requester
 from qq_bot_core import user_control_module
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
@@ -78,9 +79,8 @@ async def do_file_upload():
     await do_youtube_update_fetch()
 
 
-@nonebot.scheduler.scheduled_job('interval', seconds=50, misfire_grace_time=5)
-async def send_tweet():
-    start_time = time.time()
+@nonebot.scheduler.scheduled_job('interval', seconds=90, misfire_grace_time=5)
+async def scheduled_jobs():
     if get_status():
         Popen(
             ['py', DOWNLODER_FILE_NAME, 'bulk'],
@@ -94,36 +94,42 @@ async def send_tweet():
         do_tweet_update_fetch(),
         # do_bilibili_live_fetch(),
         fill_sanity(),
-        check_youtube_live()
+        check_youtube_live(),
+        check_rates()
     )
-
-    use_time = time.time() - start_time
-    # logger.info(f'Scheduled job in get_tweet.py used {use_time:.2f}s')
-    if use_time > 15.0:
-        bot = nonebot.get_bot()
-        await bot.send_private_msg(
-            user_id=SUPER_USER,
-            message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
-                    f'Scheduled job in get_tweet.py took longer than expected:\n'
-                    f'Used: {use_time:.2f}s'
-        )
-
-        alarm_info = {
-            'sev': 2,
-            'message': '网络连接出现延迟！',
-            'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }
-
-        alarm_api.set_alarm(alarm_info)
-
-    else:
-        alarm_api.suppress_alarm()
 
 
 def get_status():
     file = open('data/started.json', 'r')
     status_dict = json.loads(str(file.read()))
     return status_dict['status']
+
+
+async def check_rates():
+    await buff_requester.do_igxe_work()
+    await buff_requester.do_buff_work()
+    buff_requester.clear_item_id_set()
+
+    if buff_requester.has_new_data():
+        logger.success('We have new data for steam market fetch.')
+        bot = nonebot.get_bot()
+        for group_num in STEAM_UTIL_GROUP_NUM:
+            assert isinstance(group_num, int)
+            try:
+                await bot.send_group_msg(
+                    group_id=int(group_num),
+                    # message=f'[CQ:image,file=file:///{await text_to_image(buff_requester.get_table_content())}]'
+                    message=buff_requester.get_table_content()
+                )
+            except ActionFailed:
+                await bot.send_group_msg(
+                    group_id=int(group_num),
+                    message=f'[CQ:image,file=file:///{await text_to_image(buff_requester.get_table_content())}]'
+                )
+
+        buff_requester.clear_table_content()
+
+    logger.success('Steam fetch done.')
 
 
 async def check_youtube_live():

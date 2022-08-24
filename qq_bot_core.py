@@ -9,7 +9,8 @@ from nonebot.log import logger
 import config
 from Services.cangku_api import CangkuApi
 from Services.simulate_stock import SimulateStock
-from awesome.adminControl import alarm, user_control, setu, group_control
+from Services.steam_service import BuffRequester
+from awesome.adminControl import user_control, setu, group_control
 from awesome.adminControl.weeb_controller import WeebController
 from data.util.backfill import Backfill
 
@@ -35,6 +36,9 @@ config_file = \
     PORT = 5700
     SUPER_USER = 0       # 超级管理员qq号 (int)
     
+    BUFF_SESSION_ID = ''
+    STEAM_UTIL_GROUP_NUM = []
+    
     # 如果需要YouTube自动扒源功能可保留下面的参数，否则可以删除
     # 删除后可移除forDownload.py文件以及do_youtube_update_fetch()方法
     # 该方法存在于./awesome/plugins/get_tweet.py
@@ -53,14 +57,15 @@ config_file = \
     
     """
 
-alarm_api = alarm.Alarm()
 user_control_module = user_control.UserControl()
 setu_control = setu.SetuFunction()
-admin_control = group_control.Shadiaoadmin()
+admin_control = group_control.GroupControlModule()
 weeb_learning = WeebController()
 
 cangku_api = CangkuApi()
 virtual_market = SimulateStock()
+
+buff_requester = BuffRequester(is_debug=False)
 
 
 def register_true():
@@ -133,6 +138,7 @@ def quote_backfill():
 
 def main():
     # 记着生成config文件后把本文件的import config去掉注释
+    buff_requester.item_id_init()
     nonebot.init(config)
     nonebot.log.logger.setLevel('WARNING')
 
