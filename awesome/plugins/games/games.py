@@ -339,7 +339,7 @@ async def the_poker_game(session: nonebot.CommandSession):
     user_id = get_user_id(ctx)
 
     if 'group_id' in ctx:
-        if admin_control.get_group_permission(get_group_id(ctx), 'banned'):
+        if admin_control.get_group_permission(get_group_id(ctx), 'IS_BANNED'):
             await session.send('已设置禁止该群的娱乐功能。如果确认这是错误的话，请联系bot制作者')
             return
 

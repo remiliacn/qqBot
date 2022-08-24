@@ -93,7 +93,7 @@ async def text_to_image(string: str):
 
     output_str = string
     output_str = line_break(output_str)
-    d_font = ImageFont.truetype('C:/Windows/Fonts/Deng.ttf', char_size)
+    d_font = ImageFont.truetype(f'data/util/Deng.ttf', char_size)
     lines = output_str.count('\n')
 
     image = Image.new("L", (line_char_count * char_size // 2, char_size * lines), "white")

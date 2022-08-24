@@ -145,7 +145,7 @@ async def message_preprocessing(_: nonebot.NoneBot, event: aiocqhttp.event, __: 
     user_id = event.user_id
 
     if group_id is not None:
-        if not admin_control.get_group_permission(group_id, 'enabled') \
+        if not admin_control.get_group_permission(group_id, 'is_enabled') \
                 and not get_privilege(event['user_id'], perm.OWNER):
             raise CanceledException('Group disabled')
 
@@ -300,7 +300,7 @@ async def set_r18(session: nonebot.CommandSession):
 
     setting = session.get('stats', prompt='请设置开启或关闭')
 
-    set_group_permission(setting, id_num, 'R18')
+    set_group_permission(setting, id_num, 'ALLOW_R18')
 
     await session.finish('Done!')
 
@@ -486,11 +486,11 @@ async def entertain_switch(session: nonebot.CommandSession):
     if not str(group_id).isdigit():
         await session.finish('这不是qq号哦~')
 
-    if admin_control.get_group_permission(group_id, 'enabled'):
-        admin_control.set_group_permission(group_id, 'enabled', False)
+    if admin_control.get_group_permission(group_id, 'is_enabled'):
+        admin_control.set_group_permission(group_id, 'is_enabled', False)
         await session.finish('已禁用娱乐功能！')
     else:
-        admin_control.set_group_permission(group_id, 'enabled', True)
+        admin_control.set_group_permission(group_id, 'is_enabled', True)
         await session.finish('已开启娱乐功能！')
 
 
@@ -510,29 +510,13 @@ async def _set_group_property(session: nonebot.CommandSession):
     session.state[session.current_key] = stripped_arg
 
 
-@nonebot.on_command('闪照设置', only_to_me=False)
-async def set_exempt(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    if not get_privilege(get_user_id(ctx), perm.ADMIN) or 'group_id' not in ctx:
-        return
-
-    group_id = get_group_id(ctx)
-    if admin_control.get_group_permission(group_id, 'exempt'):
-        admin_control.set_group_permission(group_id, 'exempt', False)
-        await session.finish('已打开R18闪照发送模式')
-
-    else:
-        admin_control.set_group_permission(group_id, 'exempt', True)
-        await session.finish('本群R18图将不再已闪照形式发布')
-
-
 @nonebot.on_command('验车', only_to_me=False)
 async def av_validator(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if get_privilege(get_user_id(ctx), perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
-    if not admin_control.get_group_permission(get_group_id(ctx), 'R18'):
+    if not admin_control.get_group_permission(get_group_id(ctx), 'ALLOW_R18'):
         await session.finish('请联系BOT管理员开启本群R18权限')
 
     key_word = session.get('key_word', prompt='在？你要让我查什么啊baka')

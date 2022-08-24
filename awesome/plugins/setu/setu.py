@@ -20,6 +20,8 @@ from qq_bot_core import setu_control, user_control_module, admin_control, cangku
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 pixiv_api = pixivpy3.AppPixivAPI()
 
+ban_count = 3
+
 
 class SetuRequester:
     def __init__(
@@ -65,7 +67,7 @@ async def get_setu_stat(session: nonebot.CommandSession):
     await session.finish(f'色图功能共被使用了{setu_stat}次，被查最多的关键词前10名为：\n{setu_high_freq_keyword_to_string}')
 
 
-@nonebot.on_command('查询本群xp', aliases={'查询本群XP'}, only_to_me=False)
+@nonebot.on_command('查询本群xp', aliases={'查询本群XP', '本群XP'}, only_to_me=False)
 async def fetch_group_xp(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if 'group_id' not in ctx:
@@ -87,45 +89,6 @@ async def get_setu_stat(session: nonebot.CommandSession):
         await session.finish('查啥词啊喂！！')
 
     await session.finish(setu_control.get_keyword_usage_literal(arg))
-
-
-@nonebot.on_command('理智查询', only_to_me=False)
-async def sanity_checker(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    if 'group_id' in ctx:
-        id_num = get_group_id(ctx)
-    else:
-        id_num = get_user_id(ctx)
-
-    if id_num in setu_control.get_sanity_dict():
-        sanity = setu_control.get_sanity(id_num)
-    else:
-        sanity = setu_control.get_max_sanity()
-        setu_control.set_sanity(id_num, setu_control.get_max_sanity())
-
-    await session.send(f'本群剩余理智为：{sanity}')
-
-
-@nonebot.on_command('理智补充', only_to_me=False)
-async def sanity_refill(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    if not get_privilege(get_user_id(ctx), perm.ADMIN):
-        await session.finish('您没有权限补充理智')
-
-    id_num = 0
-    sanity_add = 0
-    try:
-        id_num = int(session.get('id_num', prompt='请输入要补充的ID'))
-        sanity_add = int(session.get('sanity_add', prompt='那要补充多少理智呢？'))
-    except ValueError:
-        await session.finish('未找到能够补充的对象')
-
-    try:
-        setu_control.fill_sanity(id_num, sanity=sanity_add)
-    except KeyError:
-        await session.finish('未找到能够补充的对象')
-
-    await session.finish('补充理智成功！')
 
 
 @nonebot.on_command('设置色图禁用', only_to_me=False)
@@ -150,7 +113,7 @@ async def set_black_list_group(session: nonebot.CommandSession):
     else:
         group_id = get_group_id(ctx)
 
-    setting = set_group_permission(message, group_id, 'banned')
+    setting = set_group_permission(message, group_id, 'IS_BANNED')
     await session.finish(f'Done! {setting}')
 
 
@@ -161,19 +124,16 @@ async def pixiv_send(session: nonebot.CommandSession):
     message_id, allow_r18, user_id, group_id = _get_info_for_setu(ctx)
 
     if group_id != -1 and not get_privilege(user_id, perm.OWNER):
-        if admin_control.get_group_permission(group_id, 'banned'):
+        if admin_control.get_group_permission(group_id, 'IS_BANNED'):
             await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
 
     monitored = False
-    ban_count = 3
 
     warn, sanity = _sanity_check(group_id, user_id)
     if warn:
         await session.finish(warn)
 
     if sanity <= 0:
-        if group_id not in setu_control.remind_dict or not setu_control.remind_dict[group_id]:
-            setu_control.set_remind_dict(group_id, True)
         await session.finish('差不多得了嗷')
 
     if not admin_control.get_if_authed():
@@ -300,24 +260,19 @@ async def pixiv_send(session: nonebot.CommandSession):
 
     bot = nonebot.get_bot()
     if not is_work_r18:
-        try:
-            await session.send(
-                f'[CQ:reply,id={message_id}]'
-                f'Pixiv ID: {illust.id}\n'
-                f'标题：{illust.title}\n'
-                f'查询关键词：{key_word}\n'
-                f'画师：{illust["user"]["name"]}\n' +
-                f'{MessageSegment.image(f"file:///{path}")}\n' +
-                f'Download Time: {(time.time() - start_time):.2f}s'
-            )
+        await session.send(
+            f'[CQ:reply,id={message_id}]'
+            f'Pixiv ID: {illust.id}\n'
+            f'标题：{illust.title}\n'
+            f'查询关键词：{key_word}\n'
+            f'画师：{illust["user"]["name"]}\n' +
+            f'{MessageSegment.image(f"file:///{path}")}\n' +
+            f'Download Time: {(time.time() - start_time):.2f}s'
+        )
 
-            logger.info("sent image on path: " + path)
+        logger.info("sent image on path: " + path)
 
-        except Exception as e:
-            logger.info('Something went wrong %s' % e)
-            await session.send('悲，屑TX不收我图。')
-            return
-
+    # group_id = -1 when private session.
     elif is_work_r18 and (group_id == -1 or allow_r18):
         await session.send(
             f'[CQ:reply,id={message_id}]'
@@ -345,26 +300,32 @@ async def pixiv_send(session: nonebot.CommandSession):
                     f'Download Time: {(time.time() - start_time):.2f}s'
         )
 
+    await _setu_data_collection(ctx, key_word, monitored, path, illust)
+
+
+async def _setu_data_collection(ctx: dict, key_word: str, monitored: bool, path: str, illust):
     if 'group_id' in ctx:
-        setu_control.set_group_data(group_id, 'setu')
+        setu_control.set_group_data(get_group_id(ctx), 'setu')
 
     nickname = get_nickname(ctx)
 
+    user_id = get_user_id(ctx)
     setu_control.set_user_data(user_id, 'setu', nickname)
     key_word_list = re.split(r'[\s\u3000]+', key_word)
     for keyword in key_word_list:
         setu_control.set_user_xp(user_id, keyword, nickname)
-        setu_control.set_group_xp(group_id, keyword)
+        setu_control.set_group_xp(get_group_id(ctx), keyword)
 
     tags = illust.tags
     tags = [x for x in list(tags) if x not in setu_control.blacklist_freq_keyword]
     if len(tags) > 5:
         tags = tags[:5]
     for tag in tags:
-        setu_control.set_group_xp(group_id, tag['name'])
+        setu_control.set_group_xp(get_group_id(ctx), tag['name'])
         setu_control.set_user_xp(user_id, tag['name'], nickname)
 
     if monitored and not get_privilege(user_id, perm.OWNER):
+        bot = nonebot.get_bot()
         await bot.send_private_msg(
             user_id=SUPER_USER,
             message=f'图片来自：{nickname}\n'
@@ -397,7 +358,7 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
 
     group_id = get_group_id(ctx)
     if group_id != -1 and not get_privilege(get_user_id(ctx), perm.OWNER):
-        if admin_control.get_group_permission(group_id, 'banned'):
+        if admin_control.get_group_permission(group_id, 'IS_BANNED'):
             await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
 
     requester_qq = get_user_id(ctx)
@@ -406,9 +367,6 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
         await session.finish(warn)
 
     if sanity <= 0:
-        if group_id not in setu_control.remind_dict or not setu_control.remind_dict[group_id]:
-            setu_control.set_remind_dict(group_id, True)
-
         await session.finish('差不多得了嗷')
 
     arg = session.current_arg
@@ -457,7 +415,8 @@ async def _get_xp_information(xp_information: SetuRequester) -> str:
     illust = random.choice(json_result)
     start_time = time.time()
     path = await _download_pixiv_image_helper(illust)
-    allow_r18 = xp_information.group_id != -1 and admin_control.get_group_permission(xp_information.group_id, 'R18')
+    allow_r18 = xp_information.group_id != -1 \
+                and admin_control.get_group_permission(xp_information.group_id, 'ALLOW_R18')
     is_r18 = illust.sanity_level == 6
     iteration = 0
 
@@ -557,7 +516,11 @@ async def _download_pixiv_image_helper(illust):
             image_url_list = illust.meta_pages
             illust = random.choice(image_url_list)
 
-        image_url = illust.image_urls['medium']
+        image_urls = illust.image_urls
+        image_url = image_urls['original'] if 'original' in image_urls else \
+            image_urls['large'] if 'large' in image_urls else \
+                image_urls['medium'] if 'medium' in image_urls else \
+                    image_urls['square_medium']
 
     logger.info(f"{illust.title}: {image_url}, {illust.id}")
     path = f'{getcwd()}/data/pixivPic/'
@@ -613,7 +576,7 @@ async def cangku_search(session: nonebot.CommandSession):
         allow_r18 = True
     else:
         group_id = get_group_id(ctx)
-        allow_r18 = admin_control.get_group_permission(group_id, 'R18')
+        allow_r18 = admin_control.get_group_permission(group_id, 'ALLOW_R18')
 
     user_id = get_user_id(ctx)
     user_id = str(user_id)
@@ -670,7 +633,7 @@ def _get_info_for_setu(ctx):
     message_id = ctx['message_id']
 
     group_id = get_group_id(ctx)
-    allow_r18 = admin_control.get_group_permission(group_id, 'R18')
+    allow_r18 = admin_control.get_group_permission(group_id, 'ALLOW_R18')
     user_id = get_user_id(ctx)
 
     return message_id, allow_r18, user_id, group_id

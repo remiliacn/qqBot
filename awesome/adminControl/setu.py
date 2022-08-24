@@ -9,7 +9,6 @@ class SetuFunction:
         self.blacklist_freq_keyword = ('R-18', 'オリジナル', '女の子')
         self.sanity_dict = {}
         self.happy_hours = False
-        self.remind_dict = {}
         self.ordered_stat = {}
 
         self.setu_db_path = 'data/db/setu.db'
@@ -328,10 +327,10 @@ class SetuFunction:
     def get_group_xp(self, group_id: Union[int, str]) -> Cursor:
         group_id = str(group_id)
         result = self.setu_db_connection.execute(
-            """
-            select keyword, hit from setu_group_keyword where group_id = ?
+            f"""
+            select keyword, hit from setu_group_keyword where group_id = ? and {self._keyword_filter_query()}
                 order by hit desc limit 5;
-            """, (group_id,)
+            """, (group_id, *self.blacklist_freq_keyword)
         ).fetchall()
         return result
 
@@ -468,9 +467,6 @@ class SetuFunction:
             'group_xp': freq_xp_keyword
         }
 
-    def set_remind_dict(self, group_id, stats):
-        self.remind_dict[group_id] = stats
-
     def set_sanity(self, group_id, sanity=2000):
         self.sanity_dict[group_id] = sanity
 
@@ -483,8 +479,6 @@ class SetuFunction:
     def fill_sanity(self, group_id=None, sanity=1):
         if group_id is None:
             for elements in self.sanity_dict:
-                if self.sanity_dict[elements] + sanity > 0:
-                    self.remind_dict[elements] = False
                 if self.happy_hours:
                     if not self.sanity_dict[elements] >= self.max_sanity * 2:
                         self.sanity_dict[elements] += sanity
@@ -492,8 +486,6 @@ class SetuFunction:
                     if not self.sanity_dict[elements] >= self.max_sanity:
                         self.sanity_dict[elements] += sanity
         else:
-            if self.sanity_dict[group_id] + sanity > 0:
-                self.remind_dict[group_id] = False
             self.sanity_dict[group_id] += sanity
 
     def commit_change(self):

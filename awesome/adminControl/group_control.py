@@ -1,50 +1,44 @@
-import json
 import sqlite3
-from os.path import exists
 from typing import Union
 
-# Tag list meaning hint.
-TAG_LIST = {
-    'recall': {
-        'description': '是否拦截撤回',
-        'default': False
-    },
-    'banned': {
-        'description': '是否不接受该群的指令',
-        'default': False
-    },
-    'exempt': {
-        'description': '是否使用闪照',
-        'default': True
-    },
-    'R18': {
-        'description': '是否允许R18内容',
-        'default': False
-    }
+DEFAULT_SETTINGS = {
+    'IS_BANNED': False,
+    'IS_ENABLED': True,
+    'ALLOW_R18': False,
+    'CATCH_RECALL': False,
+    'NLP_PROCESS': True
 }
 
 
-class Shadiaoadmin:
+class GroupControlModule:
     def __init__(self):
         self.access_token = 'PLACEHOLDER'
         self.auth_stat = False
 
         self.repeat_dict = {}
 
-        self.group_path = 'config/group.json'
         self.group_quotes_path = 'data/db/quotes.db'
 
-        self.group_quote_db = sqlite3.connect(self.group_quotes_path)
-        if not exists(self.group_path):
-            with open(self.group_path, 'w+') as file:
-                json.dump({}, file)
+        self.group_info_db = sqlite3.connect(self.group_quotes_path)
+        self._init_group_setting()
 
-        file = open(self.group_path, 'r+')
-        fl = file.read()
-        self.group_setting = json.loads(str(fl))
+    def _init_group_setting(self):
+        self.group_info_db.execute(
+            """
+            create table if not exists group_settings (
+                group_id varchar(20) unique on conflict ignore,
+                is_banned boolean,
+                is_enabled boolean,
+                allow_r18 boolean,
+                recall_catch boolean,
+                nlp_process boolean
+            )
+            """
+        )
+        self.group_info_db.commit()
 
     def _get_group_quotes(self):
-        self.group_quote_db.execute(
+        self.group_info_db.execute(
             """
             create table if not exists quotes (
                 "cq_image" text unique on conflict ignore, 
@@ -52,24 +46,24 @@ class Shadiaoadmin:
             )
             """
         )
-        self.group_quote_db.commit()
+        self.group_info_db.commit()
 
     def add_quote(self, group_id: Union[int, str], quote: str):
         if isinstance(group_id, int):
             group_id = str(group_id)
 
-        self.group_quote_db.execute(
+        self.group_info_db.execute(
             f"""
             insert into quotes (cq_image, qq_group) values ('{quote}', '{group_id}')
             """
         )
-        self.group_quote_db.commit()
+        self.group_info_db.commit()
 
     def get_group_quote(self, group_id: Union[int, str]):
         if isinstance(group_id, int):
             group_id = str(group_id)
 
-        query = self.group_quote_db.execute(
+        query = self.group_info_db.execute(
             f"""
             select cq_image from quotes where qq_group = '{group_id}' order by random() limit 1;
             """
@@ -84,19 +78,19 @@ class Shadiaoadmin:
         if isinstance(group_id, int):
             group_id = str(group_id)
 
-        self.group_quote_db.execute(
+        self.group_info_db.execute(
             f"""
             delete from quotes where qq_group='{group_id}'
             """
         )
-        self.group_quote_db.commit()
+        self.group_info_db.commit()
         return True
 
     def get_group_quote_count(self, group_id: Union[int, str]):
         if isinstance(group_id, int):
             group_id = str(group_id)
 
-        query_result = self.group_quote_db.execute(
+        query_result = self.group_info_db.execute(
             f"""
             select count(*) from quotes where qq_group='{group_id}'
             """
@@ -104,36 +98,34 @@ class Shadiaoadmin:
 
         return query_result.fetchone()[0]
 
-    def set_group_permission(self, group_id, tag, stat, global_setting=False):
+    def set_group_permission(self, group_id: Union[int, str], tag, stat):
+        group_id = str(group_id)
+
+        self.group_info_db.execute(
+            f"""
+            insert or replace into group_settings 
+            (group_id, {tag}) values (
+                ?, ?
+            )
+            """, (group_id, stat)
+        )
+
+        self._commit_change()
+
+    def get_group_permission(self, group_id: Union[int, str], tag: str) -> bool:
         if isinstance(group_id, int):
             group_id = str(group_id)
 
-        if group_id not in self.group_setting:
-            self.group_setting[group_id] = {}
+        result = self.group_info_db.execute(
+            f"""
+            select {tag} from group_settings where group_id = ? limit 1;
+            """, (group_id,)
+        ).fetchone()
 
-        if not global_setting:
-            self.group_setting[group_id][tag] = stat
-        else:
-            self.group_setting['global'][tag] = stat
+        if result is None or result[0] is None:
+            return DEFAULT_SETTINGS[tag.upper()]
 
-        self.make_a_json('config/group.json')
-
-    def get_group_permission(self, group_id, tag, default_if_none=True):
-        if isinstance(group_id, int):
-            group_id = str(group_id)
-
-        if group_id not in self.group_setting:
-            self.group_setting[group_id] = {}
-
-        if tag not in self.group_setting[group_id]:
-            if tag != 'exempt':
-                self.group_setting[group_id][tag] = default_if_none
-            else:
-                self.group_setting[group_id][tag] = False
-
-            self.make_a_json('config/group.json')
-
-        return self.group_setting[group_id][tag]
+        return result[0]
 
     def set_access_token(self, access_token):
         self.access_token = access_token
@@ -147,10 +139,10 @@ class Shadiaoadmin:
     def set_if_authed(self, stats):
         self.auth_stat = stats
 
-    def make_a_json(self, file_name):
-        if file_name == self.group_path:
-            with open(self.group_path, 'w+') as f:
-                json.dump(self.group_setting, f, indent=4)
+    def _commit_change(self):
+        self.group_info_db.commit()
 
-        elif file_name == self.group_quotes_path:
-            self.group_quote_db.commit()
+
+if __name__ == '__main__':
+    o = GroupControlModule()
+    print(o.get_group_permission(756519601, 'is_enabled'))

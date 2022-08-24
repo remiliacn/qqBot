@@ -50,7 +50,7 @@ async def natural_language_proc(session: nonebot.NLPSession):
         await session.send(reply_response)
         return
 
-    if admin_control.get_group_permission(group_id, 'FREE_SPEECH'):
+    if admin_control.get_group_permission(group_id, 'nlp_process'):
         if match(r'.*?哼{2,}啊+', message):
             await session.send('别臭了别臭了！孩子要臭傻了')
             return
@@ -63,12 +63,6 @@ async def natural_language_proc(session: nonebot.NLPSession):
         if auto_reply:
             await session.send(auto_reply)
             return
-
-        if admin_control.get_group_permission(group_id, 'flash', default_if_none=False):
-            fetch_flash_image = await _get_flash_image_entry(message)
-            if fetch_flash_image:
-                await session.send(f'已拦截到闪照~\n'
-                                   f'[CQ:image,file={fetch_flash_image}]')
 
         message = message.strip()
         fetch_result = _repeat_and_palindrome_fetch(message)
@@ -168,7 +162,7 @@ def _do_auto_reply_retrieve(
 ) -> str:
     rand_num = randint(0, 3)
 
-    if admin_control.get_group_permission(group_id, 'enabled'):
+    if admin_control.get_group_permission(group_id, 'is_enabled'):
         if get_privilege(user_id, perm.BANNED):
             return ''
 

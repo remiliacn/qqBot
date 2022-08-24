@@ -58,7 +58,7 @@ class BuffRequester:
         self.target_rate = self._get_target_rate()
         self.STABLE_SELL_VOLUME = 10
 
-        self.BLACKLIST_KEYWORD = ['纪念品', '胶囊', '武器箱', '盎然春意', '封装的涂鸦']
+        self.BLACKLIST_KEYWORD = ['纪念品', '胶囊', '盎然春意', '封装的涂鸦']
 
         self.BUFF_HEADERS = {
             'Cookie': f'session={self.BUFF_SESSION_ID};',
@@ -293,27 +293,28 @@ class BuffRequester:
         marketplace_url = f'https://steamcommunity.com/market/listings/{appid}/{market_hash}'
 
         try:
-            market_page_text = get(marketplace_url, timeout=None)
+            async with AsyncClient() as client:
+                market_page_text = await client.get(marketplace_url, timeout=None)
 
-            if market_page_text.status_code == 429:
-                if not self.just_tried_long_sleep:
-                    self.just_tried_long_sleep = True
-                    logger.warning(f'Getting 429 while fetching item id, sleeping {self.sleep_time()} seconds')
-                    self.store_item_id()
-                    if self.is_debug:
-                        sleep(self.sleep_time())
+                if market_page_text.status_code == 429:
+                    if not self.just_tried_long_sleep:
+                        self.just_tried_long_sleep = True
+                        logger.warning(f'Getting 429 while fetching item id, sleeping {self.sleep_time()} seconds')
+                        self.store_item_id()
+                        if self.is_debug:
+                            sleep(self.sleep_time())
+                        else:
+                            return ['22774494']
                     else:
-                        return ['22774494']
-                else:
-                    logger.warning(f'429, retrying...')
-                    if self.is_debug:
-                        sleep(80)
-                    else:
-                        return ['22774494']
+                        logger.warning(f'429, retrying...')
+                        if self.is_debug:
+                            sleep(80)
+                        else:
+                            return ['22774494']
 
-                return await self.get_item_id_from_steam(item)
+                    return await self.get_item_id_from_steam(item)
 
-            market_page_text = market_page_text.text
+                market_page_text = market_page_text.text
         except HTTPError as err:
             timeout_random = random.randint(2, 5)
             logger.warning(f'Timeout error, retrying in {timeout_random} seconds... {err.__class__.__name__}')

@@ -75,12 +75,8 @@ async def remove_tweet_following(session: nonebot.CommandSession):
 
 
 @nonebot.scheduler.scheduled_job('interval', minutes=2, misfire_grace_time=5)
-async def do_file_upload():
-    await do_youtube_update_fetch()
-
-
-@nonebot.scheduler.scheduled_job('interval', seconds=90, misfire_grace_time=5)
 async def scheduled_jobs():
+    await do_youtube_update_fetch()
     if get_status():
         Popen(
             ['py', DOWNLODER_FILE_NAME, 'bulk'],
