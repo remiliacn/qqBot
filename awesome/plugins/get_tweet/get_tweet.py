@@ -102,6 +102,9 @@ def get_status():
 
 
 async def check_rates():
+    if not STEAM_UTIL_GROUP_NUM:
+        return
+
     await buff_requester.do_igxe_work()
     await buff_requester.do_buff_work()
     buff_requester.clear_item_id_set()
