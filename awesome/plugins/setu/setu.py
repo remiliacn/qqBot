@@ -9,6 +9,7 @@ import pixivpy3
 from aiocqhttp import MessageSegment
 from loguru import logger
 
+from Services.util.common_util import compile_forward_message
 from Services.util.ctx_utility import get_group_id, get_user_id, get_nickname
 from Services.util.download_helper import download_image
 from Services.util.sauce_nao_helper import sauce_helper
@@ -256,50 +257,38 @@ async def pixiv_send(session: nonebot.CommandSession):
 
     start_time = time.time()
     path = await _download_pixiv_image_helper(illust)
-    nickname = get_nickname(ctx)
 
     bot = nonebot.get_bot()
-    if not is_work_r18:
-        await session.send(
-            f'[CQ:reply,id={message_id}]'
-            f'Pixiv ID: {illust.id}\n'
-            f'标题：{illust.title}\n'
-            f'查询关键词：{key_word}\n'
-            f'画师：{illust["user"]["name"]}\n' +
-            f'{MessageSegment.image(f"file:///{path}")}\n' +
-            f'Download Time: {(time.time() - start_time):.2f}s'
-        )
 
-        logger.info("sent image on path: " + path)
+    if not is_work_r18:
+        message = f'[CQ:reply,id={message_id}]' \
+                  f'Pixiv ID: {illust.id}\n' \
+                  f'标题：{illust.title}\n' \
+                  f'查询关键词：{key_word}\n' \
+                  f'画师：{illust["user"]["name"]}\n' \
+                  f'{MessageSegment.image(f"file:///{path}")}\n' \
+                  f'Download Time: {(time.time() - start_time):.2f}s'
 
     # group_id = -1 when private session.
     elif is_work_r18 and (group_id == -1 or allow_r18):
-        await session.send(
-            f'[CQ:reply,id={message_id}]'
-            f'芜湖~好图来了ww\n'
-            f'标题：{illust.title}\n'
-            f'Pixiv ID: {illust.id}\n'
-            f'关键词：{key_word}\n'
-            f'画师：{illust["user"]["name"]}\n'
-            f'[CQ:image,file=file:///{path}]' +
-            f'Download Time: {(time.time() - start_time):.2f}s'
-        )
+        message = f'[CQ:reply,id={message_id}]' \
+                  f'芜湖~好图来了ww\n' \
+                  f'标题：{illust.title}\n' \
+                  f'Pixiv ID: {illust.id}\n' \
+                  f'关键词：{key_word}\n' \
+                  f'画师：{illust["user"]["name"]}\n' \
+                  f'[CQ:image,file=file:///{path}]\n' \
+                  f'Download Time: {(time.time() - start_time):.2f}s'
 
     else:
-        await session.send(
-            f'[CQ:reply,id={message_id}]'
-            '由于图片不太健全，所以只能发给主人了。'
-        )
-        await bot.send_private_msg(
-            user_id=SUPER_USER,
-            message=f"图片来自：{nickname}\n"
-                    f"来自群：{group_id}\n"
-                    f"查询关键词：{key_word}\n" +
-                    f'Pixiv ID: {illust.id}\n' +
-                    f'{MessageSegment.image(f"file:///{path}")}\n' +
-                    f'Download Time: {(time.time() - start_time):.2f}s'
-        )
+        message = '图片发送失败！'
 
+    await bot.send_group_forward_msg(
+        group_id=group_id,
+        messages=compile_forward_message(session.self_id, message)
+    )
+
+    logger.info("sent image on path: " + path)
     await _setu_data_collection(ctx, key_word, monitored, path, illust)
 
 
@@ -396,7 +385,11 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
     xp_information = SetuRequester(ctx, has_id, pixiv_id, xp_result, requester_qq, search_target_qq)
     result = await _get_xp_information(xp_information)
     setu_control.drain_sanity(group_id)
-    await session.finish(f'[CQ:reply,id={message_id}]{result}\n{friendly_reminder if not has_id else ""}')
+    final_message = f'[CQ:reply,id={message_id}]{result}\n{friendly_reminder if not has_id else ""}'
+    messages = compile_forward_message(session.self_id, final_message)
+
+    bot = nonebot.get_bot()
+    await bot.send_group_forward_msg(group_id=group_id, messages=messages)
 
 
 async def _get_xp_information(xp_information: SetuRequester) -> str:
