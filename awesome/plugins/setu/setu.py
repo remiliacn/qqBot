@@ -9,6 +9,7 @@ import pixivpy3
 from aiocqhttp import MessageSegment
 from loguru import logger
 
+from Services.rate_limiter import UserLimitModifier
 from Services.util.common_util import compile_forward_message
 from Services.util.ctx_utility import get_group_id, get_user_id, get_nickname
 from Services.util.download_helper import download_image
@@ -16,7 +17,7 @@ from Services.util.sauce_nao_helper import sauce_helper
 from awesome.Constants import user_permission as perm, group_permission
 from awesome.plugins.util.helper_util import anime_reverse_search_response, set_group_permission
 from config import SUPER_USER, PIXIV_REFRESH_TOKEN
-from qq_bot_core import setu_control, user_control_module, admin_control, cangku_api
+from qq_bot_core import setu_control, user_control_module, admin_group_control, cangku_api, global_rate_limiter
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 pixiv_api = pixivpy3.AppPixivAPI()
@@ -136,8 +137,14 @@ async def pixiv_send(session: nonebot.CommandSession):
     message_id, allow_r18, user_id, group_id = _get_info_for_setu(ctx)
 
     if group_id != -1 and not get_privilege(user_id, perm.OWNER):
-        if admin_control.get_group_permission(group_id, group_permission.BANNED):
+        if admin_group_control.get_group_permission(group_id, group_permission.BANNED):
             await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
+
+    # 限流5秒单用户只能请求一次。
+    user_limit = UserLimitModifier(5.0, 1.0, True)
+    rate_limiter_check = await global_rate_limiter.user_limit_check('setu', user_id, user_limit)
+    if isinstance(rate_limiter_check, str):
+        await session.finish(f'[CQ:reply,id={message_id}]{rate_limiter_check}')
 
     monitored = False
 
@@ -148,12 +155,12 @@ async def pixiv_send(session: nonebot.CommandSession):
     if sanity <= 0:
         await session.finish('差不多得了嗷')
 
-    if not admin_control.get_if_authed():
+    if not admin_group_control.get_if_authed():
         pixiv_api.set_auth(
-            access_token=admin_control.get_access_token(),
+            access_token=admin_group_control.get_access_token(),
             refresh_token='iL51azZw7BWWJmGysAurE3qfOsOhGW-xOZP41FPhG-s'
         )
-        admin_control.set_if_authed(True)
+        admin_group_control.set_if_authed(True)
 
     key_word = str(session.get('key_word', prompt='请输入一个关键字进行查询')).lower()
 
@@ -359,7 +366,7 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
 
     group_id = get_group_id(ctx)
     if group_id != -1 and not get_privilege(get_user_id(ctx), perm.OWNER):
-        if admin_control.get_group_permission(group_id, group_permission.BANNED):
+        if admin_group_control.get_group_permission(group_id, group_permission.BANNED):
             await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
 
     requester_qq = get_user_id(ctx)
@@ -421,7 +428,7 @@ async def _get_xp_information(xp_information: SetuRequester) -> str:
     start_time = time.time()
     path = await _download_pixiv_image_helper(illust)
     allow_r18 = xp_information.group_id != -1 \
-                and admin_control.get_group_permission(xp_information.group_id, group_permission.ALLOW_R18)
+                and admin_group_control.get_group_permission(xp_information.group_id, group_permission.ALLOW_R18)
     is_r18 = illust.sanity_level == 6
     iteration = 0
 
@@ -463,12 +470,12 @@ async def _get_xp_information(xp_information: SetuRequester) -> str:
 
 
 def _get_user_bookmark_data(pixiv_id: int):
-    if not admin_control.get_if_authed():
+    if not admin_group_control.get_if_authed():
         pixiv_api.set_auth(
-            access_token=admin_control.get_access_token(),
+            access_token=admin_group_control.get_access_token(),
             refresh_token=PIXIV_REFRESH_TOKEN
         )
-        admin_control.set_if_authed(True)
+        admin_group_control.set_if_authed(True)
 
     json_result_list = []
     json_result = pixiv_api.user_bookmarks_illust(user_id=pixiv_id)
@@ -561,10 +568,10 @@ async def reverse_image_search(session: nonebot.CommandSession):
 
 
 def set_function_auth() -> bool:
-    admin_control.set_if_authed(False)
+    admin_group_control.set_if_authed(False)
     try:
         pixiv_api.auth(refresh_token=PIXIV_REFRESH_TOKEN)
-        admin_control.set_if_authed(True)
+        admin_group_control.set_if_authed(True)
 
     except pixivpy3.PixivError as err:
         logger.warning(err)
@@ -581,7 +588,7 @@ async def cangku_search(session: nonebot.CommandSession):
         allow_r18 = True
     else:
         group_id = get_group_id(ctx)
-        allow_r18 = admin_control.get_group_permission(group_id, group_permission.ALLOW_R18)
+        allow_r18 = admin_group_control.get_group_permission(group_id, group_permission.ALLOW_R18)
 
     user_id = get_user_id(ctx)
     user_id = str(user_id)
@@ -638,7 +645,7 @@ def _get_info_for_setu(ctx):
     message_id = ctx['message_id']
 
     group_id = get_group_id(ctx)
-    allow_r18 = admin_control.get_group_permission(group_id, group_permission.ALLOW_R18)
+    allow_r18 = admin_group_control.get_group_permission(group_id, group_permission.ALLOW_R18)
     user_id = get_user_id(ctx)
 
     return message_id, allow_r18, user_id, group_id

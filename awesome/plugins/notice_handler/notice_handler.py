@@ -6,7 +6,7 @@ from awesome.Constants import group_permission
 from awesome.Constants.user_permission import OWNER
 from awesome.plugins.admin_setting.admin_setting import get_privilege
 from awesome.plugins.util.helper_util import set_group_permission
-from qq_bot_core import admin_control
+from qq_bot_core import admin_group_control
 
 
 @nonebot.on_command('antirecall', only_to_me=False)
@@ -30,7 +30,7 @@ async def _recall_handler(session: nonebot.NoticeSession):
     ctx = session.ctx.copy()
     group_id = get_group_id(ctx)
 
-    recall_setting = admin_control.get_group_permission(
+    recall_setting = admin_group_control.get_group_permission(
         group_id=group_id,
         tag=group_permission.RECALL
     )

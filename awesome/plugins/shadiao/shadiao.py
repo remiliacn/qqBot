@@ -10,11 +10,13 @@ from nonebot.message import CanceledException
 from nonebot.plugin import PluginManager
 
 from Services import waifu_finder, ark_nights, shadiao, pcr_news
+from Services.rate_limiter import UserLimitModifier
+from Services.util.common_util import get_general_ctx_info
 from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
 from awesome.Constants import user_permission as perm, group_permission
 from awesome.plugins.util.helper_util import get_downloaded_image_path, ark_helper, set_group_permission
 from config import SUPER_USER
-from qq_bot_core import admin_control
+from qq_bot_core import admin_group_control, global_rate_limiter
 from qq_bot_core import user_control_module, setu_control, weeb_learning
 
 pcr_api = pcr_news.GetPCRNews()
@@ -50,7 +52,7 @@ async def clear_group_quotes(session: nonebot.CommandSession):
         await session.finish()
 
     group_id = session.get('group_id', prompt='群号？')
-    if admin_control.clear_group_quote(group_id):
+    if admin_group_control.clear_group_quote(group_id):
         await session.finish('Done!')
 
     await session.finish('啊这……群号不对啊……')
@@ -63,10 +65,18 @@ async def get_group_quotes(session: nonebot.CommandSession):
         await session.finish()
 
     user_id = get_user_id(ctx)
+    message_id = ctx['message_id']
+
+    # 两秒内只能查询一次group_quote
+    user_limit = UserLimitModifier(2.0, 1.0, True)
+    rate_limiter_check = await global_rate_limiter.user_limit_check('group_quote', user_id, user_limit)
+    if isinstance(rate_limiter_check, str):
+        await session.finish(f'[CQ:reply,id={message_id}]{rate_limiter_check}')
+
     nickname = get_nickname(ctx)
 
     setu_control.set_user_data(user_id, 'yulu', nickname)
-    await session.finish(admin_control.get_group_quote(get_group_id(ctx)))
+    await session.finish(admin_group_control.get_group_quote(get_group_id(ctx)))
 
 
 @nonebot.on_command('添加语录', only_to_me=False)
@@ -86,8 +96,8 @@ async def add_group_quotes(session: nonebot.CommandSession):
         key_word = get_downloaded_image_path(response, f'{os.getcwd()}/data/lol')
 
         if key_word:
-            admin_control.add_quote(get_group_id(ctx), key_word)
-            await session.finish(f'已添加！（当前总语录条数：{admin_control.get_group_quote_count(get_group_id(ctx))})')
+            admin_group_control.add_quote(get_group_id(ctx), key_word)
+            await session.finish(f'已添加！（当前总语录条数：{admin_group_control.get_group_quote_count(get_group_id(ctx))})')
     else:
         await session.finish('啊这……')
 
@@ -145,7 +155,7 @@ async def message_preprocessing(_: nonebot.NoneBot, event: aiocqhttp.event, __: 
     user_id = event.user_id
 
     if group_id is not None:
-        if not admin_control.get_group_permission(group_id, group_permission.ENABLED) \
+        if not admin_group_control.get_group_permission(group_id, group_permission.ENABLED) \
                 and not get_privilege(event['user_id'], perm.OWNER):
             raise CanceledException('Group disabled')
 
@@ -161,6 +171,14 @@ async def message_preprocessing(_: nonebot.NoneBot, event: aiocqhttp.event, __: 
 async def send_waifu(session: nonebot.CommandSession):
     waifu_api = waifu_finder.WaifuFinder()
     path, message = waifu_api.get_image()
+    message_id, user_id, group_id = get_general_ctx_info(session.ctx.copy())
+
+    # 10秒内只能查询一次waifu
+    user_limit = UserLimitModifier(10.0, 1.0, True)
+    rate_limiter_check = await global_rate_limiter.user_limit_check('waifu_finder', user_id, user_limit)
+    if isinstance(rate_limiter_check, str):
+        await session.finish(f'[CQ:reply,id={message_id}]{rate_limiter_check}')
+
     if not path:
         await session.send(message)
     else:
@@ -486,11 +504,11 @@ async def entertain_switch(session: nonebot.CommandSession):
     if not str(group_id).isdigit():
         await session.finish('这不是qq号哦~')
 
-    if admin_control.get_group_permission(group_id, group_permission.BANNED):
-        admin_control.set_group_permission(group_id, group_permission.BANNED, False)
+    if admin_group_control.get_group_permission(group_id, group_permission.BANNED):
+        admin_group_control.set_group_permission(group_id, group_permission.BANNED, False)
         await session.finish('已禁用娱乐功能！')
     else:
-        admin_control.set_group_permission(group_id, group_permission.BANNED, True)
+        admin_group_control.set_group_permission(group_id, group_permission.BANNED, True)
         await session.finish('已开启娱乐功能！')
 
 
@@ -516,7 +534,7 @@ async def av_validator(session: nonebot.CommandSession):
     if get_privilege(get_user_id(ctx), perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
-    if not admin_control.get_group_permission(get_group_id(ctx), group_permission.ALLOW_R18):
+    if not admin_group_control.get_group_permission(get_group_id(ctx), group_permission.ALLOW_R18):
         await session.finish('请联系BOT管理员开启本群R18权限')
 
     key_word = session.get('key_word', prompt='在？你要让我查什么啊baka')

@@ -1,12 +1,15 @@
 import sqlite3
 from typing import Union
 
-DEFAULT_SETTINGS = {
+from loguru import logger
+
+GROUP_PERMISSION_DEFAULT = {
     'IS_BANNED': False,
     'IS_ENABLED': True,
     'ALLOW_R18': False,
     'RECALL_CATCH': False,
-    'NLP_PROCESS': True
+    'NLP_PROCESS': True,
+    'RATE_LIMITED': False
 }
 
 
@@ -27,14 +30,27 @@ class GroupControlModule:
             """
             create table if not exists group_settings (
                 group_id varchar(20) unique on conflict ignore,
-                is_banned boolean,
-                is_enabled boolean,
-                allow_r18 boolean,
-                recall_catch boolean,
-                nlp_process boolean
+                is_banned boolean default false,
+                is_enabled boolean default true,
+                allow_r18 boolean default false,
+                recall_catch boolean default false,
+                nlp_process boolean default true
             )
             """
         )
+
+        columns_added_after_implementation = ['rate_limited']
+
+        for col in columns_added_after_implementation:
+            try:
+                self.group_info_db.execute(
+                    f"""
+                    alter table group_settings add column {col} boolean default false
+                    """
+                )
+            except Exception as err:
+                logger.info(f'Adding column failed, which is okay since it is likely already existed. {err}')
+
         self.group_info_db.commit()
 
     def _get_group_quotes(self):
@@ -123,7 +139,7 @@ class GroupControlModule:
         ).fetchone()
 
         if result is None or result[0] is None:
-            return DEFAULT_SETTINGS[tag.upper()]
+            return GROUP_PERMISSION_DEFAULT[tag.upper()]
 
         return result[0]
 

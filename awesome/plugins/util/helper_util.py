@@ -5,7 +5,7 @@ from typing import Union
 import requests
 from aiocqhttp import MessageSegment
 
-from qq_bot_core import admin_control
+from qq_bot_core import admin_group_control
 
 HHSHMEANING = 'meaning'
 FURIGANAFUNCTION = 'furigana'
@@ -15,10 +15,10 @@ WIKIPEDIA = 'WIKIPEDIA'
 def set_group_permission(message: str, group_id: Union[str, int], tag: str) -> bool:
     group_id = str(group_id)
     if '开' in message:
-        admin_control.set_group_permission(group_id=group_id, tag=tag, stat=True)
+        admin_group_control.set_group_permission(group_id=group_id, tag=tag, stat=True)
         return True
 
-    admin_control.set_group_permission(group_id=group_id, tag=tag, stat=False)
+    admin_group_control.set_group_permission(group_id=group_id, tag=tag, stat=False)
     return False
 
 

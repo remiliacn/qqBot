@@ -14,7 +14,7 @@ from loguru import logger
 from Services.util.ctx_utility import get_group_id, get_user_id
 from Services.util.sauce_nao_helper import sauce_helper
 from awesome.plugins.util.helper_util import anime_reverse_search_response, get_downloaded_image_path
-from qq_bot_core import admin_control, user_control_module
+from qq_bot_core import admin_group_control, user_control_module
 from ..little_helper.little_helper import hhsh, cache
 from ..util import search_helper
 from ...Constants import user_permission as perm, group_permission
@@ -41,8 +41,8 @@ async def natural_language_proc(session: nonebot.NLPSession):
             path = get_downloaded_image_path(response, f'{getcwd()}/data/lol')
 
             if path:
-                admin_control.add_quote(group_id, path)
-                await session.send(f'已添加！（当前总语录条数：{admin_control.get_group_quote_count(group_id)})')
+                admin_group_control.add_quote(group_id, path)
+                await session.send(f'已添加！（当前总语录条数：{admin_group_control.get_group_quote_count(group_id)})')
                 return
 
     reply_response = await _check_reply_keywords(message, session.self_id)
@@ -50,7 +50,7 @@ async def natural_language_proc(session: nonebot.NLPSession):
         await session.send(reply_response)
         return
 
-    if admin_control.get_group_permission(group_id, group_permission.NLP):
+    if admin_group_control.get_group_permission(group_id, group_permission.NLP):
         if match(r'.*?哼{2,}啊+', message):
             await session.send('别臭了别臭了！孩子要臭傻了')
             return
@@ -162,7 +162,7 @@ def _do_auto_reply_retrieve(
 ) -> str:
     rand_num = randint(0, 3)
 
-    if admin_control.get_group_permission(group_id, group_permission.BANNED):
+    if admin_group_control.get_group_permission(group_id, group_permission.BANNED):
         if get_privilege(user_id, perm.BANNED):
             return ''
 
