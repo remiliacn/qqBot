@@ -11,7 +11,7 @@ from loguru import logger
 from Services.random_services import YouTubeLiveTracker
 from Services.stock import text_to_image
 from Services.util.ctx_utility import get_user_id, get_group_id
-from awesome.adminControl import permission as perm
+from awesome.Constants import user_permission as perm
 from awesome.plugins.shadiao.shadiao import setu_control
 from awesome.plugins.util.tweetHelper import tweeter
 from config import SUPER_USER, DOWNLODER_FILE_NAME, PATH_TO_ONEDRIVE, STEAM_UTIL_GROUP_NUM

@@ -13,7 +13,7 @@ from Services.util.common_util import compile_forward_message
 from Services.util.ctx_utility import get_group_id, get_user_id, get_nickname
 from Services.util.download_helper import download_image
 from Services.util.sauce_nao_helper import sauce_helper
-from awesome.adminControl import permission as perm
+from awesome.Constants import user_permission as perm, group_permission
 from awesome.plugins.util.helper_util import anime_reverse_search_response, set_group_permission
 from config import SUPER_USER, PIXIV_REFRESH_TOKEN
 from qq_bot_core import setu_control, user_control_module, admin_control, cangku_api
@@ -22,6 +22,14 @@ get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 pixiv_api = pixivpy3.AppPixivAPI()
 
 ban_count = 3
+
+HIGH_FREQ_KEYWORDS = [
+    'white hair', 'cat ears', 'pantyhose', 'black pantyhose',
+    'white pantyhose', 'arknights', 'genshin impact', 'yuri',
+    'lolita', 'underclothes', 'full body', 'choker', 'masterpiece',
+    'skirt', 'smile', 'collarbone', 'nurse, nurse cap', 'thighhights',
+    'looking at viewer', '2girl'
+]
 
 
 class SetuRequester:
@@ -63,9 +71,12 @@ async def set_user_pixiv(session: nonebot.CommandSession):
 @nonebot.on_command('色图数据', only_to_me=False)
 async def get_setu_stat(session: nonebot.CommandSession):
     setu_stat = setu_control.get_setu_usage()
+    ai_use_stat = setu_control.get_global_stat('ai_setu')
     setu_high_freq_keyword = setu_control.get_high_freq_keyword()
     setu_high_freq_keyword_to_string = "\n".join(f"{x[0]}: {x[1]}次" for x in setu_high_freq_keyword)
-    await session.finish(f'色图功能共被使用了{setu_stat}次，被查最多的关键词前10名为：\n{setu_high_freq_keyword_to_string}')
+    await session.finish(f'色图功能共被使用了{setu_stat}次（其中{ai_use_stat}次为AI生成的，'
+                         f'占比{ai_use_stat / setu_stat * 100:.2f}%），'
+                         f'被查最多的关键词前10名为：\n{setu_high_freq_keyword_to_string}')
 
 
 @nonebot.on_command('查询本群xp', aliases={'查询本群XP', '本群XP'}, only_to_me=False)
@@ -114,7 +125,7 @@ async def set_black_list_group(session: nonebot.CommandSession):
     else:
         group_id = get_group_id(ctx)
 
-    setting = set_group_permission(message, group_id, 'IS_BANNED')
+    setting = set_group_permission(message, group_id, group_permission.BANNED)
     await session.finish(f'Done! {setting}')
 
 
@@ -125,7 +136,7 @@ async def pixiv_send(session: nonebot.CommandSession):
     message_id, allow_r18, user_id, group_id = _get_info_for_setu(ctx)
 
     if group_id != -1 and not get_privilege(user_id, perm.OWNER):
-        if admin_control.get_group_permission(group_id, 'IS_BANNED'):
+        if admin_control.get_group_permission(group_id, group_permission.BANNED):
             await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
 
     monitored = False
@@ -292,7 +303,7 @@ async def pixiv_send(session: nonebot.CommandSession):
     await _setu_data_collection(ctx, key_word, monitored, path, illust)
 
 
-async def _setu_data_collection(ctx: dict, key_word: str, monitored: bool, path: str, illust):
+async def _setu_data_collection(ctx: dict, key_word: str, monitored: bool, path: str, illust=None):
     if 'group_id' in ctx:
         setu_control.set_group_data(get_group_id(ctx), 'setu')
 
@@ -300,18 +311,19 @@ async def _setu_data_collection(ctx: dict, key_word: str, monitored: bool, path:
 
     user_id = get_user_id(ctx)
     setu_control.set_user_data(user_id, 'setu', nickname)
-    key_word_list = re.split(r'[\s\u3000]+', key_word)
+    key_word_list = re.split(r'[\s\u3000,]+', key_word)
     for keyword in key_word_list:
         setu_control.set_user_xp(user_id, keyword, nickname)
         setu_control.set_group_xp(get_group_id(ctx), keyword)
 
-    tags = illust.tags
-    tags = [x for x in list(tags) if x not in setu_control.blacklist_freq_keyword]
-    if len(tags) > 5:
-        tags = tags[:5]
-    for tag in tags:
-        setu_control.set_group_xp(get_group_id(ctx), tag['name'])
-        setu_control.set_user_xp(user_id, tag['name'], nickname)
+    if illust is not None:
+        tags = illust.tags
+        tags = [x for x in list(tags) if x not in setu_control.blacklist_freq_keyword]
+        if len(tags) > 5:
+            tags = tags[:5]
+        for tag in tags:
+            setu_control.set_group_xp(get_group_id(ctx), tag['name'])
+            setu_control.set_user_xp(user_id, tag['name'], nickname)
 
     if monitored and not get_privilege(user_id, perm.OWNER):
         bot = nonebot.get_bot()
@@ -347,7 +359,7 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
 
     group_id = get_group_id(ctx)
     if group_id != -1 and not get_privilege(get_user_id(ctx), perm.OWNER):
-        if admin_control.get_group_permission(group_id, 'IS_BANNED'):
+        if admin_control.get_group_permission(group_id, group_permission.BANNED):
             await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
 
     requester_qq = get_user_id(ctx)
@@ -409,7 +421,7 @@ async def _get_xp_information(xp_information: SetuRequester) -> str:
     start_time = time.time()
     path = await _download_pixiv_image_helper(illust)
     allow_r18 = xp_information.group_id != -1 \
-                and admin_control.get_group_permission(xp_information.group_id, 'ALLOW_R18')
+                and admin_control.get_group_permission(xp_information.group_id, group_permission.ALLOW_R18)
     is_r18 = illust.sanity_level == 6
     iteration = 0
 
@@ -499,7 +511,7 @@ def _get_image_data_from_username(key_word: str) -> (str, str):
 
 
 async def _download_pixiv_image_helper(illust):
-    if illust['meta_single_page']:
+    if illust['meta_singlae_page']:
         if 'original_image_url' in illust['meta_single_page']:
             image_url = illust.meta_single_page['original_image_url']
         else:
@@ -569,7 +581,7 @@ async def cangku_search(session: nonebot.CommandSession):
         allow_r18 = True
     else:
         group_id = get_group_id(ctx)
-        allow_r18 = admin_control.get_group_permission(group_id, 'ALLOW_R18')
+        allow_r18 = admin_control.get_group_permission(group_id, group_permission.ALLOW_R18)
 
     user_id = get_user_id(ctx)
     user_id = str(user_id)
@@ -626,7 +638,7 @@ def _get_info_for_setu(ctx):
     message_id = ctx['message_id']
 
     group_id = get_group_id(ctx)
-    allow_r18 = admin_control.get_group_permission(group_id, 'ALLOW_R18')
+    allow_r18 = admin_control.get_group_permission(group_id, group_permission.ALLOW_R18)
     user_id = get_user_id(ctx)
 
     return message_id, allow_r18, user_id, group_id

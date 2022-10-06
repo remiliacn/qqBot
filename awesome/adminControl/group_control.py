@@ -5,7 +5,7 @@ DEFAULT_SETTINGS = {
     'IS_BANNED': False,
     'IS_ENABLED': True,
     'ALLOW_R18': False,
-    'CATCH_RECALL': False,
+    'RECALL_CATCH': False,
     'NLP_PROCESS': True
 }
 
@@ -141,8 +141,3 @@ class GroupControlModule:
 
     def _commit_change(self):
         self.group_info_db.commit()
-
-
-if __name__ == '__main__':
-    o = GroupControlModule()
-    print(o.get_group_permission(756519601, 'is_enabled'))

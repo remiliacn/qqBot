@@ -13,8 +13,8 @@ from nonebot import CommandSession, on_command, get_bot
 import config
 from Services.util.common_util import is_float, check_if_number_user_id
 from Services.util.ctx_utility import get_user_id, get_group_id, get_nickname
-from awesome.adminControl import permission as perm
-from awesome.adminControl.permission import OWNER
+from awesome.Constants import user_permission as perm, group_permission
+from awesome.Constants.user_permission import OWNER
 from awesome.plugins.shadiao.shadiao import setu_control
 from awesome.plugins.util.helper_util import get_downloaded_image_path, set_group_permission
 from qq_bot_core import user_control_module
@@ -32,7 +32,7 @@ async def free_speech_switch(session: CommandSession):
         await session.finish()
 
     arg = session.current_arg_text
-    set_group_permission(arg, group_id, 'nlp_process')
+    set_group_permission(arg, group_id, group_permission.NLP)
     await session.finish('我好了')
 
 

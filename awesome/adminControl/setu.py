@@ -247,14 +247,14 @@ class SetuFunction:
             else:
                 self._update_user_xp_data(user_id, keyword, user_nickname)
 
-    def get_global_stat(self) -> List[Tuple[str, int]]:
+    def get_global_stat(self, keyword) -> List[Tuple[str, int]]:
         result = self.stat_db_connection.execute(
             """
-            select keyword, hit from global_stat
-            """
-        ).fetchall()
+            select hit from global_stat where keyword = ? limit 1;
+            """, (keyword,)
+        ).fetchone()
 
-        return result
+        return result if isinstance(result, int) else result[0] if result is not None and result[0] is not None else 0
 
     def get_user_xp(self, user_id) -> Union[List[Tuple[str, int]], str]:
         if isinstance(user_id, int):

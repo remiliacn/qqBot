@@ -8,6 +8,7 @@ from nonebot.log import logger
 # 如果下面这行报错，请暂时注释掉这行然后运行下面的main()
 import config
 from Services.cangku_api import CangkuApi
+from Services.rate_limiter import RateLimiter
 from Services.simulate_stock import SimulateStock
 from Services.steam_service import BuffRequester
 from awesome.adminControl import user_control, setu, group_control
@@ -61,6 +62,7 @@ user_control_module = user_control.UserControl()
 setu_control = setu.SetuFunction()
 admin_control = group_control.GroupControlModule()
 weeb_learning = WeebController()
+global_rate_limiter = RateLimiter()
 
 cangku_api = CangkuApi()
 virtual_market = SimulateStock()

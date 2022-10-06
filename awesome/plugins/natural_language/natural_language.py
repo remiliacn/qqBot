@@ -13,11 +13,11 @@ from loguru import logger
 
 from Services.util.ctx_utility import get_group_id, get_user_id
 from Services.util.sauce_nao_helper import sauce_helper
-from awesome.adminControl import permission as perm
 from awesome.plugins.util.helper_util import anime_reverse_search_response, get_downloaded_image_path
 from qq_bot_core import admin_control, user_control_module
 from ..little_helper.little_helper import hhsh, cache
 from ..util import search_helper
+from ...Constants import user_permission as perm, group_permission
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
@@ -50,7 +50,7 @@ async def natural_language_proc(session: nonebot.NLPSession):
         await session.send(reply_response)
         return
 
-    if admin_control.get_group_permission(group_id, 'nlp_process'):
+    if admin_control.get_group_permission(group_id, group_permission.NLP):
         if match(r'.*?哼{2,}啊+', message):
             await session.send('别臭了别臭了！孩子要臭傻了')
             return
@@ -162,7 +162,7 @@ def _do_auto_reply_retrieve(
 ) -> str:
     rand_num = randint(0, 3)
 
-    if admin_control.get_group_permission(group_id, 'is_enabled'):
+    if admin_control.get_group_permission(group_id, group_permission.BANNED):
         if get_privilege(user_id, perm.BANNED):
             return ''
 

@@ -11,7 +11,7 @@ from nonebot.plugin import PluginManager
 
 from Services import waifu_finder, ark_nights, shadiao, pcr_news
 from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
-from awesome.adminControl import permission as perm
+from awesome.Constants import user_permission as perm, group_permission
 from awesome.plugins.util.helper_util import get_downloaded_image_path, ark_helper, set_group_permission
 from config import SUPER_USER
 from qq_bot_core import admin_control
@@ -145,7 +145,7 @@ async def message_preprocessing(_: nonebot.NoneBot, event: aiocqhttp.event, __: 
     user_id = event.user_id
 
     if group_id is not None:
-        if not admin_control.get_group_permission(group_id, 'is_enabled') \
+        if not admin_control.get_group_permission(group_id, group_permission.ENABLED) \
                 and not get_privilege(event['user_id'], perm.OWNER):
             raise CanceledException('Group disabled')
 
@@ -300,7 +300,7 @@ async def set_r18(session: nonebot.CommandSession):
 
     setting = session.get('stats', prompt='请设置开启或关闭')
 
-    set_group_permission(setting, id_num, 'ALLOW_R18')
+    set_group_permission(setting, id_num, group_permission.ALLOW_R18)
 
     await session.finish('Done!')
 
@@ -486,11 +486,11 @@ async def entertain_switch(session: nonebot.CommandSession):
     if not str(group_id).isdigit():
         await session.finish('这不是qq号哦~')
 
-    if admin_control.get_group_permission(group_id, 'is_enabled'):
-        admin_control.set_group_permission(group_id, 'is_enabled', False)
+    if admin_control.get_group_permission(group_id, group_permission.BANNED):
+        admin_control.set_group_permission(group_id, group_permission.BANNED, False)
         await session.finish('已禁用娱乐功能！')
     else:
-        admin_control.set_group_permission(group_id, 'is_enabled', True)
+        admin_control.set_group_permission(group_id, group_permission.BANNED, True)
         await session.finish('已开启娱乐功能！')
 
 
@@ -516,7 +516,7 @@ async def av_validator(session: nonebot.CommandSession):
     if get_privilege(get_user_id(ctx), perm.BANNED):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
-    if not admin_control.get_group_permission(get_group_id(ctx), 'ALLOW_R18'):
+    if not admin_control.get_group_permission(get_group_id(ctx), group_permission.ALLOW_R18):
         await session.finish('请联系BOT管理员开启本群R18权限')
 
     key_word = session.get('key_word', prompt='在？你要让我查什么啊baka')

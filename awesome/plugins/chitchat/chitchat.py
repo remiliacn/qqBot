@@ -6,7 +6,7 @@ import time
 import nonebot
 
 from Services.util.ctx_utility import get_user_id, get_nickname
-from awesome.adminControl import permission as perm
+from awesome.Constants import user_permission as perm
 from awesome.plugins.util.helper_util import get_downloaded_image_path
 from qq_bot_core import user_control_module
 

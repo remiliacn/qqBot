@@ -8,7 +8,7 @@ from Services import random_services
 from Services.currency import Currency
 from Services.keylol_update import KeylolFreeGame
 from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
-from awesome.adminControl import permission as perm
+from awesome.Constants import user_permission as perm
 from awesome.plugins.shadiao.shadiao import setu_control
 from awesome.plugins.util import helper_util, search_helper
 from qq_bot_core import user_control_module

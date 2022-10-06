@@ -2,7 +2,7 @@ import json
 from os.path import exists
 from typing import Union
 
-from awesome.adminControl.permission import *
+from awesome.Constants.user_permission import *
 
 USER_T = Union[OWNER, ADMIN, WHITELIST, BANNED]
 

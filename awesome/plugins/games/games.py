@@ -9,7 +9,7 @@ import nonebot
 
 from Services import poker_game, ru_game
 from Services.util.ctx_utility import get_group_id, get_user_id, get_nickname
-from awesome.adminControl import permission as perm
+from awesome.Constants import user_permission as perm, group_permission
 from awesome.plugins.shadiao.shadiao import admin_control, setu_control
 from qq_bot_core import user_control_module
 
@@ -339,7 +339,7 @@ async def the_poker_game(session: nonebot.CommandSession):
     user_id = get_user_id(ctx)
 
     if 'group_id' in ctx:
-        if admin_control.get_group_permission(get_group_id(ctx), 'IS_BANNED'):
+        if admin_control.get_group_permission(get_group_id(ctx), group_permission.BANNED):
             await session.send('已设置禁止该群的娱乐功能。如果确认这是错误的话，请联系bot制作者')
             return
 
