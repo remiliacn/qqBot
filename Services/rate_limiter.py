@@ -26,6 +26,7 @@ class RateLimiter:
         self.rate_limiter_db = sqlite3.connect(self.rate_limiter_database_path)
         self.LIMIT_BY_GROUP = 'GROUP'
         self.LIMIT_BY_USER = 'USER'
+        self.TEMPRORARY_DISABLED = 'DISABLED'
 
         self._init_ratelimiter()
 
@@ -103,6 +104,8 @@ class RateLimiter:
         group_last_update_time = await self.get_user_last_update(function_name, group_id)
 
         function_usage_limit = await self.get_function_limit(function_name)
+        if function_usage_limit <= 0:
+            return self.TEMPRORARY_DISABLED, group_last_update_time + time_manner - int(time.time())
         group_hit = await self.get_user_hit(function_name, group_id)
 
         if int(time.time()) - group_last_update_time > time_manner:
@@ -129,6 +132,9 @@ class RateLimiter:
         function_usage_limit = await self.get_function_limit(function_name)
 
         user_hit = await self.get_user_hit(function_name, user_id)
+
+        if function_usage_limit <= 0:
+            return self.TEMPRORARY_DISABLED, user_last_update_time + user_modifier.rate_limit_time - int(time.time())
 
         if int(time.time()) - user_last_update_time > user_modifier.rate_limit_time:
             update_user_hit = 1
@@ -171,9 +177,11 @@ class RateLimiter:
 
     async def _assemble_limit_prompt(self, prompt, wait_time):
         if prompt == self.LIMIT_BY_USER:
-            return f'您当前使用频率已达到允许上限，请稍等{await time_to_literal(wait_time)}后重试'
+            return f'别玩啦，过{await time_to_literal(wait_time)}后再回来玩好不好？'
         elif prompt == self.LIMIT_BY_GROUP:
             return f'群使用已到达允许上限，请稍等{await time_to_literal(wait_time)}后重试'
+        elif prompt == self.TEMPRORARY_DISABLED:
+            return f'该功能全局禁用中，请稍等{await time_to_literal(wait_time)}后再试。'
 
         return None
 
