@@ -552,17 +552,23 @@ async def reverse_image_search(session: nonebot.CommandSession):
     if args:
         url = args[0]
         logger.info(f'URL extracted: {url}')
+        ctx = session.ctx.copy()
         try:
             response_data = await sauce_helper(url)
             if not response_data:
                 response = f'图片无法辨别的说！'
             else:
                 response = anime_reverse_search_response(response_data)
-            await session.finish(response)
 
+            bot = nonebot.get_bot()
+            await bot.send_group_forward_msg(
+                group_id=get_group_id(ctx),
+                messages=compile_forward_message(session.self_id, response)
+            )
         except Exception as err:
             logger.warning(f'Error when reverse searching image data {err}')
-            return
+
+        return
     else:
         await session.finish('¿')
 

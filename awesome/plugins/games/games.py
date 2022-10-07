@@ -157,11 +157,13 @@ GLOBAL_STORE = Storer()
 game = ru_game.Russianroulette(BULLET_IN_GUN)
 
 
-@nonebot.on_command('1d100', patterns=r'\d+[dD]\d+', only_to_me=False)
+@nonebot.on_command('骰娘', only_to_me=False)
 async def pao_tuan_shai_zi(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
+    raw_message = session.current_arg
+    if not re.fullmatch(r'^\d+[dD]\d+$', raw_message):
+        await session.finish('用法错误：应为“xdy”, x 可以 = y，示例：1d100.')
 
-    raw_message = ctx['raw_message'].split()[0][1:].lower()
+    raw_message = raw_message.split()[0][1:].lower()
     args = raw_message.split('d')
     throw_times = int(args[0])
     if throw_times > 30:
