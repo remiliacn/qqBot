@@ -13,7 +13,7 @@ CANGKU_PASSWORD = ''
 
 # ai_setu function
 NOVEL_AI_KEY = ''
-NOVEL_AI_BEARER = ''
+NOVEL_AI_BEARER = 'Bearer xxxxx'
 
 DOWNLODER_FILE_NAME = 'for_download.py'
 PATH_TO_ONEDRIVE = ''

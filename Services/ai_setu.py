@@ -85,7 +85,7 @@ class AIImageGenerator:
         result = self.setu_connection.execute(
             """
             select replaced_keyword from setu_keyword_replacer where original_keyword = ? limit 1;
-            """, (keyword.strip().lower(),)
+            """, (re.sub(r'[{\[\]}]', '', keyword.strip().lower()),)
         ).fetchone()
 
         if result is not None and result[0] is not None:
@@ -237,24 +237,21 @@ class AIImageGenerator:
 
         async with AsyncClient() as client:
             request = await client.post(url=self.request_url, headers=self.header, json={
-                'input': keywords,
+                'input': 'masterpiece, best quality, ' + keywords,
                 'model': 'nai-diffusion',
                 'parameters': {
                     "width": size[0],
                     "height": size[1],
-                    "scale": 12,
+                    "scale": 11,
                     "sampler": "k_euler_ancestral",
                     "steps": 28,
                     "seed": seed,
                     "n_samples": 1,
-                    "strength": 0.7,
-                    "noise": 0.2,
-                    "ucPreset": 1,
-                    "uc": "nsfw, lowres, text, cropped, worst quality, low quality, "
-                          "normal quality, jpeg artifacts, signature, watermark, username, "
-                          "blurry, lowres, bad anatomy, bad hands, text, error, missing fingers, "
-                          "extra digit, fewer digits, cropped, worst quality, low quality, normal quality, "
-                          "jpeg artifacts, signature, watermark, username, blurry, yaoi, gay, penis"
+                    "ucPreset": 0,
+                    "uc": "nsfw, lowres, bad anatomy, bad hands, text, error, "
+                          "missing fingers, extra digit, fewer digits, cropped, "
+                          "worst quality, low quality, normal quality, jpeg artifacts, "
+                          "signature, watermark, username, blurry"
                 }
             }, timeout=None)
             path = f'{getcwd()}/data/pixivPic/'

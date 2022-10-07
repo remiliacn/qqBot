@@ -58,6 +58,18 @@ async def sese_cache_removal(session: nonebot.CommandSession):
     await session.finish("It's done.")
 
 
+@nonebot.on_command('色色赦免', only_to_me=False)
+async def sese_cache_removal(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    user_id = get_user_id(ctx)
+
+    if not get_privilege(user_id, perm.OWNER):
+        return
+
+    await global_rate_limiter.reset_user_limit(user_id)
+    await session.finish("It's done.")
+
+
 @nonebot.on_command('色色点赞', only_to_me=False)
 async def add_sese_applause(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -98,7 +110,7 @@ async def ai_generating_image(session: nonebot.CommandSession):
         user_limit = UserLimitModifier(200, .8)
         rate_limiter_check = await global_rate_limiter.user_limit_check('ai_image', user_id, user_limit)
 
-        user_limit = UserLimitModifier(60 * 60 * 24, 120, True)
+        user_limit = UserLimitModifier(60 * 60 * 24, 130, True)
         rate_limiter_check_temp = await global_rate_limiter.user_limit_check('ai_image_day', user_id, user_limit)
         if isinstance(rate_limiter_check_temp, str):
             rate_limiter_check = rate_limiter_check_temp
@@ -115,6 +127,7 @@ async def ai_generating_image(session: nonebot.CommandSession):
     args = re.sub(r'\s{2,}', '', args)
 
     args_list = args.split(',')
+    args_list = [x if 'sex' not in x and 'fuck' not in x else '' for x in args_list]
     new_arg_list = []
     replace_notification = ''
     for arg in args_list:

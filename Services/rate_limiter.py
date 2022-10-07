@@ -63,6 +63,17 @@ class RateLimiter:
 
         self.rate_limiter_db.commit()
 
+    async def reset_user_limit(self, user_id: Union[int, str]):
+        self.rate_limiter_db.execute(
+            f"""
+                update rate_limiter
+                set hit = 1
+                where user_id = {user_id};
+            """
+        )
+
+        self.rate_limiter_db.commit()
+
     async def get_function_limit(self, function_name: str):
         result = self.rate_limiter_db.execute(
             """
