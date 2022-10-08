@@ -2,6 +2,7 @@ import random
 import re
 
 import nonebot
+from loguru import logger
 
 from Services.ai_setu import AIImageGenerator
 from Services.rate_limiter import UserLimitModifier
@@ -16,7 +17,7 @@ get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 ai_bot_stuff = AIImageGenerator()
 
 
-@nonebot.on_command('色色替换', only_to_me=False)
+@nonebot.on_command('ai替换', only_to_me=False)
 async def add_sese_replace(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if not get_privilege(get_user_id(ctx), perm.OWNER):
@@ -32,7 +33,7 @@ async def add_sese_replace(session: nonebot.CommandSession):
     await session.finish('Done')
 
 
-@nonebot.on_command('色色设置', only_to_me=False)
+@nonebot.on_command('ai设置', only_to_me=False)
 async def sese_configuration(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     if not get_privilege(get_user_id(ctx), perm.OWNER):
@@ -58,7 +59,7 @@ async def sese_cache_removal(session: nonebot.CommandSession):
     await session.finish("It's done.")
 
 
-@nonebot.on_command('色色赦免', only_to_me=False)
+@nonebot.on_command('ai赦免', only_to_me=False)
 async def sese_cache_removal(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     user_id = get_user_id(ctx)
@@ -66,11 +67,15 @@ async def sese_cache_removal(session: nonebot.CommandSession):
     if not get_privilege(user_id, perm.OWNER):
         return
 
+    user_id = session.current_arg.strip()
+    if not user_id.isdigit():
+        await session.finish('?')
+
     await global_rate_limiter.reset_user_limit(user_id)
     await session.finish("It's done.")
 
 
-@nonebot.on_command('色色点赞', only_to_me=False)
+@nonebot.on_command('ai点赞', only_to_me=False)
 async def add_sese_applause(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     args = session.current_arg.strip()
@@ -94,7 +99,7 @@ async def add_sese_applause(session: nonebot.CommandSession):
     await session.finish('uid不对吧？')
 
 
-@nonebot.on_command('色色', only_to_me=False)
+@nonebot.on_command('ai', only_to_me=False)
 async def ai_generating_image(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
     message_id = ctx['message_id']
@@ -104,13 +109,19 @@ async def ai_generating_image(session: nonebot.CommandSession):
     bot = nonebot.get_bot()
     group_member_list = await bot.get_group_member_list(group_id=group_id)
     if len(group_member_list) > 100:
-        user_limit = UserLimitModifier(60 * 60 * 24, 2.0)
-        rate_limiter_check = await global_rate_limiter.user_group_limit_check('ai_image', user_id, group_id, user_limit)
+        # 大群不建议开这个功能。
+        await session.finish('服务优化中。')
+        return
+        # user_limit = UserLimitModifier(60 * 60 * 24, 2.0)
+        # rate_limiter_check = await global_rate_limiter.user_group_limit_check(
+        #     'ai_image', user_id, group_id, user_limit
+        # )
     else:
         user_limit = UserLimitModifier(200, .8)
         rate_limiter_check = await global_rate_limiter.user_limit_check('ai_image', user_id, user_limit)
 
-        user_limit = UserLimitModifier(60 * 60 * 24, 130, True)
+        # 这个数值不建议很高，特别刷屏。
+        user_limit = UserLimitModifier(60 * 60 * 24, 100, True)
         rate_limiter_check_temp = await global_rate_limiter.user_limit_check('ai_image_day', user_id, user_limit)
         if isinstance(rate_limiter_check_temp, str):
             rate_limiter_check = rate_limiter_check_temp
@@ -126,23 +137,31 @@ async def ai_generating_image(session: nonebot.CommandSession):
     args = args.replace('，', ',').replace('children', 'loli').replace('child', 'loli')
     args = re.sub(r'\s{2,}', '', args)
 
-    args_list = args.split(',')
-    args_list = [x if 'sex' not in x and 'fuck' not in x else '' for x in args_list]
+    args_list = re.split(r'[\n\s]*,[\n\s]*', args)
+    logger.info(f'args list: {args_list}')
     new_arg_list = []
     replace_notification = ''
+
+    flagged_words = await ai_bot_stuff.get_all_banned_words()
+    flagged_count = 0
     for arg in args_list:
         if not arg:
             continue
 
         replacing_candidate = await ai_bot_stuff.replace_high_confident_word(arg)
         if replacing_candidate:
-            if replacing_candidate == "''":
-                replace_notification += f'\n已去除高危关键词{arg}'
+            if replacing_candidate == "|":
+                flagged_count += 1
             else:
                 new_arg_list.append(replacing_candidate)
                 replace_notification += f'\n替换关键词 {arg} 为高度自信关键词 {replacing_candidate}'
         else:
-            new_arg_list.append(arg)
+            for word in flagged_words:
+                if re.match(rf'^{word}', arg.strip()):
+                    flagged_count += 1
+                    break
+            else:
+                new_arg_list.append(arg)
 
     new_arg_list = list(set(new_arg_list))
 
@@ -153,14 +172,13 @@ async def ai_generating_image(session: nonebot.CommandSession):
     seed = random.randint(1, int(1 << 32 - 1))
     download_path, uid = await ai_bot_stuff.get_ai_generated_image(args, seed)
 
-    confident_prompt = await ai_bot_stuff.get_tag_confident_worker(new_arg_list[:6])
+    # confident_prompt = await ai_bot_stuff.get_tag_confident_worker(new_arg_list[:6])
 
     if download_path:
         group_id = get_group_id(ctx)
         hint_prompt = "\n建议使用英文tag搜索，多个tag可使用逗号隔开。" if not re.fullmatch(r"^[\sA-Za-z0-9,，_{}\[\]']+$", args) else ""
 
-        message = f'[CQ:reply,id={message_id}]' \
-                  f'[CQ:image,file=file:///{download_path}]' \
+        message = f'[CQ:image,file=file:///{download_path}]' \
                   f'{hint_prompt}\n' \
                   f'Seed: {seed}\n'
         # f'keywords: {args}\n'
@@ -169,11 +187,12 @@ async def ai_generating_image(session: nonebot.CommandSession):
             group_id=group_id,
             messages=compile_forward_message(
                 session.self_id,
-                f'过滤信息：{replace_notification}',
-                confident_prompt,
-                message,
+                f'过滤信息：{replace_notification}\n'
+                f'已过滤 {flagged_count} 个关键词\n'
+                f'{message}',
+                # confident_prompt,
                 f'如果您喜欢该生成结果，您可以用下面的命令给图片点赞！',
-                f'！色色点赞 {uid}'
+                f'！ai点赞 {uid}'
             )
         )
 

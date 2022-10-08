@@ -4,7 +4,7 @@ import time
 import uuid
 from asyncio import gather
 from base64 import decodebytes
-from os import getcwd
+from os import getcwd, remove
 from typing import List, Union
 from urllib.parse import quote, unquote
 
@@ -103,6 +103,17 @@ class AIImageGenerator:
         return result if isinstance(result, str) else result[0] if result is not None and result[0] is not None else ''
 
     async def delete_holder_data(self):
+        result = self.setu_connection.execute(
+            """
+            select image from ai_setu_rating_holder where hit <= 1 and length(image) > 5
+            """
+        ).fetchall()
+
+        for path in result:
+            if path:
+                logger.info(f'Deleting file in path: {path[0]}')
+                remove(path[0])
+
         self.setu_connection.execute(
             """
             delete from ai_setu_rating_holder where hit <= 1;
@@ -144,9 +155,7 @@ class AIImageGenerator:
         cache_train_count = await self.get_cache_tag_confident(tag)
 
         if cache_train_count > 0:
-            last_updated_train_data = await self._get_last_update_cache_tag_confident(tag)
-            if int(time.time()) - last_updated_train_data < 60 * 60 * 12:
-                return tuple((tag, cache_train_count))
+            return tuple((tag, cache_train_count))
 
         async with AsyncClient() as client:
             request = await client.get(
@@ -220,6 +229,15 @@ class AIImageGenerator:
         self.setu_connection.commit()
 
         return result_list
+
+    async def get_all_banned_words(self) -> list:
+        result = self.setu_connection.execute(
+            """
+            select original_keyword from setu_keyword_replacer where replaced_keyword = '|';
+            """
+        ).fetchall()
+
+        return [r[0] for r in result]
 
     async def _set_uuid_and_user_prompt(self, uid: str, keywords: str, path: str):
         self.setu_connection.execute(

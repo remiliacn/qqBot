@@ -9,7 +9,7 @@ def _compile_forward_node(self_id: str, data: str):
     return {
         'type': 'node',
         'data': {
-            'name': 'Meow',
+            'name': '月朗风清',
             'uin': self_id,
             'content': data
         }
