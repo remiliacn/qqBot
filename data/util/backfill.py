@@ -1,6 +1,6 @@
 import json
 import sqlite3
-from os import path, getcwd
+from os import path, getcwd, remove
 from typing import Union
 
 
@@ -152,6 +152,8 @@ class Backfill:
                     elif key == 'global':
                         self._global_data_backfill(value)
 
+            remove(self.stat_data_file_original)
+
     def main_execution_setu(self):
         self.setu_connection.execute(
             """
@@ -191,6 +193,8 @@ class Backfill:
                 self._keyword_backfill(keyword_data)
                 self._group_keyword_backfill(group_data)
 
+            remove(self.setu_data_file_original)
+
     def main_execution_quote(self):
         self.quote_connection.execute(
             """
@@ -209,6 +213,7 @@ class Backfill:
                     for value in values:
                         self.insert_data(key, value)
 
+            remove(self.quote_data_file_original)
             self.commit_change()
 
     def insert_data(self, group_id: Union[int, str], cq_code: str):
