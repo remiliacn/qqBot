@@ -1,5 +1,8 @@
+from os.path import exists
 from typing import List, Union
 
+from httpx import AsyncClient
+from loguru import logger
 from nonebot import CommandSession
 
 from Services.util.ctx_utility import get_user_id, get_group_id
@@ -61,5 +64,39 @@ async def check_if_number_user_id(session: CommandSession, arg: str):
     return arg
 
 
-if __name__ == '__main__':
-    print(time_to_literal(3675))
+class HttpxHelperClient:
+    def __init__(self):
+        self.headers = {
+            'User-Agent': 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                          'AppleWebKit/537.36 (KHTML, like Gecko) '
+                          'Chrome/84.0.4147.125 Safari/537.36'
+        }
+
+    async def get(self, url: str, timeout=5.0, headers=None):
+        headers = headers if headers is not None else self.headers
+
+        async with AsyncClient(timeout=timeout, headers=headers, verify=False) as client:
+            return await client.get(url)
+
+    async def post(self, url: str, json: dict, headers=None, timeout=10.0):
+        headers = headers if headers is not None else self.headers
+        async with AsyncClient(headers=headers, timeout=timeout) as client:
+            return await client.post(url, json=json)
+
+    async def download(self, url: str, file_name: str, timeout=20.0, headers=None):
+        file_name = file_name.replace('\\', '/')
+        headers = headers if headers is not None else self.headers
+
+        try:
+            if not exists(file_name):
+                with open(file_name, 'wb') as file:
+                    async with AsyncClient(timeout=timeout, headers=headers) as client:
+                        async with client.stream('GET', url) as response:
+                            async for chunk in response.aiter_bytes():
+                                file.write(chunk)
+
+            return file_name
+        except Exception as err:
+            logger.warning(f'Download failed in common util download: {err.__class__}')
+
+        return ''

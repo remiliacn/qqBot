@@ -8,9 +8,9 @@ from os import getcwd, remove
 from typing import List, Union
 from urllib.parse import quote, unquote
 
-from httpx import AsyncClient
 from loguru import logger
 
+from Services.util.common_util import HttpxHelperClient
 from config import NOVEL_AI_KEY, NOVEL_AI_BEARER
 from qq_bot_core import setu_control
 
@@ -25,6 +25,7 @@ class AIImageGenerator:
 
         self._size_list = [(512, 768), (640, 640)]
         self.setu_connection = setu_control.setu_db_connection
+        self.client = HttpxHelperClient()
 
     def _init_ai_setu_database(self):
         self.setu_connection.execute(
@@ -157,27 +158,26 @@ class AIImageGenerator:
         if cache_train_count > 0:
             return tuple((tag, cache_train_count))
 
-        async with AsyncClient() as client:
-            request = await client.get(
-                url=f'https://api.novelai.net/ai/generate-image/'
-                    f'suggest-tags?model=nai-diffusion&prompt={tag}',
-                headers=self.header,
-                timeout=None
-            )
+        request = await self.client.get(
+            f'https://api.novelai.net/ai/generate-image/'
+            f'suggest-tags?model=nai-diffusion&prompt={tag}',
+            headers=self.header,
+            timeout=None
+        )
 
-            request_json = request.json()
-            if request_json and 'tags' in request_json and request_json['tags']:
-                request_resp_tag = request_json['tags']
-                for tag_result in request_resp_tag:
-                    if tag in tag_result['tag'].lower() \
-                            or tag.replace(' ', '') in tag_result['tag'].lower():
-                        await self.set_cache_tag_confident(tag, tag_result['count'])
-                        return tuple((tag_result['tag'], tag_result['count']))
-                else:
-                    logger.info(f'Target missed: {request_json}')
-                    return f'{tag}，未命中高训练集关键字，可能该tag的权重将降低。\n'
+        request_json = request.json()
+        if request_json and 'tags' in request_json and request_json['tags']:
+            request_resp_tag = request_json['tags']
+            for tag_result in request_resp_tag:
+                if tag in tag_result['tag'].lower() \
+                        or tag.replace(' ', '') in tag_result['tag'].lower():
+                    await self.set_cache_tag_confident(tag, tag_result['count'])
+                    return tuple((tag_result['tag'], tag_result['count']))
+            else:
+                logger.info(f'Target missed: {request_json}')
+                return f'{tag}，未命中高训练集关键字，可能该tag的权重将降低。\n'
 
-            return f'{tag}未命中高训练集关键字，可能该tag的权重将降低。\n'
+        return f'{tag}未命中高训练集关键字，可能该tag的权重将降低。\n'
 
     async def get_tag_confident_worker(self, tags: List[str]):
         tasks_list = []
@@ -253,44 +253,43 @@ class AIImageGenerator:
     async def get_ai_generated_image(self, keywords: str, seed: int) -> (str, str):
         size = random.choice(self._size_list)
 
-        async with AsyncClient() as client:
-            request = await client.post(url=self.request_url, headers=self.header, json={
-                'input': 'masterpiece, best quality, ' + keywords,
-                'model': 'nai-diffusion',
-                'parameters': {
-                    "width": size[0],
-                    "height": size[1],
-                    "scale": 11,
-                    "sampler": "k_euler_ancestral",
-                    "steps": 28,
-                    "seed": seed,
-                    "n_samples": 1,
-                    "ucPreset": 0,
-                    "uc": "nsfw, lowres, bad anatomy, bad hands, text, error, "
-                          "missing fingers, extra digit, fewer digits, cropped, "
-                          "worst quality, low quality, normal quality, jpeg artifacts, "
-                          "signature, watermark, username, blurry"
-                }
-            }, timeout=None)
-            path = f'{getcwd()}/data/pixivPic/'
-            if request.status_code == 201:
-                image_data = request.text[27:]
-                path += str(int(time.time_ns())) + '.png'
-                with open(path, 'wb') as file:
-                    file.write(decodebytes(str.encode(image_data)))
+        request = await self.client.post(url=self.request_url, headers=self.header, json={
+            'input': 'masterpiece, best quality, ' + keywords,
+            'model': 'nai-diffusion',
+            'parameters': {
+                "width": size[0],
+                "height": size[1],
+                "scale": 11,
+                "sampler": "k_euler_ancestral",
+                "steps": 28,
+                "seed": seed,
+                "n_samples": 1,
+                "ucPreset": 0,
+                "uc": "nsfw, lowres, bad anatomy, bad hands, text, error, "
+                      "missing fingers, extra digit, fewer digits, cropped, "
+                      "worst quality, low quality, normal quality, jpeg artifacts, "
+                      "signature, watermark, username, blurry"
+            }
+        }, timeout=None)
 
-                uid = str(uuid.uuid4())
-                await self._set_uuid_and_user_prompt(uid, keywords, path)
-                return path, uid
-            else:
-                await self.relogin()
+        path = f'{getcwd()}/data/pixivPic/'
+        if request.status_code == 201:
+            image_data = request.text[27:]
+            path += str(int(time.time_ns())) + '.png'
+            with open(path, 'wb') as file:
+                file.write(decodebytes(str.encode(image_data)))
+
+            uid = str(uuid.uuid4())
+            await self._set_uuid_and_user_prompt(uid, keywords, path)
+            return path, uid
+        else:
+            await self.relogin()
 
         return '', None
 
     async def relogin(self):
-        async with AsyncClient() as client:
-            result = await client.post(self.login_url, json={
-                'key': NOVEL_AI_KEY
-            })
-            authorization = result.json()['accessToken']
-            self.header['Authorization'] = f'Bearer {authorization}'
+        result = await self.client.post(self.login_url, json={
+            'key': NOVEL_AI_KEY
+        })
+        authorization = result.json()['accessToken']
+        self.header['Authorization'] = f'Bearer {authorization}'

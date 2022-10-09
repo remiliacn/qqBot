@@ -170,8 +170,8 @@ async def message_preprocessing(_: nonebot.NoneBot, event: aiocqhttp.event, __: 
 @nonebot.on_command('来个老婆', aliases=('来张waifu', '来个waifu', '老婆来一个'), only_to_me=False)
 async def send_waifu(session: nonebot.CommandSession):
     waifu_api = waifu_finder.WaifuFinder()
-    path, message = waifu_api.get_image()
-    message_id, user_id, group_id = get_general_ctx_info(session.ctx.copy())
+    path, message = await waifu_api.get_image()
+    message_id, user_id, group_id = await get_general_ctx_info(session.ctx.copy())
 
     # 10秒内只能查询一次waifu
     user_limit = UserLimitModifier(10.0, 1.0, True)
@@ -184,14 +184,6 @@ async def send_waifu(session: nonebot.CommandSession):
     else:
         logger.info(f'Get waifu pic: {path}')
         await session.send(f'[CQ:image,file=file:///{path}]\n{message}')
-
-
-@nonebot.on_command('shadiao', aliases=('沙雕图', '来一张沙雕图', '机器人来张沙雕图'), only_to_me=False)
-async def shadiao_send(session: nonebot.CommandSession):
-    shadiao_api = shadiao.ShadiaoAPI()
-    await shadiao_api.get_image_list()
-    file = await shadiao_api.get_picture()
-    await session.send(f'[CQ:image,file=file:///{file}]')
 
 
 @nonebot.on_command('来点怪话', only_to_me=False)
@@ -528,30 +520,8 @@ async def _set_group_property(session: nonebot.CommandSession):
     session.state[session.current_key] = stripped_arg
 
 
-@nonebot.on_command('验车', only_to_me=False)
-async def av_validator(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    if get_privilege(get_user_id(ctx), perm.BANNED):
-        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
-
-    if not admin_group_control.get_group_permission(get_group_id(ctx), group_permission.ALLOW_R18):
-        await session.finish('请联系BOT管理员开启本群R18权限')
-
-    key_word = session.get('key_word', prompt='在？你要让我查什么啊baka')
-    validator = shadiao.Avalidator(text=key_word)
-    await validator.get_page_text()
-    nickname = get_nickname(ctx)
-
-    if 'group_id' in ctx:
-        setu_control.set_group_data(get_group_id(ctx), tag='yanche')
-        setu_control.set_user_data(get_user_id(ctx), 'yanche', nickname)
-
-    await session.finish(await validator.get_content())
-
-
 @add_ark_op.args_parser
 @up_ten_polls.args_parser
-@av_validator.args_parser
 async def _(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:

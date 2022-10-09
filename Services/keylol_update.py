@@ -1,10 +1,9 @@
 import json
-import time
 from os import getcwd
 from os.path import exists
 from re import findall
 
-import requests
+from Services.util.common_util import HttpxHelperClient
 
 
 class KeylolFreeGame:
@@ -12,6 +11,7 @@ class KeylolFreeGame:
         self.free_post_url = 'https://keylol.com/t572814-1-1'
         self.file_location = f'{getcwd()}/data/util/keylol.json'
         self.keylol_data = self._get_keylol_file_data()
+        self.client = HttpxHelperClient()
 
     def _get_keylol_file_data(self):
         if not exists(self.file_location):
@@ -40,8 +40,8 @@ class KeylolFreeGame:
         response += '信息来源：其乐lol'
         return response
 
-    def get_update(self) -> str:
-        page = requests.get(self.free_post_url)
+    async def get_update(self) -> str:
+        page = await self.client.get(self.free_post_url)
 
         page_text = page.text
         game_title = findall(
@@ -77,11 +77,3 @@ class KeylolFreeGame:
 
         except Exception as err:
             print(f'keylol data error: {err}')
-
-
-if __name__ == '__main__':
-    start_time = time.time()
-    a = KeylolFreeGame()
-    a.get_update()
-    print(a.get_free_game_list())
-    print(f'耗时：{time.time() - start_time:.2f}s')

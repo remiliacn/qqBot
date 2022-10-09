@@ -5,12 +5,11 @@ from random import randint, seed
 from re import findall, match, sub, compile
 from time import time, time_ns
 
-from httpx import AsyncClient
 from loguru import logger
 from nonebot import CommandSession, on_command, get_bot
 
 import config
-from Services.util.common_util import is_float, check_if_number_user_id
+from Services.util.common_util import is_float, check_if_number_user_id, HttpxHelperClient
 from Services.util.ctx_utility import get_user_id, get_group_id, get_nickname
 from awesome.Constants import user_permission as perm, group_permission
 from awesome.Constants.user_permission import OWNER
@@ -451,32 +450,27 @@ def _prefetch(question: str, user_id: int) -> str:
 
 
 async def _request_api_response(question: str) -> str:
+    client = HttpxHelperClient()
+    response = ''
     if '鸡汤' in question:
-        try:
-            async with AsyncClient(timeout=5.0) as client:
-                async with client.get('https://api.daidr.me/apis/poisonous') as page:
-                    response = await page.text()
-
-        except Exception as err:
-            logger.warning(err)
-            response = '我还不太会回答这个问题哦！不如换种问法？'
+        page = await client.get('https://api.daidr.me/apis/poisonous')
+        response = page.text
 
     else:
         try:
-            async with AsyncClient(timeout=5.0) as client:
-                page = await client.post('https://api.mlyai.com/reply', headers={
-                    'Api-Key': config.ITPK_KEY,
-                    'Api-Secret': config.ITPK_SECRET,
-                    'Content-Type': 'application/json;charset=UTF-8'
-                }, json={
-                    'content': question,
-                    'type': 2,
-                    'from': '1',
-                    'to': '2'
-                })
-                data = page.json()
-                if 'code' in data and data['code'] == '00000':
-                    return data['data'][0]['content']
+            page = await client.post('https://api.mlyai.com/reply', headers={
+                'Api-Key': config.ITPK_KEY,
+                'Api-Secret': config.ITPK_SECRET,
+                'Content-Type': 'application/json;charset=UTF-8'
+            }, json={
+                'content': question,
+                'type': 2,
+                'from': '1',
+                'to': '2'
+            })
+            data = page.json()
+            if 'code' in data and data['code'] == '00000':
+                return data['data'][0]['content']
 
         except Exception as err:
             logger.warning(err)

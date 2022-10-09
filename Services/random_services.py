@@ -5,9 +5,9 @@ import re
 import time
 from datetime import datetime
 
-import aiohttp
-import requests
 from nonebot.log import logger
+
+from Services.util.common_util import HttpxHelperClient
 
 with open('config/downloader_data.json', 'r') as f:
     JSON_DATA = json.loads(f.read())
@@ -17,28 +17,32 @@ class Earthquakeinfo:
     def __init__(self):
         random.seed(time.time_ns())
         self.base_url = 'http://news.ceic.ac.cn/ajax/google?rand=%d' % random.randint(0, 5)
-        self.earth_dict = self._get_earth_dict()
+        self.client = HttpxHelperClient()
 
-    def _get_earth_dict(self):
-        page = requests.get(self.base_url, timeout=10).json()
+    async def _get_earth_dict(self):
+        page = await self.client.get(self.base_url, timeout=10)
+        page = page.json()
         return page[len(page) - 1]
 
-    def get_newest_info(self):
+    async def get_newest_info(self):
+        earth_dict = await self._get_earth_dict()
         return '最新地震情况：\n' \
                '地震强度：%s级\n' \
                '发生时间（UTC+8)：%s\n' \
                '纬度：%s°\n' \
                '经度：%s°\n' \
                '震源深度：%skm\n' \
-               '震源位置：%s' % (self.earth_dict['M'], self.earth_dict['O_TIME'], self.earth_dict['EPI_LAT'],
-                            self.earth_dict['EPI_LON'], self.earth_dict['EPI_DEPTH'],
-                            self.earth_dict['LOCATION_C'])
+               '震源位置：%s' % (earth_dict['M'], earth_dict['O_TIME'], earth_dict['EPI_LAT'],
+                            earth_dict['EPI_LON'], earth_dict['EPI_DEPTH'],
+                            earth_dict['LOCATION_C'])
 
 
 class YouTubeLiveTracker:
     def __init__(self, channel: str, ch_name: str):
         self.headers = {
-            'User-Agent': 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36',
+            'User-Agent': 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                          'AppleWebKit/537.36 (KHTML, like Gecko) '
+                          'Chrome/84.0.4147.125 Safari/537.36',
             'Referer': 'https://www.youtube.com/'
         }
         self.base_url = f'https://www.youtube.com/channel/{channel}/live'
@@ -46,27 +50,27 @@ class YouTubeLiveTracker:
         self.json_data = {}
         self.live_data = {}
         self.new_video_id = ''
+        self.client = HttpxHelperClient()
 
     async def get_json_data(self):
-        async with aiohttp.ClientSession(headers=self.headers) as session:
-            async with session.get(self.base_url) as r:
-                text = await r.text()
-                content_live = re.findall(r'ytInitialPlayerResponse = ({.*?});', text)
+        r = await self.client.get(self.base_url, headers=self.headers)
+        text = r.text
+        content_live = re.findall(r'ytInitialPlayerResponse = ({.*?});', text)
 
-                if not content_live:
-                    json_data = {'videoDetails': {}}
-                else:
-                    content_live = content_live[0]
-                    try:
-                        json_data = json.loads(content_live)
-                    except json.JSONDecodeError:
-                        json_data = {'videoDetails': {}}
+        if not content_live:
+            json_data = {'videoDetails': {}}
+        else:
+            content_live = content_live[0]
+            try:
+                json_data = json.loads(content_live)
+            except json.JSONDecodeError:
+                json_data = {'videoDetails': {}}
 
-                self.json_data = json_data
+        self.json_data = json_data
 
     def get_upcoming_status(self) -> bool:
         live_stat = self.json_data['videoDetails']
-        if not 'isUpcoming' in live_stat:
+        if 'isUpcoming' not in live_stat:
             return False
 
         self.new_video_id = live_stat['videoId']
@@ -74,7 +78,7 @@ class YouTubeLiveTracker:
 
     def get_live_status(self) -> bool:
         live_stat = self.json_data['videoDetails']
-        if not 'isLive' in live_stat:
+        if 'isLive' not in live_stat:
             return False
 
         self.new_video_id = live_stat['videoId']
@@ -113,18 +117,9 @@ class YouTubeLiveTracker:
 
         if thumbnail_url:
             thumbnail = live_stat['thumbnail']['thumbnails'][-1]['url']
-            async with aiohttp.ClientSession(headers=self.headers) as session:
-                async with session.get(thumbnail) as image:
-                    file_name = f'{os.getcwd()}/data/live/{live_stat["videoId"]}.jpg'
-                    # Redownload the thumbnail when going live just in case a thumbnail change.
-                    if not os.path.exists(file_name) or self.get_live_status():
-                        with open(file_name, 'wb') as file:
-                            while True:
-                                chunk = await image.content.read(1024 ** 2)
-                                if not chunk:
-                                    break
-                                file.write(chunk)
-
+            file_name = f'{os.getcwd()}/data/live/{live_stat["videoId"]}.jpg'
+            # Redownload the thumbnail when going live just in case a thumbnail change.
+            file_name = await self.client.download(thumbnail, file_name, headers=self.headers, timeout=20.0)
             image_data_in_qcode = f'[CQ:image,file=file:///{file_name}]'
 
         if live_time:
@@ -166,8 +161,8 @@ class YouTubeLiveTracker:
         else:
             # self.get_upcoming_status()
             await self.get_live_details()
-            if 'upcomingID' not in json_data[self.ch_name] or self.new_video_id != json_data[self.ch_name][
-                'upcomingID']:
+            if 'upcomingID' not in json_data[self.ch_name] \
+                    or self.new_video_id != json_data[self.ch_name]['upcomingID']:
                 json_data[self.ch_name]['upcomingID'] = self.new_video_id
                 with open(f'{os.getcwd()}/config/downloader.json', 'w+', encoding='utf8') as file:
                     json.dump(json_data, file, indent=4)

@@ -4,7 +4,6 @@ from os import getcwd
 from time import time_ns
 from typing import Union
 
-import aiohttp
 import pandas
 import plotly.graph_objects as plotter
 from PIL import Image, ImageDraw, ImageFont
@@ -12,6 +11,7 @@ from loguru import logger
 from plotly.subplots import make_subplots
 
 import Services.okex.spot_api as spot
+from Services.util.common_util import HttpxHelperClient
 from config import OKEX_API_KEY, OKEX_PASSPHRASE, OKEX_SECRET_KEY
 
 MA_EFFECTIVE_POINT = -5
@@ -399,9 +399,12 @@ class Stock:
             self.search_api = f'https://searchapi.eastmoney.com/api/suggest/get?input={self.keyword}' \
                               f'&type=14&token=D43BF722C8E33BDC906FB84D85E326E8'
 
+        self.client = HttpxHelperClient()
+
     def get_api_link(self, type_code) -> str:
-        return f'http://6.push2his.eastmoney.com/api/qt/stock/kline/get?' \
-               f'secid={type_code}.{self.code}&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6' \
+        return f'http://66.push2his.eastmoney.com/api/qt/stock/kline/get?' \
+               f'secid={type_code}.{self.code}&ut=fa5fd1943c7b386f172d6893dbfba10b' \
+               f'&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6' \
                f'&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2' \
                f'Cf59%2Cf60%2Cf61&klt=101&fqt=1' \
                f'&beg={(datetime.now() - timedelta(days=120)).strftime("%Y%m%d")[0:8]}' \
@@ -411,14 +414,13 @@ class Stock:
         if self.guba_api is None:
             return ''
 
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as client:
-            async with client.get(self.guba_api) as response:
-                json_data = await response.json()
-                if not json_data['IsSuccess']:
-                    return '请求API失败'
+        response = await self.client.get(self.guba_api, timeout=None)
+        json_data = response.json()
+        if not json_data['IsSuccess']:
+            return '请求API失败'
 
-                if 'Data' not in json_data:
-                    return 'Data键值丢失'
+        if 'Data' not in json_data:
+            return 'Data键值丢失'
 
         json_data = json_data['Data']
         if not json_data:
@@ -466,24 +468,23 @@ class Stock:
         url = f'https://dcfm.eastmoney.com/em_mutisvcexpandinterface/api/js/get?type=' \
               f'QGQP_LSJGCYD&token=70f12f2f4f091e459a279469fe49eca5&ps=22&filter=(TRADECODE%3D%27{self.code}%27)'
 
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as client:
-            async with client.get(url) as response:
-                try:
-                    json_data = await response.text()
-                    json_data = json.loads(json_data)
-                    json_data = json_data[0]
-                    host_strength = json_data['ZB']
-                    if host_strength > .4:
-                        host_s = '完全控盘'
-                    elif host_strength > 0.25:
-                        host_s = '中度控盘'
-                    elif host_strength > 0.1:
-                        host_s = '轻度控盘'
-                    else:
-                        host_s = '不控盘'
-                except Exception as err:
-                    logger.warning(f'Maybe not stock code? {err}')
-                    return ''
+        response = await self.client.get(url, timeout=None)
+        try:
+            json_data = response.text
+            json_data = json.loads(json_data)
+            json_data = json_data[0]
+            host_strength = json_data['ZB']
+            if host_strength > .4:
+                host_s = '完全控盘'
+            elif host_strength > 0.25:
+                host_s = '中度控盘'
+            elif host_strength > 0.1:
+                host_s = '轻度控盘'
+            else:
+                host_s = '不控盘'
+        except Exception as err:
+            logger.warning(f'Maybe not stock code? {err}')
+            return ''
         if not json_data:
             return ''
 
@@ -499,15 +500,15 @@ class Stock:
         """
         try_url = f'https://searchapi.eastmoney.com/api/suggest/get?input={self.code}' \
                   f'&type=14&token=D43BF722C8E33BDC906FB84D85E326E8'
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
-            async with session.get(try_url) as page:
-                try:
-                    data_response = await page.json()
-                    self.set_type(int(data_response['QuotationCodeTable']['Data'][0]['MktNum']))
-                    self.code = data_response['QuotationCodeTable']['Data'][0]['Code']
-                    return data_response['QuotationCodeTable']['Data'][0]['Name']
-                except (KeyError, IndexError, TypeError):
-                    return ''
+
+        page = await self.client.get(try_url, timeout=None)
+        try:
+            data_response = page.json()
+            self.set_type(int(data_response['QuotationCodeTable']['Data'][0]['MktNum']))
+            self.code = data_response['QuotationCodeTable']['Data'][0]['Code']
+            return data_response['QuotationCodeTable']['Data'][0]['Name']
+        except (KeyError, IndexError, TypeError):
+            return ''
 
     async def get_purchase_price(self, stock_type=None) -> (Union[int, float, None], str, float):
         """
@@ -526,19 +527,18 @@ class Stock:
         data_url = f'https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&' \
                    f'fields=f43,f51,f52,f58,f60&secid={self.type}.{self.code}'
 
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as session:
-            async with session.get(data_url) as response:
-                try:
-                    json_data = await response.json()
-                    purchase_price = json_data['data']['f43']
-                    high_rate = json_data['data']['f51'] if 'f51' in json_data['data'] else 10e16
-                    low_rate = json_data['data']['f52'] if 'f52' in json_data['data'] else -1000
-                    if purchase_price == '-':
-                        purchase_price = json_data['data']['f60']
-                    stock_name = json_data['data']['f58']
-                except Exception as err:
-                    logger.warning(f'Error when getting first purchase price for stock: {self.code} -- {err}')
-                    return -1, '', (10e6, -1000)
+        response = await self.client.get(data_url, timeout=None)
+        try:
+            json_data = response.json()
+            purchase_price = json_data['data']['f43']
+            high_rate = json_data['data']['f51'] if 'f51' in json_data['data'] else 10e16
+            low_rate = json_data['data']['f52'] if 'f52' in json_data['data'] else -1000
+            if purchase_price == '-':
+                purchase_price = json_data['data']['f60']
+            stock_name = json_data['data']['f58']
+        except Exception as err:
+            logger.warning(f'Error when getting first purchase price for stock: {self.code} -- {err}')
+            return -1, '', (10e6, -1000)
 
         return purchase_price, stock_name, (high_rate, low_rate)
 
@@ -573,20 +573,19 @@ class Stock:
         file_name = f'{getcwd()}/data/bot/stock/{int(time_ns())}.png'
         plot.write_image(file_name)
 
-        host_detection = await self._host_detection()
-        return file_name, market_will + host_detection
+        # host_detection = await self._host_detection()
+        return file_name, market_will
 
     async def _request_for_kline_data(self) -> list:
         if self.code.isdigit():
             await self.search_to_set_type_and_get_name()
 
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)) as client:
-            async with client.get(self.kline_api) as page:
-                try:
-                    json_data = await page.json()
-                except Exception as err:
-                    logger.warning(f'Maybe not stock code? {err}')
-                    return []
+        page = await self.client.get(self.kline_api, timeout=None)
+        try:
+            json_data = page.json()
+        except Exception as err:
+            logger.warning(f'Maybe not stock code? {err}')
+            return []
 
         if json_data is None:
             return []

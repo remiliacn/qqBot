@@ -1,6 +1,6 @@
-import requests
 from lxml import etree
-from nonebot.log import logger
+
+from Services.util.common_util import HttpxHelperClient
 
 
 class GetPCRNews:
@@ -13,21 +13,12 @@ class GetPCRNews:
                           "(KHTML, like Gecko) Chrome/81.0.4044.129 Safari/537.36"
         }
         self.info_not_available = '无搜索结果，请检查物品名是否存在国服PCR'
-
-    def _get_update_id(self) -> int:
-        try:
-            page = requests.get(self.base_url, headers=self.headers, timeout=5.)
-        except Exception as e:
-            logger.warning(f"News error {e}")
-            return -1
-
-        json_data = page.json()
-        return json_data['data'][0]['id']
+        self.client = HttpxHelperClient()
 
     async def pcr_check(self, query) -> str:
         url = f'https://wiki.biligame.com/pcr/{query}'
         try:
-            page = requests.get(url, headers=self.headers, timeout=10)
+            page = await self.client.get(url, timeout=10.0)
         except Exception as e:
             return f'查询出现错误: {e}'
 
@@ -36,11 +27,11 @@ class GetPCRNews:
         if searches:
             result = '主要掉落关卡：\n' + ''.join(element + ', ' for element in searches[0: len(searches) - 1]) + searches[
                 len(searches) - 1] + '\n'
-            searchesRare = e.xpath('//*[@id="mw-content-text"]/div/table[3]/tbody/tr/th/a/text()')
+            searches_rare = e.xpath('//*[@id="mw-content-text"]/div/table[3]/tbody/tr/th/a/text()')
             result += '次要掉落关卡：\n'
-            result += '无' if not searchesRare else ''.join(
-                element + ', ' for element in searchesRare[0: len(searchesRare) - 1]) + searchesRare[
-                                                       len(searchesRare) - 1] + '\n'
+            result += '无' if not searches_rare else ''.join(
+                element + ', ' for element in searches_rare[0: len(searches_rare) - 1]) + searches_rare[
+                                                        len(searches_rare) - 1] + '\n'
 
         else:
             return self.info_not_available

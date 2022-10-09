@@ -1,6 +1,6 @@
 from re import findall
 
-import aiohttp
+from Services.util.common_util import HttpxHelperClient
 
 
 class Currency:
@@ -12,12 +12,12 @@ class Currency:
                             f'{self.target_currency}/{amount}'
 
         self.amount = amount
+        self.client = HttpxHelperClient()
         self.source_currency = source_currency
 
     async def get_currency_result(self) -> str:
-        async with aiohttp.ClientSession() as client:
-            async with client.get(self.currency_url) as response:
-                texts = await response.text()
-                result = list(set(findall(r'%s %s = \d+\.?\d* [A-Z]+' % (self.amount, self.source_currency), texts)))
+        page = await self.client.get(self.currency_url)
+        texts = page.text
+        result = list(set(findall(r'%s %s = \d+\.?\d* [A-Z]+' % (self.amount, self.source_currency), texts)))
 
-                return '\n'.join(result)
+        return '\n'.join(result)

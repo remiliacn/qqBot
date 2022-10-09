@@ -1,12 +1,12 @@
 import time
 
-import aiohttp
 import nonebot
 from loguru import logger
 
 from Services import random_services
 from Services.currency import Currency
 from Services.keylol_update import KeylolFreeGame
+from Services.util.common_util import HttpxHelperClient
 from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
 from awesome.Constants import user_permission as perm
 from awesome.plugins.shadiao.shadiao import setu_control
@@ -44,7 +44,7 @@ async def send_help(session: nonebot.CommandSession):
 @nonebot.on_command('免费游戏', only_to_me=False)
 async def get_free_game(session: nonebot.CommandSession):
     keylol = KeylolFreeGame()
-    keylol.get_update()
+    await keylol.get_update()
     await session.send(keylol.get_free_game_list())
 
 
@@ -55,7 +55,7 @@ async def send_earth_quake_info(session: nonebot.CommandSession):
         await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
 
     earth_quake_api_new = random_services.Earthquakeinfo()
-    new_earthquake_info = earth_quake_api_new.get_newest_info()
+    new_earthquake_info = await earth_quake_api_new.get_newest_info()
     await session.send(new_earthquake_info)
 
 
@@ -149,10 +149,9 @@ async def hhsh(entry: str) -> str:
     guess_url = 'https://lab.magiconch.com/api/nbnhhsh/guess'
 
     try:
-        timeout = aiohttp.ClientTimeout(total=5)
-        async with aiohttp.ClientSession(headers=headers, timeout=timeout) as client:
-            async with client.post(guess_url, data={"text": entry}) as page:
-                json_data = await page.json()
+        client = HttpxHelperClient()
+        page = await client.post(guess_url, json={"text": entry}, headers=headers)
+        json_data = await page.json()
 
     except Exception as e:
         print(e)
