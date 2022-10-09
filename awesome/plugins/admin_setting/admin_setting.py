@@ -1,12 +1,11 @@
 from datetime import datetime
-from json import loads
 from math import *
 from os import getcwd
 from random import randint, seed
 from re import findall, match, sub, compile
 from time import time, time_ns
 
-import aiohttp
+from httpx import AsyncClient
 from loguru import logger
 from nonebot import CommandSession, on_command, get_bot
 
@@ -452,10 +451,9 @@ def _prefetch(question: str, user_id: int) -> str:
 
 
 async def _request_api_response(question: str) -> str:
-    timeout = aiohttp.ClientTimeout(total=5)
     if '鸡汤' in question:
         try:
-            async with aiohttp.ClientSession(timeout=timeout) as client:
+            async with AsyncClient(timeout=5.0) as client:
                 async with client.get('https://api.daidr.me/apis/poisonous') as page:
                     response = await page.text()
 
@@ -465,20 +463,20 @@ async def _request_api_response(question: str) -> str:
 
     else:
         try:
-            async with aiohttp.ClientSession(timeout=timeout) as client:
-                async with client.get(
-                        f'http://i.itpk.cn/api.php?question={question}'
-                        f'&limit=7'
-                        f'&api_key={config.ITPK_KEY}'
-                        f'&api_secret={config.ITPK_SECRET}'
-                ) as page:
-                    if '笑话' not in question:
-                        response = await page.text()
-                        response = response.replace("\ufeff", "")
-                    else:
-                        data = await page.text()
-                        data = loads(data.replace("\ufeff", ""))
-                        response = str(data['content']).replace('\r', '')
+            async with AsyncClient(timeout=5.0) as client:
+                page = await client.post('https://api.mlyai.com/reply', headers={
+                    'Api-Key': config.ITPK_KEY,
+                    'Api-Secret': config.ITPK_SECRET,
+                    'Content-Type': 'application/json;charset=UTF-8'
+                }, json={
+                    'content': question,
+                    'type': 2,
+                    'from': '1',
+                    'to': '2'
+                })
+                data = page.json()
+                if 'code' in data and data['code'] == '00000':
+                    return data['data'][0]['content']
 
         except Exception as err:
             logger.warning(err)
