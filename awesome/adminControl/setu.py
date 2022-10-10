@@ -2,6 +2,8 @@ import sqlite3
 from sqlite3 import Cursor
 from typing import Union, List, Tuple
 
+from awesome.Constants.function_key import USER_XP
+
 
 class SetuFunction:
     def __init__(self):
@@ -225,7 +227,7 @@ class SetuFunction:
         self.commit_change()
 
     def set_user_xp(self, user_id: Union[int, str], keyword: str, nickname: str):
-        self.set_user_data(user_id, 'user_xp', nickname, keyword)
+        self.set_user_data(user_id, USER_XP, nickname, keyword)
 
     def set_user_data(
             self,

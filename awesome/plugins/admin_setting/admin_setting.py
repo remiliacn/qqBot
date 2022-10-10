@@ -12,6 +12,7 @@ import config
 from Services.util.common_util import is_float, check_if_number_user_id, HttpxHelperClient
 from Services.util.ctx_utility import get_user_id, get_group_id, get_nickname
 from awesome.Constants import user_permission as perm, group_permission
+from awesome.Constants.function_key import QUESTION
 from awesome.Constants.user_permission import OWNER
 from awesome.plugins.shadiao.shadiao import setu_control
 from awesome.plugins.util.helper_util import get_downloaded_image_path, set_group_permission
@@ -174,7 +175,7 @@ async def send_answer(session: CommandSession):
 
     nickname = get_nickname(ctx)
 
-    setu_control.set_user_data(get_user_id(ctx), 'question', user_nickname=nickname)
+    setu_control.set_user_data(get_user_id(ctx), QUESTION, user_nickname=nickname)
 
     if match('.*?你.*?(名字|叫什么|是谁|什么东西)', question):
         await session.finish(

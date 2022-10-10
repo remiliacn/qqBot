@@ -14,6 +14,8 @@ from Services.rate_limiter import UserLimitModifier
 from Services.util.common_util import get_general_ctx_info
 from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
 from awesome.Constants import user_permission as perm, group_permission
+from awesome.Constants.function_key import ARKNIGHTS_PULLS, ARKNIGHTS_SINGLE_PULL, ARKNIGHTS_SIX_STAR_PULL, YULU_CHECK, \
+    ARKNIGHTS_BAD_LUCK_PULL, POKER_GAME, SETU, QUESTION, HIT_XP, ROULETTE_GAME, HORSE_RACE
 from awesome.plugins.util.helper_util import get_downloaded_image_path, ark_helper, set_group_permission
 from config import SUPER_USER
 from qq_bot_core import admin_group_control, global_rate_limiter
@@ -75,7 +77,7 @@ async def get_group_quotes(session: nonebot.CommandSession):
 
     nickname = get_nickname(ctx)
 
-    setu_control.set_user_data(user_id, 'yulu', nickname)
+    setu_control.set_user_data(user_id, YULU_CHECK, nickname)
     await session.finish(admin_group_control.get_group_quote(get_group_id(ctx)))
 
 
@@ -352,11 +354,11 @@ async def ten_polls(session: nonebot.CommandSession):
         nickname = get_nickname(ctx)
 
         if six_star_count == 0 and five_star_count == 0:
-            setu_control.set_user_data(get_user_id(ctx), 'only_four_three', nickname)
+            setu_control.set_user_data(get_user_id(ctx), ARKNIGHTS_BAD_LUCK_PULL, nickname)
 
-        setu_control.set_group_data(group_id=get_group_id(ctx), tag='pulls', data=data)
-        setu_control.set_group_data(group_id=get_group_id(ctx), tag='pull')
-        setu_control.set_user_data(get_user_id(ctx), 'six_star_pull', six_star_count)
+        setu_control.set_group_data(group_id=get_group_id(ctx), tag=ARKNIGHTS_PULLS, data=data)
+        setu_control.set_group_data(group_id=get_group_id(ctx), tag=ARKNIGHTS_SINGLE_PULL)
+        setu_control.set_user_data(get_user_id(ctx), ARKNIGHTS_SIX_STAR_PULL, six_star_count)
 
     qq_num = get_user_id(ctx)
     await session.send(
@@ -450,22 +452,20 @@ async def stat_player(session: nonebot.CommandSession):
     if not stat_dict:
         await session.send(f'[CQ:at,qq={user_id}]还没有数据哦~')
     else:
-        poker_win, poker_rank = get_stat('poker', stat_dict)
-        six_star_pull, six_star_rank = get_stat('six_star_pull', stat_dict)
-        yanche, yanche_rank = get_stat('yanche', stat_dict)
-        setu_stat, setu_rank = get_stat('setu', stat_dict)
-        question, question_rank = get_stat('question', stat_dict)
-        unlucky, unlucky_rank = get_stat('only_four_three', stat_dict)
-        same, same_rank = get_stat('hit_xp', stat_dict)
-        roulette, roulette_rank = get_stat('roulette', stat_dict)
-        horse_race, horse_rank = get_stat('horse_race', stat_dict)
-        yulu, yulu_rank = get_stat('yulu', stat_dict)
+        poker_win, poker_rank = get_stat(POKER_GAME, stat_dict)
+        six_star_pull, six_star_rank = get_stat(ARKNIGHTS_SIX_STAR_PULL, stat_dict)
+        setu_stat, setu_rank = get_stat(SETU, stat_dict)
+        question, question_rank = get_stat(QUESTION, stat_dict)
+        unlucky, unlucky_rank = get_stat(ARKNIGHTS_BAD_LUCK_PULL, stat_dict)
+        same, same_rank = get_stat(HIT_XP, stat_dict)
+        roulette, roulette_rank = get_stat(ROULETTE_GAME, stat_dict)
+        horse_race, horse_rank = get_stat(HORSE_RACE, stat_dict)
+        yulu, yulu_rank = get_stat(YULU_CHECK, stat_dict)
 
         await session.send(f'用户[CQ:at,qq={user_id}]：\n' +
                            (f'比大小赢得{poker_win}次（排名第{poker_rank}）\n' if poker_win != 0 else '') +
                            (f'方舟抽卡共抽到{six_star_pull}个六星干员（排名第{six_star_rank}）\n ' if six_star_pull != 0 else '') +
                            (f'紫气东来{unlucky}次（排名第{unlucky}）\n' if unlucky != 0 else '') +
-                           (f'验车{yanche}次（排名第{yanche_rank}）\n' if yanche != 0 else '') +
                            (f'查了{setu_stat}次的色图！（排名第{setu_rank}）\n' if setu_stat != 0 else '') +
                            (f'问了{question}次问题（排名第{question_rank}）\n' if question != 0 else '') +
                            (f'和bot主人 臭 味 相 投{same}次（排名第{same_rank}）\n' if same != 0 else '') +

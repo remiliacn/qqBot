@@ -1,0 +1,2 @@
+AI_IMAGE_RATE_LIMIT_KEY = 'ai_image'
+AI_IMAGE_RATE_LIMIT_DAILY_KEY = 'ai_image_day'

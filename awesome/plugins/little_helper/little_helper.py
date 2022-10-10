@@ -9,6 +9,7 @@ from Services.keylol_update import KeylolFreeGame
 from Services.util.common_util import HttpxHelperClient
 from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
 from awesome.Constants import user_permission as perm
+from awesome.Constants.function_key import HHSH_FUNCTION
 from awesome.plugins.shadiao.shadiao import setu_control
 from awesome.plugins.util import helper_util, search_helper
 from qq_bot_core import user_control_module
@@ -116,7 +117,7 @@ async def can_you_be_fucking_normal(session: nonebot.CommandSession):
     try:
         await session.send(await hhsh(key_word) + '\n本次查询耗时： %.2fs' % (time.time() - start_time))
         if 'group_id' in ctx:
-            setu_control.set_user_data(get_user_id(ctx), 'hhsh', nickname)
+            setu_control.set_user_data(get_user_id(ctx), HHSH_FUNCTION, nickname)
 
     except Exception as e:
         logger.debug('Something went wrong %s' % e)

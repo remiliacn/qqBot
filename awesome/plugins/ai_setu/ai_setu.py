@@ -9,6 +9,8 @@ from Services.rate_limiter import UserLimitModifier
 from Services.util.common_util import compile_forward_message
 from Services.util.ctx_utility import get_group_id, get_nickname, get_user_id
 from awesome.Constants import user_permission as perm
+from awesome.Constants.function_key import AI_SETU, SETU
+from awesome.Constants.rate_limiter_key import AI_IMAGE_RATE_LIMIT_KEY, AI_IMAGE_RATE_LIMIT_DAILY_KEY
 from awesome.plugins.setu.setu import HIGH_FREQ_KEYWORDS
 from qq_bot_core import user_control_module, setu_control, global_rate_limiter
 
@@ -43,7 +45,7 @@ async def sese_configuration(session: nonebot.CommandSession):
     if not args.isdigit():
         await session.finish('?')
 
-    await global_rate_limiter.set_function_limit('ai_image', int(args))
+    await global_rate_limiter.set_function_limit(AI_IMAGE_RATE_LIMIT_KEY, int(args))
     await session.finish('Done!')
 
 
@@ -114,15 +116,17 @@ async def ai_generating_image(session: nonebot.CommandSession):
         return
         # user_limit = UserLimitModifier(60 * 60 * 24, 2.0)
         # rate_limiter_check = await global_rate_limiter.user_group_limit_check(
-        #     'ai_image', user_id, group_id, user_limit
+        #     AI_IMAGE_RATE_LIMIT_KEY, user_id, group_id, user_limit
         # )
     else:
         user_limit = UserLimitModifier(200, .8)
-        rate_limiter_check = await global_rate_limiter.user_limit_check('ai_image', user_id, user_limit)
+        rate_limiter_check = await global_rate_limiter.user_limit_check(AI_IMAGE_RATE_LIMIT_KEY, user_id, user_limit)
 
         # 这个数值不建议很高，特别刷屏。
         user_limit = UserLimitModifier(60 * 60 * 24, 100, True)
-        rate_limiter_check_temp = await global_rate_limiter.user_limit_check('ai_image_day', user_id, user_limit)
+        rate_limiter_check_temp = await global_rate_limiter.user_limit_check(
+            AI_IMAGE_RATE_LIMIT_DAILY_KEY, user_id, user_limit
+        )
         if isinstance(rate_limiter_check_temp, str):
             rate_limiter_check = rate_limiter_check_temp
 
@@ -198,10 +202,10 @@ async def ai_generating_image(session: nonebot.CommandSession):
 
         nickname = get_nickname(ctx)
         if 'group_id' in ctx:
-            setu_control.set_group_data(get_group_id(ctx), 'setu')
-            setu_control.set_user_data(0, 'ai_setu', 'null', 1, True)
+            setu_control.set_group_data(get_group_id(ctx), SETU)
+            setu_control.set_user_data(0, AI_SETU, 'null', 1, True)
 
-        setu_control.set_user_data(user_id, 'setu', nickname)
+        setu_control.set_user_data(user_id, SETU, nickname)
 
     else:
         await session.finish('加载失败，请重试！')

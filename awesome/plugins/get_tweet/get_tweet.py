@@ -12,6 +12,7 @@ from Services.random_services import YouTubeLiveTracker
 from Services.stock import text_to_image
 from Services.util.ctx_utility import get_user_id, get_group_id
 from awesome.Constants import user_permission as perm
+from awesome.Constants.function_key import TWEET_SENT
 from awesome.plugins.shadiao.shadiao import setu_control
 from awesome.plugins.util.tweetHelper import tweeter
 from config import SUPER_USER, DOWNLODER_FILE_NAME, PATH_TO_ONEDRIVE, STEAM_UTIL_GROUP_NUM
@@ -280,7 +281,7 @@ async def do_tweet_update_fetch():
                 message = f'=== {ch_name}发了一条推 ===\n' + message
 
             for element in group_id_list:
-                setu_control.set_user_data(0, 'tweet', 'null', 1, True)
+                setu_control.set_user_data(0, TWEET_SENT, 'null', 1, True)
                 await bot.send_group_msg(group_id=element,
                                          message=message)
                 await bot.send_private_msg(

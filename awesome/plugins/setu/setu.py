@@ -15,6 +15,7 @@ from Services.util.ctx_utility import get_group_id, get_user_id, get_nickname
 from Services.util.download_helper import download_image
 from Services.util.sauce_nao_helper import sauce_helper
 from awesome.Constants import user_permission as perm, group_permission
+from awesome.Constants.function_key import SETU, AI_SETU, TRIGGER_BLACKLIST_WORD, HIT_XP
 from awesome.plugins.util.helper_util import anime_reverse_search_response, set_group_permission
 from config import SUPER_USER, PIXIV_REFRESH_TOKEN
 from qq_bot_core import setu_control, user_control_module, admin_group_control, cangku_api, global_rate_limiter
@@ -72,7 +73,7 @@ async def set_user_pixiv(session: nonebot.CommandSession):
 @nonebot.on_command('色图数据', only_to_me=False)
 async def get_setu_stat(session: nonebot.CommandSession):
     setu_stat = setu_control.get_setu_usage()
-    ai_use_stat = setu_control.get_global_stat('ai_setu')
+    ai_use_stat = setu_control.get_global_stat(AI_SETU)
     setu_high_freq_keyword = setu_control.get_high_freq_keyword()
     setu_high_freq_keyword_to_string = "\n".join(f"{x[0]}: {x[1]}次" for x in setu_high_freq_keyword)
     await session.finish(f'色图功能共被使用了{setu_stat}次（其中{ai_use_stat}次为AI生成的，'
@@ -142,7 +143,7 @@ async def pixiv_send(session: nonebot.CommandSession):
 
     # 限流5秒单用户只能请求一次。
     user_limit = UserLimitModifier(5.0, 1.0, True)
-    rate_limiter_check = await global_rate_limiter.user_limit_check('setu', user_id, user_limit)
+    rate_limiter_check = await global_rate_limiter.user_limit_check(SETU, user_id, user_limit)
     if isinstance(rate_limiter_check, str):
         await session.finish(f'[CQ:reply,id={message_id}]{rate_limiter_check}')
 
@@ -168,8 +169,8 @@ async def pixiv_send(session: nonebot.CommandSession):
     do_multiply = True
     if multiplier > 0:
         if multiplier * 2 > 400:
-            setu_control.set_user_data(user_id, 'ban_count', nickname)
-            if setu_control.get_user_data_by_tag(user_id, 'ban_count') >= ban_count:
+            setu_control.set_user_data(user_id, TRIGGER_BLACKLIST_WORD, nickname)
+            if setu_control.get_user_data_by_tag(user_id, TRIGGER_BLACKLIST_WORD) >= ban_count:
                 user_control_module.set_user_privilege(user_id, 'BANNED', True)
                 await session.send(f'用户{user_id}已被封停机器人使用权限')
                 bot = nonebot.get_bot()
@@ -191,7 +192,7 @@ async def pixiv_send(session: nonebot.CommandSession):
     if key_word in setu_control.get_monitored_keywords():
         monitored = True
         if 'group_id' in ctx:
-            setu_control.set_user_data(user_id, 'hit_xp', nickname)
+            setu_control.set_user_data(user_id, HIT_XP, nickname)
             setu_control.set_user_xp(user_id, key_word, nickname)
 
     elif '色图' in key_word:
@@ -312,12 +313,12 @@ async def pixiv_send(session: nonebot.CommandSession):
 
 async def _setu_data_collection(ctx: dict, key_word: str, monitored: bool, path: str, illust=None):
     if 'group_id' in ctx:
-        setu_control.set_group_data(get_group_id(ctx), 'setu')
+        setu_control.set_group_data(get_group_id(ctx), SETU)
 
     nickname = get_nickname(ctx)
 
     user_id = get_user_id(ctx)
-    setu_control.set_user_data(user_id, 'setu', nickname)
+    setu_control.set_user_data(user_id, SETU, nickname)
     key_word_list = re.split(r'[\s\u3000,]+', key_word)
     for keyword in key_word_list:
         setu_control.set_user_xp(user_id, keyword, nickname)
@@ -446,7 +447,7 @@ async def _get_xp_information(xp_information: SetuRequester) -> str:
     nickname = xp_information.nickname
 
     if xp_information.group_id != -1:
-        setu_control.set_group_data(xp_information.group_id, 'setu')
+        setu_control.set_group_data(xp_information.group_id, SETU)
 
     tags = illust['tags']
 
@@ -465,7 +466,7 @@ async def _get_xp_information(xp_information: SetuRequester) -> str:
     response += f'TA最喜欢的关键词是{xp_information.xp_result[0]}，' \
                 f'已经查询了{xp_information.xp_result[1]}次。' if not isinstance(xp_information.xp_result, str) else ''
 
-    setu_control.set_user_data(xp_information.requester_qq, 'setu', nickname)
+    setu_control.set_user_data(xp_information.requester_qq, SETU, nickname)
     return response.strip()
 
 
@@ -560,11 +561,7 @@ async def reverse_image_search(session: nonebot.CommandSession):
             else:
                 response = anime_reverse_search_response(response_data)
 
-            bot = nonebot.get_bot()
-            await bot.send_group_forward_msg(
-                group_id=get_group_id(ctx),
-                messages=compile_forward_message(session.self_id, response)
-            )
+            await session.finish(response)
         except Exception as err:
             logger.warning(f'Error when reverse searching image data {err}')
 
