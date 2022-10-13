@@ -23,7 +23,8 @@ class AIImageGenerator:
             'Authorization': NOVEL_AI_BEARER
         }
 
-        self._size_list = [(512, 768), (640, 640)]
+        self._size_list = [(512, 768), (640, 640), (768, 512)]
+        self._sampler_list = ['k_euler', 'k_euler_ancestral']
         self.setu_connection = setu_control.setu_db_connection
         self.client = HttpxHelperClient()
 
@@ -250,8 +251,9 @@ class AIImageGenerator:
 
         self.setu_connection.commit()
 
-    async def get_ai_generated_image(self, keywords: str, seed: int) -> (str, str):
+    async def get_ai_generated_image(self, keywords: str, seed: int) -> (str, str, str):
         size = random.choice(self._size_list)
+        sampler = random.choice(self._sampler_list)
 
         request = await self.client.post(url=self.request_url, headers=self.header, json={
             'input': 'masterpiece, best quality, ' + keywords,
@@ -260,7 +262,7 @@ class AIImageGenerator:
                 "width": size[0],
                 "height": size[1],
                 "scale": 11,
-                "sampler": "k_euler_ancestral",
+                "sampler": sampler,
                 "steps": 28,
                 "seed": seed,
                 "n_samples": 1,
@@ -281,11 +283,11 @@ class AIImageGenerator:
 
             uid = str(uuid.uuid4())
             await self._set_uuid_and_user_prompt(uid, keywords, path)
-            return path, uid
+            return path, uid, sampler
         else:
             await self.relogin()
 
-        return '', None
+        return '', None, sampler
 
     async def relogin(self):
         result = await self.client.post(self.login_url, json={

@@ -156,7 +156,7 @@ async def hhsh(entry: str) -> str:
 
     except Exception as e:
         print(e)
-        return '出问题了，请重试！'
+        return ''
 
     result = '这个缩写可能的意味有：\n'
     try:

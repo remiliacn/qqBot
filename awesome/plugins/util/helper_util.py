@@ -142,7 +142,7 @@ def send_message_with_mini_program(title: str, content: list, image=None, action
 def anime_reverse_search_response(response_data: dict) -> str:
     if 'est_time' in response_data:
         response = f'{response_data["thumbnail"]}\n' \
-                   f'图片相似度：{response_data["simlarity"]}\n' \
+                   f'相似度：{response_data["simlarity"]}\n' \
                    f'番名：{response_data["source"]}\n' \
                    f'番剧年份：{response_data["year"]}\n' \
                    f'集数：{response_data["part"]}\n' \
@@ -150,16 +150,16 @@ def anime_reverse_search_response(response_data: dict) -> str:
     else:
         if response_data['ext_url'] == '[数据删除]':
             response = f'{response_data["data"]}\n' \
-                       f'图片相似度：{response_data["simlarity"]}\n' \
-                       f'本子标题：{response_data["title"]}\n' \
-                       f'本子画师：{response_data["author"]}\n' \
+                       f'相似度：{response_data["simlarity"]}\n' \
+                       f'标题：{response_data["title"]}\n' \
+                       f'画师：{response_data["author"]}\n' \
                        f'直链：{response_data["ext_url"]}'
         else:
             response = f'{response_data["data"]}\n' \
-                       f'图片相似度：{response_data["simlarity"]}\n' \
-                       f'图片标题：{response_data["title"]}\n' \
-                       f'图片画师：{response_data["author"]}\n' \
-                       f'Pixiv ID：{response_data["pixiv_id"]}\n' \
+                       f'相似度：{response_data["simlarity"]}\n' \
+                       f'标题：{response_data["title"]}\n' \
+                       f'画师：{response_data["author"]}\n' \
+                       f'Pixiv：{response_data["pixiv_id"]}\n' \
                        f'直链：{response_data["ext_url"]}'
 
     if 'simlarity' in response_data and float(response_data["simlarity"].replace('%', '')) < 70:

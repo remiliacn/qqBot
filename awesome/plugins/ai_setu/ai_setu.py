@@ -174,7 +174,7 @@ async def ai_generating_image(session: nonebot.CommandSession):
         await session.finish('该AI模型不是用来生成furry图的，请期待其独立功能。')
 
     seed = random.randint(1, int(1 << 32 - 1))
-    download_path, uid = await ai_bot_stuff.get_ai_generated_image(args, seed)
+    download_path, uid, sampler = await ai_bot_stuff.get_ai_generated_image(args, seed)
 
     # confident_prompt = await ai_bot_stuff.get_tag_confident_worker(new_arg_list[:6])
 
@@ -184,7 +184,7 @@ async def ai_generating_image(session: nonebot.CommandSession):
 
         message = f'[CQ:image,file=file:///{download_path}]' \
                   f'{hint_prompt}\n' \
-                  f'Seed: {seed}\n'
+                  f'Seed: {seed}, Sampler: {sampler}\n'
         # f'keywords: {args}\n'
 
         await bot.send_group_forward_msg(
