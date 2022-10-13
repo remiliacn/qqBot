@@ -2,6 +2,7 @@ import random
 import re
 
 import nonebot
+from aiocqhttp import ActionFailed
 from loguru import logger
 
 from Services.ai_setu import AIImageGenerator
@@ -187,18 +188,21 @@ async def ai_generating_image(session: nonebot.CommandSession):
                   f'Seed: {seed}, Sampler: {sampler}\n'
         # f'keywords: {args}\n'
 
-        await bot.send_group_forward_msg(
-            group_id=group_id,
-            messages=compile_forward_message(
-                session.self_id,
-                f'过滤信息：{replace_notification}\n'
-                f'已过滤 {flagged_count} 个关键词\n'
-                f'{message}',
-                # confident_prompt,
-                f'如果您喜欢该生成结果，您可以用下面的命令给图片点赞！',
-                f'！ai点赞 {uid}'
+        try:
+            await bot.send_group_forward_msg(
+                group_id=group_id,
+                messages=compile_forward_message(
+                    session.self_id,
+                    f'[CQ:reply,id={message_id}]过滤信息：{replace_notification}\n'
+                    f'已过滤 {flagged_count} 个关键词\n'
+                    f'{message}',
+                    # confident_prompt,
+                    f'如果您喜欢该生成结果，您可以用下面的命令给图片点赞！',
+                    f'！ai点赞 {uid}'
+                )
             )
-        )
+        except ActionFailed:
+            await session.send(f'我画完了！！\n{message}')
 
         nickname = get_nickname(ctx)
         if 'group_id' in ctx:
