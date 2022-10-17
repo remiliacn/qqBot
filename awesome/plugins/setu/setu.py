@@ -519,7 +519,7 @@ def _get_image_data_from_username(key_word: str) -> (str, str):
 
 
 async def _download_pixiv_image_helper(illust):
-    if illust['meta_singlae_page']:
+    if illust['meta_single_page']:
         if 'original_image_url' in illust['meta_single_page']:
             image_url = illust.meta_single_page['original_image_url']
         else:

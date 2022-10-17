@@ -197,12 +197,20 @@ async def ai_generating_image(session: nonebot.CommandSession):
                     f'已过滤 {flagged_count} 个关键词\n'
                     f'{message}',
                     # confident_prompt,
-                    f'如果您喜欢该生成结果，您可以用下面的命令给图片点赞！',
-                    f'！ai点赞 {uid}'
+                    f'如果您喜欢该生成结果，您可以用下面的命令给图片点赞\n！ai点赞 {uid}'
                 )
             )
         except ActionFailed:
-            await session.send(f'我画完了！！\n{message}')
+            filler_words = [
+                '我画画，你看看',
+                '我做做，你瞅瞅',
+                '画完了可累死我了',
+                '你这需求可真是太麻烦了，但是我画完了',
+                '需求提的很好，下次别提了',
+                '行了，我画完了，你看看罢',
+                '我交稿了，不许让我改吼'
+            ]
+            await session.send(f'{random.choice(filler_words)}\n{message}')
 
         nickname = get_nickname(ctx)
         if 'group_id' in ctx:
