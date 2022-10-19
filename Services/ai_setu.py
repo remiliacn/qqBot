@@ -72,6 +72,15 @@ class AIImageGenerator:
 
         self.setu_connection.execute()
 
+    async def remove_replace_words(self, arg: str):
+        self.setu_connection.execute(
+            """
+            delete from setu_keyword_replacer where original_keyword = ?
+            """, (arg,)
+
+        )
+        self.setu_connection.commit()
+
     async def add_high_confident_word(self, args: List[str]):
         self.setu_connection.execute(
             """

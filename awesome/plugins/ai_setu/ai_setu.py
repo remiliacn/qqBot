@@ -17,7 +17,7 @@ from qq_bot_core import user_control_module, setu_control, global_rate_limiter
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
-ai_bot_stuff = AIImageGenerator()
+ai_bot_facade = AIImageGenerator()
 
 
 @nonebot.on_command('ai替换', only_to_me=False)
@@ -32,8 +32,19 @@ async def add_sese_replace(session: nonebot.CommandSession):
         await session.finish('Wrong usage.')
         return
 
-    await ai_bot_stuff.add_high_confident_word(args)
+    await ai_bot_facade.add_high_confident_word(args)
     await session.finish('Done')
+
+
+@nonebot.on_command('移除替换', only_to_me=False)
+async def add_sese_replace(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    if not get_privilege(get_user_id(ctx), perm.OWNER):
+        return
+
+    arg = session.current_arg.strip()
+    await ai_bot_facade.remove_replace_words(arg)
+    await session.finish('Done.')
 
 
 @nonebot.on_command('ai设置', only_to_me=False)
@@ -58,7 +69,7 @@ async def sese_cache_removal(session: nonebot.CommandSession):
     if not get_privilege(user_id, perm.OWNER):
         return
 
-    await ai_bot_stuff.delete_holder_data()
+    await ai_bot_facade.delete_holder_data()
     await session.finish("It's done.")
 
 
@@ -86,10 +97,10 @@ async def add_sese_applause(session: nonebot.CommandSession):
     group_id = get_group_id(ctx)
     user_id = get_user_id(ctx)
 
-    up_vote_result = await ai_bot_stuff.up_vote_uuid(args, user_id)
+    up_vote_result = await ai_bot_facade.up_vote_uuid(args, user_id)
     if up_vote_result is not None and isinstance(up_vote_result, list):
         for tag in up_vote_result:
-            cn_tag_name = await ai_bot_stuff.reverse_get_high_confident_word(tag)
+            cn_tag_name = await ai_bot_facade.reverse_get_high_confident_word(tag)
             if cn_tag_name:
                 setu_control.set_group_xp(group_id, cn_tag_name)
                 setu_control.track_keyword(cn_tag_name)
@@ -147,13 +158,13 @@ async def ai_generating_image(session: nonebot.CommandSession):
     new_arg_list = []
     replace_notification = ''
 
-    flagged_words = await ai_bot_stuff.get_all_banned_words()
+    flagged_words = await ai_bot_facade.get_all_banned_words()
     flagged_count = 0
     for arg in args_list:
         if not arg:
             continue
 
-        replacing_candidate = await ai_bot_stuff.replace_high_confident_word(arg)
+        replacing_candidate = await ai_bot_facade.replace_high_confident_word(arg)
         if replacing_candidate:
             if replacing_candidate == "|":
                 flagged_count += 1
@@ -175,7 +186,7 @@ async def ai_generating_image(session: nonebot.CommandSession):
         await session.finish('该AI模型不是用来生成furry图的，请期待其独立功能。')
 
     seed = random.randint(1, int(1 << 32 - 1))
-    download_path, uid, sampler = await ai_bot_stuff.get_ai_generated_image(args, seed)
+    download_path, uid, sampler = await ai_bot_facade.get_ai_generated_image(args, seed)
 
     # confident_prompt = await ai_bot_stuff.get_tag_confident_worker(new_arg_list[:6])
 
