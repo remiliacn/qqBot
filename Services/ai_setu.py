@@ -301,6 +301,6 @@ class AIImageGenerator:
     async def relogin(self):
         result = await self.client.post(self.login_url, json={
             'key': NOVEL_AI_KEY
-        })
+        }, headers=self.header)
         authorization = result.json()['accessToken']
         self.header['Authorization'] = f'Bearer {authorization}'
