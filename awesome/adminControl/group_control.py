@@ -85,8 +85,8 @@ class GroupControlModule:
             """
         ).fetchone()
 
-        if query[0] is None:
-            return '本组还没有语录哦~'
+        if query is None or query[0] is None:
+            return '本群还没有语录哦~'
 
         return query[0]
 

@@ -1,5 +1,5 @@
 from os.path import exists
-from typing import List, Union
+from typing import Union
 
 from httpx import AsyncClient
 from loguru import logger
@@ -39,7 +39,7 @@ async def time_to_literal(time: int) -> str:
     return result
 
 
-def compile_forward_message(self_id: Union[int, str], *args: List[str]) -> list:
+def compile_forward_message(self_id: Union[int, str], *args: str) -> list:
     self_id = str(self_id)
     data_list = []
     for arg in args:

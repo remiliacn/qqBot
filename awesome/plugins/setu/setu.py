@@ -553,7 +553,6 @@ async def reverse_image_search(session: nonebot.CommandSession):
     if args:
         url = args[0]
         logger.info(f'URL extracted: {url}')
-        ctx = session.ctx.copy()
         try:
             response_data = await sauce_helper(url)
             if not response_data:
