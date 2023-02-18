@@ -359,7 +359,7 @@ class SimulateStock:
             """, (stock_code,)
         ).fetchone()
 
-        return result[0] if result is not None and result[0] is not None else 0
+        return result[0] if result is not None and result[0] is not None else None
 
     async def _delete_user_stock_by_quote(self, uid: str, stock_code: str):
         self.stock_data_db.execute(

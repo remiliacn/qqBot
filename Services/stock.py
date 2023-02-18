@@ -218,6 +218,7 @@ def do_plot(
         market_will += f'{line_break}{market_will_ma}'
 
         # histogram
+        # noinspection PyTypeChecker
         histogram_graph = plotter.Bar(
             y=histogram,
             marker_color=histogram_color
@@ -386,10 +387,11 @@ class Stock:
     def __init__(self, code: str, keyword=''):
         self.code = code
         self.stock_name = '未知股票'
-        self.type = None
 
-        self.kline_api = self.get_api_link(self.type)
+        self.kline_api = None
+        self.type = None
         self.guba_api = None
+
         self.keyword = keyword
 
         if keyword:
@@ -402,7 +404,7 @@ class Stock:
         self.client = HttpxHelperClient()
 
     def get_api_link(self, type_code) -> str:
-        return f'http://66.push2his.eastmoney.com/api/qt/stock/kline/get?' \
+        return f'https://50.push2his.eastmoney.com/api/qt/stock/kline/get?' \
                f'secid={type_code}.{self.code}&ut=fa5fd1943c7b386f172d6893dbfba10b' \
                f'&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6' \
                f'&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2' \
@@ -490,7 +492,7 @@ class Stock:
 
         return f'\n主力控盘迹象：{host_s}，资金流入：{json_data["ZLJLR"]:,.2f}（更新时间：{json_data["TRADEDATE"]}）'
 
-    def set_type(self, any_type: str):
+    def set_type(self, any_type: Union[str, int]):
         self.type = any_type
 
     async def search_to_set_type_and_get_name(self) -> str:
@@ -506,6 +508,7 @@ class Stock:
             data_response = page.json()
             self.set_type(int(data_response['QuotationCodeTable']['Data'][0]['MktNum']))
             self.code = data_response['QuotationCodeTable']['Data'][0]['Code']
+            self.stock_name = data_response['QuotationCodeTable']['Data'][0]['Name']
             return data_response['QuotationCodeTable']['Data'][0]['Name']
         except (KeyError, IndexError, TypeError):
             return ''
@@ -535,12 +538,11 @@ class Stock:
             low_rate = json_data['data']['f52'] if 'f52' in json_data['data'] else -1000
             if purchase_price == '-':
                 purchase_price = json_data['data']['f60']
-            stock_name = json_data['data']['f58']
         except Exception as err:
             logger.warning(f'Error when getting first purchase price for stock: {self.code} -- {err}')
             return -1, '', (10e6, -1000)
 
-        return purchase_price, stock_name, (high_rate, low_rate)
+        return purchase_price, self.stock_name, (high_rate, low_rate)
 
     async def get_kline_map(self, analyze_type='MACD') -> (str, str):
         self.kline_api = self.get_api_link(self.type)
@@ -580,6 +582,7 @@ class Stock:
         if self.code.isdigit():
             await self.search_to_set_type_and_get_name()
 
+        self.kline_api = self.get_api_link(self.type)
         page = await self.client.get(self.kline_api, timeout=None)
         try:
             json_data = page.json()

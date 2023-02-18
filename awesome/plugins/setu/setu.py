@@ -8,7 +8,9 @@ import nonebot
 import pixivpy3
 from aiocqhttp import MessageSegment
 from loguru import logger
+from pixivpy3 import PixivError
 
+from Services.pixiv_word_cloud import get_word_cloud_img
 from Services.rate_limiter import UserLimitModifier
 from Services.util.common_util import compile_forward_message
 from Services.util.ctx_utility import get_group_id, get_user_id, get_nickname
@@ -358,6 +360,52 @@ def _sanity_check(group_id, user_id):
         return '', sanity
 
 
+def _validate_user_pixiv_id_exists_and_return_id(session, ctx):
+    arg = session.current_arg
+
+    if arg.isdigit():
+        search_target_qq = arg
+    elif re.match(r'.*?\[CQ:at,qq=(\d+)]', arg):
+        search_target_qq = re.findall(r'.*?\[CQ:at,qq=(\d+)]', arg)[0]
+    else:
+        search_target_qq = get_user_id(ctx)
+
+    search_target_qq = int(search_target_qq)
+    pixiv_id = setu_control.get_user_pixiv(search_target_qq)
+
+    return pixiv_id != -1, search_target_qq, pixiv_id
+
+
+@nonebot.on_command('P站词云', only_to_me=False)
+async def get_user_xp_wordcloud(session: nonebot.CommandSession):
+    if not admin_group_control.get_if_authed():
+        pixiv_api.auth(
+            refresh_token=PIXIV_REFRESH_TOKEN
+        )
+        admin_group_control.set_if_authed(True)
+
+    ctx = session.ctx.copy()
+    group_id = get_group_id(ctx)
+
+    has_id, search_target_qq, pixiv_id = _validate_user_pixiv_id_exists_and_return_id(session, ctx)
+    if not has_id:
+        await session.finish('无法生成词云，请设置P站ID，设置方法：!设置P站 P站数字ID')
+
+    await session.send('少女祈祷中……生成词云可能会占用大概1分钟的时间……')
+    try:
+        cloud_img_path = await get_word_cloud_img(pixiv_api, pixiv_id)
+    except PixivError:
+        await session.finish('P站请求失败！请重新使用本指令！')
+        return
+
+    message_id = ctx['message_id']
+    messages = compile_forward_message(session.self_id, f'[CQ:reply,id={message_id}]\n' +
+                                       f'[CQ:image,file=file:///{cloud_img_path}]')
+
+    bot = nonebot.get_bot()
+    await bot.send_group_forward_msg(group_id=group_id, messages=messages)
+
+
 @nonebot.on_command('看看XP', aliases={'看看xp'}, only_to_me=False)
 async def get_user_xp_data_with_at(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -378,29 +426,16 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
     if sanity <= 0:
         await session.finish('差不多得了嗷')
 
-    arg = session.current_arg
-
-    if arg.isdigit():
-        search_target_qq = arg
-    elif re.match(r'.*?\[CQ:at,qq=(\d+)]', arg):
-        search_target_qq = re.findall(r'.*?\[CQ:at,qq=(\d+)]', arg)[0]
-    else:
-        search_target_qq = get_user_id(ctx)
-
-    ctx = session.ctx.copy()
-    group_id = get_group_id(ctx)
-
-    search_target_qq = int(search_target_qq)
-    pixiv_id = setu_control.get_user_pixiv(search_target_qq)
-
-    has_id = pixiv_id != -1
-
     message_id = ctx['message_id']
+
+    has_id, search_target_qq, pixiv_id = _validate_user_pixiv_id_exists_and_return_id(session, ctx)
     xp_result = setu_control.get_user_xp(search_target_qq)
     if not has_id and xp_result == '暂无数据':
         await session.finish(
             f'[CQ:reply,id={message_id}]' + friendly_reminder
         )
+
+    group_id = get_group_id(ctx)
 
     xp_information = SetuRequester(ctx, has_id, pixiv_id, xp_result, requester_qq, search_target_qq)
     result = await _get_xp_information(xp_information)
