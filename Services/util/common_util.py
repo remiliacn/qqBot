@@ -8,6 +8,10 @@ from nonebot import CommandSession
 from Services.util.ctx_utility import get_user_id, get_group_id
 
 
+def chunk_string(string, length):
+    return (string[0 + i:length + i] for i in range(0, len(string), length))
+
+
 def _compile_forward_node(self_id: str, data: str):
     return {
         'type': 'node',

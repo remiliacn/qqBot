@@ -10,18 +10,19 @@ from loguru import logger
 
 from Services.random_services import YouTubeLiveTracker
 from Services.stock import text_to_image
-from Services.util.ctx_utility import get_user_id, get_group_id
+from Services.util.ctx_utility import get_user_id  # , get_group_id
 from awesome.Constants import user_permission as perm
-from awesome.Constants.function_key import TWEET_SENT
+# from awesome.Constants.function_key import TWEET_SENT
 from awesome.plugins.shadiao.shadiao import setu_control
-from awesome.plugins.util.tweetHelper import tweeter
+# from awesome.plugins.util.tweetHelper import tweeter
 from config import SUPER_USER, DOWNLODER_FILE_NAME, PATH_TO_ONEDRIVE, STEAM_UTIL_GROUP_NUM
 from qq_bot_core import buff_requester
 from qq_bot_core import user_control_module
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
-tweet = tweeter.Tweeter()
+
+# tweet = tweeter.Tweeter()
 
 
 @nonebot.on_command('跟推添加', only_to_me=False)
@@ -55,24 +56,25 @@ async def add_new_tweeter_function(session: nonebot.CommandSession):
     if not (args[3].upper() == 'Y' or args[3].upper() == 'N'):
         await session.finish('是否启用应该输入为Y或N')
 
-    await session.finish(tweet.add_to_config(args, get_group_id(ctx)))
+    # await session.finish(tweet.add_to_config(args, get_group_id(ctx)))
 
 
-@nonebot.on_command('跟推移除', only_to_me=False)
-async def remove_tweet_following(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    if not get_privilege(get_user_id(ctx), perm.ADMIN):
-        await session.finish('您无权使用本指令')
-
-    key_word = session.get(
-        'key_word',
-        prompt='请输入需要移除的中文key'
-    )
-
-    if tweet.remove_from_config(key_word):
-        await session.finish('成功！')
-    else:
-        await session.finish(f'未找到key：{key_word}')
+#
+# @nonebot.on_command('跟推移除', only_to_me=False)
+# async def remove_tweet_following(session: nonebot.CommandSession):
+#     ctx = session.ctx.copy()
+#     if not get_privilege(get_user_id(ctx), perm.ADMIN):
+#         await session.finish('您无权使用本指令')
+#
+#     key_word = session.get(
+#         'key_word',
+#         prompt='请输入需要移除的中文key'
+#     )
+#
+#     if tweet.remove_from_config(key_word):
+#         await session.finish('成功！')
+#     else:
+#         await session.finish(f'未找到key：{key_word}')
 
 
 @nonebot.scheduler.scheduled_job('interval', minutes=2, misfire_grace_time=5)
@@ -88,10 +90,10 @@ async def scheduled_jobs():
         )
 
     await asyncio.gather(
-        do_tweet_update_fetch(),
+        # do_tweet_update_fetch(),
         # do_bilibili_live_fetch(),
         fill_sanity(),
-        check_youtube_live(),
+        # check_youtube_live(),
         check_rates()
     )
 
@@ -265,31 +267,31 @@ async def do_youtube_update_fetch():
             json.dump(empty_dict, f, indent=4)
 
 
-async def do_tweet_update_fetch():
-    diff_dict = await tweet.check_update()
-    if diff_dict:
-        bot = nonebot.get_bot()
-        for ch_name in diff_dict:
-            group_id_list = tweet.get_tweet_config()[ch_name]['group']
-            message = diff_dict[ch_name]
-
-            if message[0:2] == 'RT':
-                message = f'=== {ch_name}转发推文说 ===\n' + message
-            elif message[0] == '@':
-                message = f'=== {ch_name}回了一条推 ===\n' + message
-            else:
-                message = f'=== {ch_name}发了一条推 ===\n' + message
-
-            for element in group_id_list:
-                setu_control.set_user_data(0, TWEET_SENT, 'null', 1, True)
-                await bot.send_group_msg(group_id=element,
-                                         message=message)
-                await bot.send_private_msg(
-                    user_id=SUPER_USER,
-                    message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
-                            f'A message was sent to group: {element}\n'
-                            f'The group belongs to: {ch_name}'
-                )
+# async def do_tweet_update_fetch():
+#     diff_dict = await tweet.check_update()
+#     if diff_dict:
+#         bot = nonebot.get_bot()
+#         for ch_name in diff_dict:
+#             group_id_list = tweet.get_tweet_config()[ch_name]['group']
+#             message = diff_dict[ch_name]
+#
+#             if message[0:2] == 'RT':
+#                 message = f'=== {ch_name}转发推文说 ===\n' + message
+#             elif message[0] == '@':
+#                 message = f'=== {ch_name}回了一条推 ===\n' + message
+#             else:
+#                 message = f'=== {ch_name}发了一条推 ===\n' + message
+#
+#             for element in group_id_list:
+#                 setu_control.set_user_data(0, TWEET_SENT, 'null', 1, True)
+#                 await bot.send_group_msg(group_id=element,
+#                                          message=message)
+#                 await bot.send_private_msg(
+#                     user_id=SUPER_USER,
+#                     message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
+#                             f'A message was sent to group: {element}\n'
+#                             f'The group belongs to: {ch_name}'
+#                 )
 
 
 # 如果需要bilibili直播间提醒请把这部分的注释去掉。
@@ -310,7 +312,7 @@ async def do_bilibili_live_fetch():
 
 
 @add_new_tweeter_function.args_parser
-@remove_tweet_following.args_parser
+# @remove_tweet_following.args_parser
 async def _(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:
