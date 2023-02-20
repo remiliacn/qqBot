@@ -160,12 +160,11 @@ game = ru_game.Russianroulette(BULLET_IN_GUN)
 
 @nonebot.on_command('骰娘', only_to_me=False)
 async def pao_tuan_shai_zi(session: nonebot.CommandSession):
-    raw_message = session.current_arg
+    raw_message = session.current_arg_text
     if not re.fullmatch(r'^\d+[dD]\d+$', raw_message):
         await session.finish('用法错误：应为“xdy”, x 可以 = y，示例：1d100.')
 
-    raw_message = raw_message.split()[0][1:].lower()
-    args = raw_message.split('d')
+    args = re.split(r'[dD]', raw_message)
     throw_times = int(args[0])
     if throw_times > 30:
         await session.finish('扔这么多干嘛，爬')
@@ -174,10 +173,10 @@ async def pao_tuan_shai_zi(session: nonebot.CommandSession):
     result_list = [randint(1, max_val) for _ in range(throw_times)]
     result_sum = sum(result_list)
 
-    await session.finish(
-        f'筛子结果为：{", ".join([str(x) for x in result_list])}\n'
-        f'筛子结果总和为：{result_sum}' if throw_times > 1 else ''
-    )
+    sum_string = f'\n其掷骰结果总和为：{result_sum}' if throw_times > 1 else ""
+
+    result_string = f'{throw_times}次掷{max_val}面骰的结果为：{", ".join([str(x) for x in result_list])}' + sum_string
+    await session.finish(result_string)
 
 
 @nonebot.on_command('赛马', only_to_me=False)
