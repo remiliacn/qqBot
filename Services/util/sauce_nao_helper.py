@@ -55,6 +55,7 @@ async def _analyze_saucenao_response(json_data: dict):
                 return {}
 
         ext_url = json_data['ext_urls'][0] if 'ext_urls' in json_data else '[数据删除]'
+        ext_url = ext_url.replace('.', '点')
         analyzed_data = await _analyze_sauce_nao_content(json_data, image_content)
 
         analyzed_data['simlarity'] = simlarity

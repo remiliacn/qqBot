@@ -152,13 +152,15 @@ def anime_reverse_search_response(response_data: dict) -> str:
             response = f'{response_data["data"]}\n' \
                        f'相似度：{response_data["simlarity"]}\n' \
                        f'标题：{response_data["title"]}\n' \
-                       f'画师：{response_data["author"]}\n'
+                       f'画师：{response_data["author"]}\n' \
+                       f'{response_data["ext_url"]}'
         else:
             response = f'{response_data["data"]}\n' \
                        f'相似度：{response_data["simlarity"]}\n' \
                        f'标题：{response_data["title"]}\n' \
                        f'画师：{response_data["author"]}\n' \
-                       f'Pixiv：{response_data["pixiv_id"]}\n'
+                       f'Pixiv：{response_data["pixiv_id"]}\n' \
+                       f'{response_data["ext_url"]}'
 
     if 'simlarity' in response_data and float(response_data["simlarity"].replace('%', '')) < 70:
         response += '\n\n不过我不是太有信心哦~'

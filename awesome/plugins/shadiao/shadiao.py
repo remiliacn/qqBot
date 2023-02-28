@@ -60,6 +60,20 @@ async def clear_group_quotes(session: nonebot.CommandSession):
     await session.finish('啊这……群号不对啊……')
 
 
+@nonebot.on_command('转移语录', only_to_me=False)
+async def transfer_group_quotes(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    if not get_privilege(get_user_id(ctx), perm.OWNER):
+        await session.finish()
+
+    group_id_arg = re.split(r'[,，]', session.current_arg_text)
+    if len(group_id_arg) != 2:
+        await session.finish('用法为！转移语录 目标群号，原群号')
+
+    admin_group_control.transfer_group_quote(group_id_arg[0], group_id_arg[1])
+    await session.finish('Done')
+
+
 @nonebot.on_command('你群语录', aliases=('你组语录', '语录'), only_to_me=False)
 async def get_group_quotes(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -99,7 +113,8 @@ async def add_group_quotes(session: nonebot.CommandSession):
 
         if key_word:
             admin_group_control.add_quote(get_group_id(ctx), key_word)
-            await session.finish(f'已添加！（当前总语录条数：{admin_group_control.get_group_quote_count(get_group_id(ctx))})')
+            await session.finish(
+                f'已添加！（当前总语录条数：{admin_group_control.get_group_quote_count(get_group_id(ctx))})')
     else:
         await session.finish('啊这……')
 
@@ -464,7 +479,8 @@ async def stat_player(session: nonebot.CommandSession):
 
         await session.send(f'用户[CQ:at,qq={user_id}]：\n' +
                            (f'比大小赢得{poker_win}次（排名第{poker_rank}）\n' if poker_win != 0 else '') +
-                           (f'方舟抽卡共抽到{six_star_pull}个六星干员（排名第{six_star_rank}）\n ' if six_star_pull != 0 else '') +
+                           (
+                               f'方舟抽卡共抽到{six_star_pull}个六星干员（排名第{six_star_rank}）\n ' if six_star_pull != 0 else '') +
                            (f'紫气东来{unlucky}次（排名第{unlucky}）\n' if unlucky != 0 else '') +
                            (f'查了{setu_stat}次的色图！（排名第{setu_rank}）\n' if setu_stat != 0 else '') +
                            (f'问了{question}次问题（排名第{question_rank}）\n' if question != 0 else '') +

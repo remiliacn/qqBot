@@ -75,6 +75,21 @@ class GroupControlModule:
         )
         self.group_info_db.commit()
 
+    def transfer_group_quote(self, target_group_id: Union[int, str], original_group_id: Union[int, str]):
+        if isinstance(target_group_id, int):
+            target_group_id = str(target_group_id)
+
+        if isinstance(original_group_id, int):
+            original_group_id = str(original_group_id)
+
+        self.group_info_db.execute(
+            """
+            update quotes set qq_group = ? where qq_group = ?
+            """, (target_group_id.strip(), original_group_id.strip())
+        )
+
+        self.group_info_db.commit()
+
     def get_group_quote(self, group_id: Union[int, str]):
         if isinstance(group_id, int):
             group_id = str(group_id)
