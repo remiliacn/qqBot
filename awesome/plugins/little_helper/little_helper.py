@@ -152,7 +152,7 @@ async def hhsh(entry: str) -> str:
     try:
         client = HttpxHelperClient()
         page = await client.post(guess_url, json={"text": entry}, headers=headers)
-        json_data = await page.json()
+        json_data = page.json()
 
     except Exception as e:
         print(e)
@@ -160,8 +160,8 @@ async def hhsh(entry: str) -> str:
 
     result = '这个缩写可能的意味有：\n'
     try:
-        for idx, element in enumerate(json_data[0]['trans']):
-            result += element + ', ' if idx + 1 != len(json_data[0]['trans']) else element
+        for element in json_data:
+            result += f'当缩写为{element["name"]}时，其意味可以是：\n{"，".join(element["trans"])}\n'
 
     except KeyError:
         try:
@@ -169,8 +169,8 @@ async def hhsh(entry: str) -> str:
         except KeyError:
             return '这……我也不懂啊草，能不能好好说话（'
     except Exception as err:
-        logger.debug(f'hhsh err: {err}')
+        logger.info(f'hhsh err: {err}')
         return ''
 
     cache.store_result(entry, result, HHSHMEANING)
-    return result
+    return result.strip()
