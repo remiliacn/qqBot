@@ -1,10 +1,13 @@
 import re
 
+from aiocache import cached
+from aiocache.serializers import PickleSerializer
 from lxml import etree
 
 from Services.util.common_util import HttpxHelperClient
 
 
+@cached(ttl=60 * 60 * 12, serializer=PickleSerializer())
 async def get_definition(
         key_word: str,
         url='https://zh.wikipedia.org/zh-cn/',

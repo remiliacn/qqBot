@@ -43,57 +43,6 @@ def get_downloaded_image_path(response: dict, path: str):
     return resp
 
 
-class HhshCache:
-    def __init__(self):
-        self.meaning_dict = {}  # str : str
-        self.furigana_dict = {}
-        self.wikipedia_dict = {}
-
-    def check_exist(self, query, function):
-        if function == HHSHMEANING:
-            return query in self.meaning_dict
-
-        if function == FURIGANAFUNCTION:
-            return query in self.furigana_dict
-
-    @staticmethod
-    def _check_and_delete_first_key(d: dict) -> None:
-        if len(d) > 100:
-            first_key = next(iter(d))
-            del d[first_key]
-
-    def store_result(
-            self,
-            query: str,
-            meaning: str,
-            function: (HHSHMEANING or FURIGANAFUNCTION or WIKIPEDIA)
-    ):
-        if function == HHSHMEANING:
-            self._check_and_delete_first_key(self.meaning_dict)
-            self.meaning_dict[query] = meaning
-
-        elif function == FURIGANAFUNCTION:
-            self._check_and_delete_first_key(self.furigana_dict)
-            self.furigana_dict[query] = meaning
-
-        elif function == WIKIPEDIA:
-            self._check_and_delete_first_key(self.wikipedia_dict)
-            self.wikipedia_dict[query] = meaning
-
-    def get_result(self, query, function):
-        def _get_result_if_exists(d: dict, q: str) -> str:
-            return d[q] if q in d else ''
-
-        if function == HHSHMEANING:
-            return _get_result_if_exists(self.meaning_dict, query)
-
-        if function == FURIGANAFUNCTION:
-            return _get_result_if_exists(self.furigana_dict, query)
-
-        if function == WIKIPEDIA:
-            return _get_result_if_exists(self.wikipedia_dict, query)
-
-
 def ark_helper(args: list) -> str:
     if len(args) < 2:
         return '用法有误\n' + '使用方法：！命令 干员名 星级（数字）'

@@ -1,6 +1,8 @@
 import time
 
 import nonebot
+from aiocache import cached
+from aiocache.serializers import PickleSerializer
 from loguru import logger
 
 from Services import random_services
@@ -11,13 +13,8 @@ from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
 from awesome.Constants import user_permission as perm
 from awesome.Constants.function_key import HHSH_FUNCTION
 from awesome.plugins.shadiao.shadiao import setu_control
-from awesome.plugins.util import helper_util, search_helper
+from awesome.plugins.util import search_helper
 from qq_bot_core import user_control_module
-
-cache = helper_util.HhshCache()
-
-HHSHMEANING = 'meaning'
-FURIGANAFUNCTION = 'furigana'
 
 
 @nonebot.on_command('搜索', only_to_me=False)
@@ -123,6 +120,7 @@ async def can_you_be_fucking_normal(session: nonebot.CommandSession):
         logger.debug('Something went wrong %s' % e)
 
 
+# noinspection PyUnresolvedReferences
 @can_you_be_fucking_normal.args_parser
 async def _you_dao_service_args(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
@@ -135,10 +133,8 @@ async def _you_dao_service_args(session: nonebot.CommandSession):
         session.pause('词呢！词呢！！KORA！！！')
 
 
+@cached(ttl=86400, serializer=PickleSerializer())
 async def hhsh(entry: str) -> str:
-    if cache.check_exist(entry, HHSHMEANING):
-        return cache.get_result(entry, HHSHMEANING)
-
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                       'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -172,5 +168,4 @@ async def hhsh(entry: str) -> str:
         logger.info(f'hhsh err: {err}')
         return ''
 
-    cache.store_result(entry, result, HHSHMEANING)
     return result.strip()

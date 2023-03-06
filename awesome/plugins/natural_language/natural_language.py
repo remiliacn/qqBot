@@ -8,6 +8,8 @@ from typing import Union
 import jieba
 import jieba.posseg as pos
 import nonebot
+from aiocache import cached
+from aiocache.serializers import PickleSerializer
 from aiocqhttp import ActionFailed
 from loguru import logger
 
@@ -16,7 +18,7 @@ from Services.util.ctx_utility import get_group_id, get_user_id
 from Services.util.sauce_nao_helper import sauce_helper
 from awesome.plugins.util.helper_util import anime_reverse_search_response, get_downloaded_image_path
 from qq_bot_core import admin_group_control, user_control_module
-from ..little_helper.little_helper import hhsh, cache
+from ..little_helper.little_helper import hhsh
 from ..util import search_helper
 from ...Constants import user_permission as perm, group_permission
 
@@ -118,13 +120,9 @@ async def _check_if_asking_definition(message: str) -> str:
                 key_word = sentence
 
             logger.info(f'second pass keyword: {key_word}')
-            result = cache.get_result(key_word, 'WIKIPEDIA')
-            if not result:
-                result = await search_helper.get_definition(key_word)
-                if result:
-                    cache.store_result(key_word, result, 'WIKIPEDIA')
-                if not result and key_word.isalpha():
-                    result = await hhsh(key_word)
+            result = await search_helper.get_definition(key_word)
+            if not result and key_word.isalpha():
+                result = await hhsh(key_word)
 
             return result
 
@@ -229,6 +227,7 @@ async def _do_tts_send(message: str) -> str:
     return f'[CQ:tts,text={message}]'
 
 
+@cached(ttl=86400, serializer=PickleSerializer())
 async def _do_soutu_operation(message: str) -> str:
     reply_id = findall(r'\[CQ:reply,id=(.*?)]', message)
     response = ''

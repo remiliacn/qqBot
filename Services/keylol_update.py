@@ -3,6 +3,9 @@ from os import getcwd
 from os.path import exists
 from re import findall
 
+from aiocache import cached
+from aiocache.serializers import PickleSerializer
+
 from Services.util.common_util import HttpxHelperClient
 
 
@@ -40,6 +43,7 @@ class KeylolFreeGame:
         response += '信息来源：其乐lol'
         return response
 
+    @cached(ttl=60 * 60 * 6, serializer=PickleSerializer())
     async def get_update(self) -> str:
         page = await self.client.get(self.free_post_url)
 
