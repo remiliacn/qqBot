@@ -8,6 +8,7 @@ from typing import Union
 import jieba
 import jieba.posseg as pos
 import nonebot
+from aiocqhttp import ActionFailed
 from loguru import logger
 
 from Services.util.common_util import compile_forward_message
@@ -48,10 +49,13 @@ async def natural_language_proc(session: nonebot.NLPSession):
     reply_response = await _check_reply_keywords(message, session.self_id)
     if reply_response:
         bot = nonebot.get_bot()
-        await bot.send_group_forward_msg(
-            group_id=group_id,
-            messages=compile_forward_message(session.self_id, reply_response)
-        )
+        try:
+            await bot.send_group_forward_msg(
+                group_id=group_id,
+                messages=compile_forward_message(session.self_id, reply_response)
+            )
+        except ActionFailed:
+            await session.send(reply_response)
         return
 
     if admin_group_control.get_group_permission(group_id, group_permission.NLP):

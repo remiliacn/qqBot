@@ -47,7 +47,7 @@ def compile_forward_message(self_id: Union[int, str], *args: str) -> list:
     self_id = str(self_id)
     data_list = []
     for arg in args:
-        data_list.append(_compile_forward_node(self_id, arg))
+        data_list.append(_compile_forward_node(self_id, arg.strip()))
 
     return data_list
 
