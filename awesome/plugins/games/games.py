@@ -158,16 +158,11 @@ GLOBAL_STORE = Storer()
 game = ru_game.Russianroulette(BULLET_IN_GUN)
 
 
-@nonebot.on_command('骰娘', only_to_me=False)
-async def pao_tuan_shai_zi(session: nonebot.CommandSession):
-    raw_message = session.current_arg_text
-    if not re.fullmatch(r'^\d+[dD]\d+$', raw_message):
-        await session.finish('用法错误：应为“xdy”, x 可以 = y，示例：1d100.')
-
-    args = re.split(r'[dD]', raw_message)
+async def _get_normal_decision_result(text_args: list):
+    args = re.split(r'[dD]', text_args[0])
     throw_times = int(args[0])
-    if throw_times > 30:
-        await session.finish('扔这么多干嘛，爬')
+    if throw_times > 50:
+        return '扔这么多干嘛，爬'
 
     max_val = int(args[1])
     result_list = [randint(1, max_val) for _ in range(throw_times)]
@@ -176,7 +171,45 @@ async def pao_tuan_shai_zi(session: nonebot.CommandSession):
     sum_string = f'\n其掷骰结果总和为：{result_sum}' if throw_times > 1 else ""
 
     result_string = f'{throw_times}次掷{max_val}面骰的结果为：{", ".join([str(x) for x in result_list])}' + sum_string
-    await session.finish(result_string)
+
+    evaluation_result = None
+    if len(text_args) == 3 and text_args[2].strip().isdigit():
+        evaluation_target = float(text_args[2].strip())
+        expression = text_args[1].strip()
+
+        if expression == '大于' or expression == '>':
+            evaluation_result = result_sum > evaluation_target
+        elif expression == '小于' or expression == '<':
+            evaluation_result = result_sum < evaluation_target
+        elif expression == '大于等于' or expression == '>=':
+            evaluation_result = result_sum >= evaluation_target
+        elif expression == '小于等于' or expression == '<=':
+            evaluation_result = result_sum <= evaluation_target
+        elif expression == '等于' or expression == '=' or expression == '==':
+            evaluation_result = result_sum == evaluation_target
+        elif expression == '不等于' or expression == '≠' or expression == '!=':
+            evaluation_result = result_sum != evaluation_target
+
+    if evaluation_result is None:
+        return result_string
+
+    return result_string + '，' + ('判定成功' if evaluation_result else '判定失败')
+
+
+@nonebot.on_command('骰娘', only_to_me=False)
+async def pao_tuan_shai_zi(session: nonebot.CommandSession):
+    raw_message = session.current_arg_text
+    text_args = re.split(r'[,，\s]', raw_message)
+
+    normal_decision = True
+    if not re.fullmatch(r'^\d+[dD]\d+$', text_args[0]):
+        if not re.fullmatch(r'^\d+[dD]\d+/\d+[dD]\d+$', text_args[0]):
+            await session.finish('用法错误：应为“xdy”, x 可以 = y，示例：1d100。如需自动判定，则可添加表达式：1d100 < 5')
+        else:
+            normal_decision = False
+
+    if normal_decision:
+        await session.finish(await _get_normal_decision_result(text_args))
 
 
 @nonebot.on_command('赛马', only_to_me=False)

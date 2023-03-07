@@ -5,14 +5,15 @@ import re
 import aiocqhttp.event
 import aiohttp
 import nonebot
+from aiocqhttp import MessageSegment
 from loguru import logger
 from nonebot.message import CanceledException
 from nonebot.plugin import PluginManager
 
 from Services import waifu_finder, ark_nights, shadiao, pcr_news
 from Services.rate_limiter import UserLimitModifier
-from Services.util.common_util import get_general_ctx_info
-from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
+from Services.util.common_util import get_general_ctx_info, HttpxHelperClient
+from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id, get_message_id
 from awesome.Constants import user_permission as perm, group_permission
 from awesome.Constants.function_key import ARKNIGHTS_PULLS, ARKNIGHTS_SINGLE_PULL, ARKNIGHTS_SIX_STAR_PULL, YULU_CHECK, \
     ARKNIGHTS_BAD_LUCK_PULL, POKER_GAME, SETU, QUESTION, HIT_XP, ROULETTE_GAME, HORSE_RACE
@@ -557,5 +558,20 @@ async def zui_chou(session: nonebot.CommandSession):
 
 
 @nonebot.on_command('彩虹屁', aliases=('拍个马屁', '拍马屁', '舔TA'), only_to_me=False)
-async def cai_hong_pi(session: nonebot.CommandSession):
-    await session.finish('功能已停用。')
+async def chp(session: nonebot.CommandSession):
+    await session.finish(await get_lab_responses('https://api.shadiao.pro/chp', session.ctx.copy()))
+
+
+@nonebot.on_command('疯狂星期四', only_to_me=False)
+async def fkxqs(session: nonebot.CommandSession):
+    await session.finish(await get_lab_responses('https://api.shadiao.pro/kfc', session.ctx.copy()))
+
+
+async def get_lab_responses(url: str, ctx: dict):
+    client = HttpxHelperClient()
+    json_data = await client.get(url)
+    if json_data.status_code != 200:
+        return '现在出不来'
+
+    json_data = json_data.json()
+    return MessageSegment.reply(get_message_id(ctx)) + json_data['data']['text'].replace('\u200b', '')
