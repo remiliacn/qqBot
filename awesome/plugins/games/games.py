@@ -149,6 +149,14 @@ class Horseracing:
         return False
 
 
+class DiceResult:
+    def __init__(self, throw_times: int, result_sum: int, max_val: int, result_list: list):
+        self.throw_times = throw_times
+        self.result_sum = result_sum
+        self.max_val = max_val
+        self.result_list = result_list
+
+
 BULLET_IN_GUN = 6
 # 晚安模式在开启时会禁言中枪玩家6小时，而不是平常的2分钟。
 ENABLE_GOOD_NIGHT_MODE = True
@@ -158,42 +166,88 @@ GLOBAL_STORE = Storer()
 game = ru_game.Russianroulette(BULLET_IN_GUN)
 
 
-async def _get_normal_decision_result(text_args: list):
-    args = re.split(r'[dD]', text_args[0])
+async def _dice_expr_evaluation(expression: str, result_sum: int, evaluation_target: int) -> bool:
+    evaluation_result = False
+    if expression == '大于' or expression == '>':
+        evaluation_result = result_sum > evaluation_target
+    elif expression == '小于' or expression == '<':
+        evaluation_result = result_sum < evaluation_target
+    elif expression == '大于等于' or expression == '>=':
+        evaluation_result = result_sum >= evaluation_target
+    elif expression == '小于等于' or expression == '<=':
+        evaluation_result = result_sum <= evaluation_target
+    elif expression == '等于' or expression == '=' or expression == '==':
+        evaluation_result = result_sum == evaluation_target
+    elif expression == '不等于' or expression == '≠' or expression == '!=':
+        evaluation_result = result_sum != evaluation_target
+
+    return evaluation_result
+
+
+async def _get_dice_result(text: str) -> DiceResult:
+    args = re.split(r'[dD]', text)
     throw_times = int(args[0])
-    if throw_times > 50:
-        return '扔这么多干嘛，爬'
+    if throw_times > 30:
+        throw_times = 30
 
     max_val = int(args[1])
     result_list = [randint(1, max_val) for _ in range(throw_times)]
     result_sum = sum(result_list)
 
-    sum_string = f'\n其掷骰结果总和为：{result_sum}' if throw_times > 1 else ""
+    return DiceResult(throw_times, result_sum, max_val, result_list)
 
-    result_string = f'{throw_times}次掷{max_val}面骰的结果为：{", ".join([str(x) for x in result_list])}' + sum_string
+
+async def _get_dice_result_plain_text(dice_result: DiceResult) -> str:
+    sum_string = f'\n其掷骰结果总和为：{dice_result.result_sum}' if dice_result.throw_times > 1 else ""
+    result_string = f'{dice_result.throw_times}次掷{dice_result.max_val}面骰的结果为：' \
+                    f'{", ".join([str(x) for x in dice_result.result_list])}' + \
+                    sum_string
+
+    return result_string
+
+
+async def _get_normal_decision_result(text_args: list):
+    dice_result = await _get_dice_result(text_args[0])
 
     evaluation_result = None
     if len(text_args) == 3 and text_args[2].strip().isdigit():
         evaluation_target = float(text_args[2].strip())
         expression = text_args[1].strip()
-
-        if expression == '大于' or expression == '>':
-            evaluation_result = result_sum > evaluation_target
-        elif expression == '小于' or expression == '<':
-            evaluation_result = result_sum < evaluation_target
-        elif expression == '大于等于' or expression == '>=':
-            evaluation_result = result_sum >= evaluation_target
-        elif expression == '小于等于' or expression == '<=':
-            evaluation_result = result_sum <= evaluation_target
-        elif expression == '等于' or expression == '=' or expression == '==':
-            evaluation_result = result_sum == evaluation_target
-        elif expression == '不等于' or expression == '≠' or expression == '!=':
-            evaluation_result = result_sum != evaluation_target
+        evaluation_result = await _dice_expr_evaluation(expression, dice_result.result_sum, evaluation_target)
 
     if evaluation_result is None:
-        return result_string
+        return await _get_dice_result_plain_text(dice_result)
 
-    return result_string + '，' + ('判定成功' if evaluation_result else '判定失败')
+    return await _get_dice_result_plain_text(dice_result) + '，' + ('判定成功' if evaluation_result else '判定失败')
+
+
+async def _get_binary_decision_result(text_args):
+    if len(text_args) < 2 or not text_args[1].isdigit():
+        return '必须有第二个判定值，例：1d150/50 50，如果1d100 < 50则取1d150结果，反之取50'
+
+    data_args = text_args[0].split('/')
+    if len(data_args) != 2:
+        return '必须有两个选项。'
+
+    first_data_choice = data_args[0]
+    if first_data_choice.isdigit():
+        first_choice = int(first_data_choice)
+    else:
+        first_choice_await = await _get_dice_result(first_data_choice)
+        first_choice = first_choice_await.result_sum
+
+    second_data_choice = data_args[1]
+
+    if second_data_choice.isdigit():
+        second_choice = int(second_data_choice)
+    else:
+        second_choice_await = await _get_dice_result(second_data_choice)
+        second_choice = second_choice_await.result_sum
+
+    if await _dice_expr_evaluation('<', randint(1, 100), int(text_args[1])):
+        return f'1d100 < {text_args[1]}成功，取第一个结果：{first_choice}'
+
+    return f'1d100 < {text_args[1]}失败，取第二个结果：{second_choice}'
 
 
 @nonebot.on_command('骰娘', only_to_me=False)
@@ -203,13 +257,15 @@ async def pao_tuan_shai_zi(session: nonebot.CommandSession):
 
     normal_decision = True
     if not re.fullmatch(r'^\d+[dD]\d+$', text_args[0]):
-        if not re.fullmatch(r'^\d+[dD]\d+/\d+[dD]\d+$', text_args[0]):
+        if not re.fullmatch(r'^\d+([dD]\d+)?/\d+([dD]\d+)?$', text_args[0]):
             await session.finish('用法错误：应为“xdy”, x 可以 = y，示例：1d100。如需自动判定，则可添加表达式：1d100 < 5')
         else:
             normal_decision = False
 
     if normal_decision:
         await session.finish(await _get_normal_decision_result(text_args))
+    else:
+        await session.finish(await _get_binary_decision_result(text_args))
 
 
 @nonebot.on_command('赛马', only_to_me=False)
