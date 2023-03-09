@@ -210,9 +210,9 @@ async def _get_normal_decision_result(text_args: list):
     dice_result = await _get_dice_result(text_args[0])
 
     evaluation_result = None
-    if len(text_args) == 3 and text_args[2].strip().isdigit():
-        evaluation_target = float(text_args[2].strip())
-        expression = text_args[1].strip()
+    if len(text_args) == 3 and text_args[2].isdigit():
+        evaluation_target = float(text_args[2])
+        expression = text_args[1]
         evaluation_result = await _dice_expr_evaluation(expression, dice_result.result_sum, evaluation_target)
 
     if evaluation_result is None:
@@ -250,12 +250,38 @@ async def _get_binary_decision_result(text_args):
     return f'1d100 < {text_args[1]}失败，取第二个结果：{second_choice}'
 
 
+async def _multiple_row_result(text_args: list) -> str:
+    dice_result_list = [(await _get_dice_result(x)) for x in text_args]
+    dice_result_text = [(await _get_dice_result_plain_text(x)) for x in dice_result_list]
+    return '\n'.join(dice_result_text)
+
+
+async def _evaluate_dice_expression(text: str):
+    all_dice_role_evaluation = re.findall(r'\d+[dD]\d+', text)
+    evaluation_list_result = [(await _get_dice_result(x)) for x in all_dice_role_evaluation]
+    for idx, dice_text in enumerate(all_dice_role_evaluation):
+        text = text.replace(dice_text, str(evaluation_list_result[idx].result_sum))
+
+    result = eval(text)
+    dice_result_plain_text_list = "\n".join([(await _get_dice_result_plain_text(x)) for x in evaluation_list_result])
+    return f'随机结果如下：\n' \
+           f'{dice_result_plain_text_list}\n' \
+           f'最后计算结果为：{result}'
+
+
 @nonebot.on_command('骰娘', only_to_me=False)
 async def pao_tuan_shai_zi(session: nonebot.CommandSession):
     raw_message = session.current_arg_text
     text_args = re.split(r'[,，\s]', raw_message)
+    text_args = [x.strip() for x in text_args if x]
 
     normal_decision = True
+    if all(re.fullmatch(r'^\d+[dD]\d+$', x) for x in text_args):
+        await session.finish(await _multiple_row_result(text_args))
+
+    if re.fullmatch(r'^\d+[dD]\d+([+\-*/]\d+([dD]\d+)?)+$', text_args[0]):
+        await session.finish(await _evaluate_dice_expression(text_args[0]))
+
     if not re.fullmatch(r'^\d+[dD]\d+$', text_args[0]):
         if not re.fullmatch(r'^\d+([dD]\d+)?/\d+([dD]\d+)?$', text_args[0]):
             await session.finish('用法错误：应为“xdy”, x 可以 = y，示例：1d100。如需自动判定，则可添加表达式：1d100 < 5')
