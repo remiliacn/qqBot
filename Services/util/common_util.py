@@ -5,7 +5,6 @@ from typing import Union
 
 import markdown2
 from httpx import AsyncClient
-from latex2markdown import LaTeX2Markdown
 from loguru import logger
 from nonebot import CommandSession
 from selenium import webdriver
@@ -81,7 +80,7 @@ async def check_if_number_user_id(session: CommandSession, arg: str):
 def markdown_to_html(string: str):
     html_string = markdown2.markdown(string, extras=['fenced-code-blocks']).replace('</em>', '').replace('<em>', '_')
     file_name = f'{getcwd()}/data/bot/response/{int(time.time())}.html'
-    with open(file_name, 'w+') as file:
+    with open(file_name, 'w+', encoding='utf-8') as file:
         file.write(r"""
 <script type="text/x-mathjax-config">
     MathJax.Hub.Config({
@@ -154,7 +153,7 @@ class HttpxHelperClient:
 
     async def post(self, url: str, json: dict, headers=None, timeout=10.0):
         headers = headers if headers is not None else self.headers
-        async with AsyncClient(headers=headers, timeout=timeout) as client:
+        async with AsyncClient(headers=headers, timeout=timeout, default_encoding='utf-8') as client:
             return await client.post(url, json=json)
 
     async def download(self, url: str, file_name: str, timeout=20.0, headers=None):
