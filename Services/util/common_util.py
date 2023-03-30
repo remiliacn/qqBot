@@ -1,9 +1,19 @@
+import time
+from os import remove, getcwd
 from os.path import exists
 from typing import Union
 
+import markdown2
 from httpx import AsyncClient
+from latex2markdown import LaTeX2Markdown
 from loguru import logger
 from nonebot import CommandSession
+from selenium import webdriver
+from selenium.common import TimeoutException
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.wait import WebDriverWait
 
 from Services.util.ctx_utility import get_user_id, get_group_id
 
@@ -28,12 +38,12 @@ async def get_general_ctx_info(ctx: dict) -> (int, int, int):
     return message_id, get_user_id(ctx), get_group_id(ctx)
 
 
-async def time_to_literal(time: int) -> str:
-    hour = time // 3600
-    time %= 3600
+async def time_to_literal(time_string: int) -> str:
+    hour = time_string // 3600
+    time_string %= 3600
 
-    minute = time // 60
-    second = time % 60
+    minute = time_string // 60
+    second = time_string % 60
 
     result = ''
     result += f'{hour}时' if hour > 0 else ''
@@ -66,6 +76,61 @@ async def check_if_number_user_id(session: CommandSession, arg: str):
         session.finish('输入非法')
 
     return arg
+
+
+def markdown_to_html(string: str):
+    html_string = markdown2.markdown(LaTeX2Markdown(string).to_markdown(), extras=['fenced-code-blocks'])
+    file_name = f'{getcwd()}/data/bot/response/{int(time.time())}.html'
+    with open(file_name, 'w+') as file:
+        file.write(r"""
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        extensions: ["tex2jax.js", "AMSmath.js"],
+        jax: ["input/TeX", "output/HTML-CSS"],
+        tex2jax: {
+            inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+            displayMath: [ ['$$','$$'], ["\[","\]"] ],
+            processEscapes: true
+        },
+    });
+</script>
+<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+
+""" + f'<body>{html_string}</body>')
+
+    return file_name
+
+
+def html_to_image(file_name):
+    file_name_png = f'{getcwd()}/data/bot/response/{int(time.time())}.png'
+    options = Options()
+    options.add_argument('--headless=new')
+    driver = webdriver.Chrome(options=options)
+    driver.get(f'file:///{file_name}')
+    driver.execute_script("hljs.highlightAll();")
+    required_width = driver.execute_script('return document.body.parentNode.scrollWidth')
+    required_height = driver.execute_script('return document.body.parentNode.scrollHeight')
+    driver.set_window_size(required_width, required_height + 20)
+    try:
+        WebDriverWait(driver, 15, poll_frequency=0.5) \
+            .until(
+            EC.presence_of_element_located((By.XPATH, "//*[@id='MathJax_Message'][contains(@style, 'display: none')]")))
+    except TimeoutException:
+        logger.warning('Render markdown exceeded time limit.')
+    finally:
+        driver.find_element(by=By.TAG_NAME, value='body').screenshot(file_name_png)
+        driver.quit()
+        remove(file_name)
+
+        return file_name_png
+
+
+def markdown_to_image(text: str):
+    html_file = markdown_to_html(text)
+    return html_to_image(html_file)
 
 
 class HttpxHelperClient:

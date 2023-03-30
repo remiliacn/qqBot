@@ -262,7 +262,11 @@ async def _evaluate_dice_expression(text: str):
     for idx, dice_text in enumerate(all_dice_role_evaluation):
         text = text.replace(dice_text, str(evaluation_list_result[idx].result_sum))
 
-    result = eval(text)
+    try:
+        result = eval(text)
+    except ZeroDivisionError:
+        return '除数不能为0'
+
     dice_result_plain_text_list = "\n".join([(await _get_dice_result_plain_text(x)) for x in evaluation_list_result])
     return f'随机结果如下：\n' \
            f'{dice_result_plain_text_list}\n' \

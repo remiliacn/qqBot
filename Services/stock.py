@@ -59,7 +59,7 @@ def is_trading_hour(is_crypto: bool) -> bool:
 
 async def text_to_image(string: str):
     line_char_count = 50 * 2  # 每行字符数：30个中文字符(=60英文字符)
-    char_size = 30
+    char_size = 36
     table_width = 4
 
     def line_break(line):

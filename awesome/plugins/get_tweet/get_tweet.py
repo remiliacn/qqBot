@@ -2,7 +2,6 @@ import asyncio
 import json
 import re
 from datetime import datetime
-from subprocess import Popen
 
 import nonebot
 from aiocqhttp import ActionFailed
@@ -15,9 +14,11 @@ from awesome.Constants import user_permission as perm
 # from awesome.Constants.function_key import TWEET_SENT
 from awesome.plugins.shadiao.shadiao import setu_control
 # from awesome.plugins.util.tweetHelper import tweeter
-from config import SUPER_USER, DOWNLODER_FILE_NAME, PATH_TO_ONEDRIVE, STEAM_UTIL_GROUP_NUM
+from config import SUPER_USER, PATH_TO_ONEDRIVE, STEAM_UTIL_GROUP_NUM  # , DOWNLODER_FILE_NAME
 from qq_bot_core import buff_requester
 from qq_bot_core import user_control_module
+
+# from subprocess import Popen
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
 
@@ -77,25 +78,25 @@ async def add_new_tweeter_function(session: nonebot.CommandSession):
 #         await session.finish(f'未找到key：{key_word}')
 
 
-@nonebot.scheduler.scheduled_job('interval', minutes=2, misfire_grace_time=5)
-async def scheduled_jobs():
-    await do_youtube_update_fetch()
-    if get_status():
-        Popen(
-            ['py', DOWNLODER_FILE_NAME, 'bulk'],
-            stdin=None,
-            stdout=None,
-            stderr=None,
-            close_fds=True
-        )
-
-    await asyncio.gather(
-        # do_tweet_update_fetch(),
-        # do_bilibili_live_fetch(),
-        fill_sanity(),
-        # check_youtube_live(),
-        check_rates()
-    )
+# @nonebot.scheduler.scheduled_job('interval', minutes=2, misfire_grace_time=5)
+# async def scheduled_jobs():
+#     await do_youtube_update_fetch()
+#     if get_status():
+#         Popen(
+#             ['py', DOWNLODER_FILE_NAME, 'bulk'],
+#             stdin=None,
+#             stdout=None,
+#             stderr=None,
+#             close_fds=True
+#         )
+#
+#     await asyncio.gather(
+#         # do_tweet_update_fetch(),
+#         # do_bilibili_live_fetch(),
+#         fill_sanity(),
+#         # check_youtube_live(),
+#         check_rates()
+#     )
 
 
 def get_status():
