@@ -79,7 +79,7 @@ async def check_if_number_user_id(session: CommandSession, arg: str):
 
 
 def markdown_to_html(string: str):
-    html_string = markdown2.markdown(LaTeX2Markdown(string).to_markdown(), extras=['fenced-code-blocks'])
+    html_string = markdown2.markdown(string, extras=['fenced-code-blocks']).replace('</em>', '').replace('<em>', '_')
     file_name = f'{getcwd()}/data/bot/response/{int(time.time())}.html'
     with open(file_name, 'w+') as file:
         file.write(r"""
@@ -97,9 +97,11 @@ def markdown_to_html(string: str):
 <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css"
+ integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
 
-""" + f'<body>{html_string}</body>')
+""" + f'<body><div class="container">{html_string}</div></body>')
 
     return file_name
 
@@ -111,9 +113,7 @@ def html_to_image(file_name):
     driver = webdriver.Chrome(options=options)
     driver.get(f'file:///{file_name}')
     driver.execute_script("hljs.highlightAll();")
-    required_width = driver.execute_script('return document.body.parentNode.scrollWidth')
-    required_height = driver.execute_script('return document.body.parentNode.scrollHeight')
-    driver.set_window_size(required_width, required_height + 20)
+
     try:
         WebDriverWait(driver, 15, poll_frequency=0.5) \
             .until(
@@ -121,8 +121,13 @@ def html_to_image(file_name):
     except TimeoutException:
         logger.warning('Render markdown exceeded time limit.')
     finally:
-        driver.find_element(by=By.TAG_NAME, value='body').screenshot(file_name_png)
+        required_width = driver.execute_script('return document.body.parentNode.scrollWidth')
+        required_height = driver.execute_script('return document.body.parentNode.scrollHeight')
+        driver.set_window_size(required_width, required_height + 2000)
+
+        driver.find_element(by=By.CLASS_NAME, value='container').screenshot(file_name_png)
         driver.quit()
+
         remove(file_name)
 
         return file_name_png
