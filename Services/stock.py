@@ -132,21 +132,18 @@ def _ma_comparison(ma_5, ma_10, ma_20):
 def do_plot(
         open_data,
         close_data,
-        volume_data,
         high_data,
         low_data,
         stock_name,
-        volume_color,
         analyze_type='MACD'
 ):
     plot = make_subplots(
-        rows=3, cols=1,
+        rows=2, cols=1,
         subplot_titles=(
             f'股票名称：{stock_name}',
-            "成交量",
             analyze_type
         ),
-        row_heights=[0.5, 0.2, 0.3]
+        row_heights=[0.75, 0.25]
     )
 
     close_data_frame = pandas.DataFrame(close_data)
@@ -237,9 +234,9 @@ def do_plot(
         )
 
         # MACD graph
-        plot.add_trace(histogram_graph, row=3, col=1)
-        plot.add_trace(macd_graph, row=3, col=1)
-        plot.add_trace(signal_line, row=3, col=1)
+        plot.add_trace(histogram_graph, row=2, col=1)
+        plot.add_trace(macd_graph, row=2, col=1)
+        plot.add_trace(signal_line, row=2, col=1)
 
     elif analyze_type == '买卖意愿':
         high_open = [float(x) - float(y) for x, y in zip(high_data, open_data)]
@@ -266,7 +263,7 @@ def do_plot(
             line=dict(color='red', width=1)
         )
 
-        plot.add_trace(ar_trace, row=3, col=1)
+        plot.add_trace(ar_trace, row=2, col=1)
 
     # K-line
     candle_trace = plotter.Candlestick(
@@ -300,20 +297,11 @@ def do_plot(
         line=dict(color='red', width=1)
     )
 
-    # Volume graph.
-    volume_trace = plotter.Bar(
-        y=volume_data,
-        marker_color=volume_color
-    )
-
     # Candlestick graph
     plot.add_trace(candle_trace, row=1, col=1)
     plot.add_trace(ma5_trace, row=1, col=1)
     plot.add_trace(ma10_trace, row=1, col=1)
     plot.add_trace(ma20_trace, row=1, col=1)
-
-    # Volume graph
-    plot.add_trace(volume_trace, row=2, col=1)
 
     plot.update_layout(
         {
@@ -363,19 +351,13 @@ class Crypto:
         high_data = [x[2] for x in json_data]
         low_data = [x[3] for x in json_data]
         close_data = [float(x[4]) for x in json_data]
-        volume_data = [float(x[5]) for x in json_data]
 
-        volume_color = [
-            'red' if (c - o) > 0 else 'green' for c, o in zip(close_data, open_data)
-        ]
         plot, market_will = do_plot(
             open_data,
             close_data,
-            volume_data,
             high_data,
             low_data,
             self.crypto_usdt,
-            volume_color,
             analyze_type
         )
         file_name = f'{getcwd()}/data/bot/stock/{int(time_ns())}.png'
@@ -553,23 +535,15 @@ class Stock:
         open_data = [x[1] for x in kline_data]
         close_data = [float(x[2]) for x in kline_data]
 
-        change_rate = [float(x[-2]) for x in kline_data]
-        volume_color = ['red' if x > 0 else 'green' for x in change_rate]
-
         high_data = [x[3] for x in kline_data]
         low_data = [x[4] for x in kline_data]
-
-        # Volume
-        volume_data = [int(x[5]) for x in kline_data]
 
         plot, market_will = do_plot(
             open_data,
             close_data,
-            volume_data,
             high_data,
             low_data,
             self.stock_name,
-            volume_color,
             analyze_type
         )
         file_name = f'{getcwd()}/data/bot/stock/{int(time_ns())}.png'
