@@ -38,7 +38,7 @@ async def crypto_search(session: nonebot.CommandSession):
         if file_name:
             await session.send(
                 f'[CQ:image,file=file:///{file_name}]\n'
-                f'AI智能分析结果：\n'
+                f'AI智能分析结果：（不构成投资建议）\n'
                 f'{market_will}'
             )
         else:

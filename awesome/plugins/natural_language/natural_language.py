@@ -10,10 +10,10 @@ import jieba.posseg as pos
 import nonebot
 from aiocache import cached
 from aiocache.serializers import PickleSerializer
-from aiocqhttp import ActionFailed
+from aiocqhttp import ActionFailed, MessageSegment
 from loguru import logger
 
-from Services.util.common_util import compile_forward_message
+from Services.util.common_util import compile_forward_message, markdown_to_image
 from Services.util.ctx_utility import get_group_id, get_user_id
 from Services.util.sauce_nao_helper import sauce_helper
 from awesome.plugins.util.helper_util import anime_reverse_search_response, get_downloaded_image_path
@@ -46,6 +46,15 @@ async def natural_language_proc(session: nonebot.NLPSession):
             if path:
                 admin_group_control.add_quote(group_id, path)
                 await session.send(f'已添加！（当前总语录条数：{admin_group_control.get_group_quote_count(group_id)})')
+                return
+
+    if 'md' in message[:4]:
+        message = message.split('\n')
+        if len(message) >= 2:
+            valid_message = '\n'.join(message[1:])
+            result, success = markdown_to_image(valid_message)
+            if success:
+                await session.send(MessageSegment.image(f'file:///{result}'))
                 return
 
     reply_response = await _check_reply_keywords(message, session.self_id)

@@ -3,18 +3,32 @@ import time
 import nonebot
 from aiocache import cached
 from aiocache.serializers import PickleSerializer
+from aiocqhttp import MessageSegment
 from loguru import logger
 
 from Services import random_services
 from Services.currency import Currency
 from Services.keylol_update import KeylolFreeGame
-from Services.util.common_util import HttpxHelperClient
+from Services.util.common_util import HttpxHelperClient, markdown_to_image
 from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
 from awesome.Constants import user_permission as perm
 from awesome.Constants.function_key import HHSH_FUNCTION
 from awesome.plugins.shadiao.shadiao import setu_control
 from awesome.plugins.util import search_helper
 from qq_bot_core import user_control_module
+
+
+@nonebot.on_command('markdown', aliases={'md'}, only_to_me=False)
+async def markdown_text_to_image(session: nonebot.CommandSession):
+    arg = session.current_arg
+    if not arg:
+        return
+
+    result, success = markdown_to_image(arg)
+    if success:
+        await session.finish(MessageSegment.image(f'file:///{result}'))
+
+    await session.finish(result)
 
 
 @nonebot.on_command('搜索', only_to_me=False)

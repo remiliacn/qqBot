@@ -1,3 +1,4 @@
+import re
 import time
 from os import remove, getcwd
 from os.path import exists
@@ -6,6 +7,8 @@ from typing import Union
 import markdown2
 from httpx import AsyncClient
 from loguru import logger
+from lxml import html
+from lxml.html.clean import Cleaner
 from nonebot import CommandSession
 from selenium import webdriver
 from selenium.common import TimeoutException
@@ -78,7 +81,23 @@ async def check_if_number_user_id(session: CommandSession, arg: str):
 
 
 def markdown_to_html(string: str):
-    html_string = markdown2.markdown(string, extras=['fenced-code-blocks']).replace('</em>', '').replace('<em>', '_')
+    string = string.replace('```c#', '```').replace('&#91;', '[').replace('&#93;', ']')
+    is_html = html.fromstring(string).find('.//*') is not None
+    if is_html:
+        cleaner = Cleaner()
+        cleaner.javascript = True
+        cleaner.style = True
+
+        string = cleaner.clean_html(string)
+
+        logger.info(f'Cleaned string: {string}')
+
+    html_string = markdown2.markdown(string, extras=['fenced-code-blocks', 'strike', 'tables', 'task_list'])
+    html_string_with_latex = re.findall(r'\${1,2}.*?<em>.*?\${1,2}', html_string)
+    if html_string_with_latex:
+        for latex in html_string_with_latex:
+            html_string = html_string.replace(latex, latex.replace('</em>', '').replace('<em>', '_'))
+
     file_name = f'{getcwd()}/data/bot/response/{int(time.time())}.html'
     with open(file_name, 'w+', encoding='utf-8') as file:
         file.write(r"""
@@ -87,8 +106,8 @@ def markdown_to_html(string: str):
         extensions: ["tex2jax.js", "AMSmath.js"],
         jax: ["input/TeX", "output/HTML-CSS"],
         tex2jax: {
-            inlineMath: [ ['$','$'], ["\\(","\\)"] ],
-            displayMath: [ ['$$','$$'], ["\[","\]"] ],
+            inlineMath: [ ['$','$'] ],
+            displayMath: [ ['$$','$$'] ],
             processEscapes: true
         },
     });
@@ -108,8 +127,11 @@ def markdown_to_html(string: str):
 def html_to_image(file_name):
     file_name_png = f'{getcwd()}/data/bot/response/{int(time.time())}.png'
     options = Options()
-    options.add_argument('--headless=new')
+    options.add_argument('--headless')
+    options.add_argument("--force-device-scale-factor=3.0")
+    options.add_argument("--disable-gpu")
     driver = webdriver.Chrome(options=options)
+    driver.set_page_load_timeout(5)
     driver.get(f'file:///{file_name}')
     driver.execute_script("hljs.highlightAll();")
 
@@ -122,9 +144,11 @@ def html_to_image(file_name):
     finally:
         required_width = driver.execute_script('return document.body.parentNode.scrollWidth')
         required_height = driver.execute_script('return document.body.parentNode.scrollHeight')
-        driver.set_window_size(required_width, required_height + 2000)
 
-        driver.find_element(by=By.CLASS_NAME, value='container').screenshot(file_name_png)
+        element = driver.find_element(by=By.CLASS_NAME, value='container')
+        driver.set_window_size(required_width, required_height + 2000)
+        element.screenshot(file_name_png)
+
         driver.quit()
 
         remove(file_name)
@@ -132,9 +156,13 @@ def html_to_image(file_name):
         return file_name_png
 
 
-def markdown_to_image(text: str):
-    html_file = markdown_to_html(text)
-    return html_to_image(html_file)
+def markdown_to_image(text: str) -> (str, bool):
+    try:
+        html_file = markdown_to_html(text)
+        return html_to_image(html_file), True
+    except Exception as err:
+        logger.error(f'Markdown render failed {err.__class__}')
+        return '渲染出错力', False
 
 
 class HttpxHelperClient:

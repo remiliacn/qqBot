@@ -132,6 +132,7 @@ def _ma_comparison(ma_5, ma_10, ma_20):
 def do_plot(
         open_data,
         close_data,
+        close_data_for_ma,
         high_data,
         low_data,
         stock_name,
@@ -146,11 +147,16 @@ def do_plot(
         row_heights=[0.75, 0.25]
     )
 
-    close_data_frame = pandas.DataFrame(close_data)
+    close_data_frame = pandas.DataFrame(close_data_for_ma)
     # Moving average
-    ma5_data = _get_moving_average_data(close_data_frame, 5)
-    ma10_data = _get_moving_average_data(close_data_frame, 10)
-    ma20_data = _get_moving_average_data(close_data_frame, 20)
+    if close_data_frame.size > 20:
+        ma5_data = _get_moving_average_data(close_data_frame, 5)[20:]
+        ma10_data = _get_moving_average_data(close_data_frame, 10)[20:]
+        ma20_data = _get_moving_average_data(close_data_frame, 20)[20:]
+    else:
+        ma5_data = _get_moving_average_data(close_data_frame, 5)
+        ma10_data = _get_moving_average_data(close_data_frame, 10)
+        ma20_data = _get_moving_average_data(close_data_frame, 20)
 
     market_will = '无法判断'
 
@@ -353,10 +359,11 @@ class Crypto:
         close_data = [float(x[4]) for x in json_data]
 
         plot, market_will = do_plot(
-            open_data,
+            open_data[20:] if len(close_data) > 20 else open_data,
+            close_data[20:] if len(close_data) > 20 else close_data,
             close_data,
-            high_data,
-            low_data,
+            high_data[20:] if len(close_data) > 20 else high_data,
+            low_data[20:] if len(close_data) > 20 else low_data,
             self.crypto_usdt,
             analyze_type
         )
@@ -390,7 +397,7 @@ class Stock:
                f'secid={type_code}.{self.code}&ut=fa5fd1943c7b386f172d6893dbfba10b' \
                f'&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6' \
                f'&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2' \
-               f'Cf59%2Cf60%2Cf61&klt=101&fqt=1' \
+               f'Cf59%2Cf60%2Cf61&klt=101&fqt=1&lmt=180' \
                f'&beg={(datetime.now() - timedelta(days=120)).strftime("%Y%m%d")[0:8]}' \
                f'&end={((datetime.now()).strftime("%Y%m%d"))[0:8]}'
 
@@ -539,10 +546,11 @@ class Stock:
         low_data = [x[4] for x in kline_data]
 
         plot, market_will = do_plot(
-            open_data,
+            open_data[20:] if len(close_data) > 20 else open_data,
+            close_data[20:] if len(close_data) > 20 else close_data,
             close_data,
-            high_data,
-            low_data,
+            high_data[20:] if len(close_data) > 20 else high_data,
+            low_data[20:] if len(close_data) > 20 else low_data,
             self.stock_name,
             analyze_type
         )
