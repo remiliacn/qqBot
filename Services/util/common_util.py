@@ -1,4 +1,3 @@
-import re
 import time
 from os import remove, getcwd
 from os.path import exists
@@ -84,19 +83,16 @@ def markdown_to_html(string: str):
     string = string.replace('```c#', '```').replace('&#91;', '[').replace('&#93;', ']')
     is_html = html.fromstring(string).find('.//*') is not None
     if is_html:
-        cleaner = Cleaner()
+        cleaner = Cleaner(safe_attrs=html.defs.safe_attrs | {'style'})
         cleaner.javascript = True
-        cleaner.style = True
+        cleaner.style = False
 
         string = cleaner.clean_html(string)
 
         logger.info(f'Cleaned string: {string}')
 
-    html_string = markdown2.markdown(string, extras=['fenced-code-blocks', 'strike', 'tables', 'task_list'])
-    html_string_with_latex = re.findall(r'\${1,2}.*?<em>.*?\${1,2}', html_string)
-    if html_string_with_latex:
-        for latex in html_string_with_latex:
-            html_string = html_string.replace(latex, latex.replace('</em>', '').replace('<em>', '_'))
+    html_string = markdown2.markdown(
+        string, extras=['fenced-code-blocks', 'strike', 'tables', 'task_list', 'code-friendly'])
 
     file_name = f'{getcwd()}/data/bot/response/{int(time.time())}.html'
     with open(file_name, 'w+', encoding='utf-8') as file:
@@ -112,6 +108,10 @@ def markdown_to_html(string: str):
         },
     });
 </script>
+<style>
+p { font-size: 25px }
+pre { font-size: 20px !important }
+</style>
 <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
@@ -119,7 +119,7 @@ def markdown_to_html(string: str):
  integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
 
-""" + f'<body><div class="container">{html_string}</div></body>')
+""" + f'<body><div class="container bg-dark text-white">{html_string}</div></body>')
 
     return file_name
 

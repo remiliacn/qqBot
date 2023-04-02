@@ -14,7 +14,7 @@ from aiocqhttp import ActionFailed, MessageSegment
 from loguru import logger
 
 from Services.util.common_util import compile_forward_message, markdown_to_image
-from Services.util.ctx_utility import get_group_id, get_user_id
+from Services.util.ctx_utility import get_group_id
 from Services.util.sauce_nao_helper import sauce_helper
 from awesome.plugins.util.helper_util import anime_reverse_search_response, get_downloaded_image_path
 from qq_bot_core import admin_group_control, user_control_module
@@ -33,7 +33,6 @@ async def natural_language_proc(session: nonebot.NLPSession):
         return
 
     group_id = get_group_id(context)
-    user_id = get_user_id(context)
     message = str(context['raw_message'])
 
     if '添加语录' in message:
@@ -73,21 +72,21 @@ async def natural_language_proc(session: nonebot.NLPSession):
         if match(r'.*?哼{2,}啊+', message):
             await session.send('别臭了别臭了！孩子要臭傻了')
             return
-
-        if '为什么' in message and randint(1, 100) == 1:
-            await session.send('因为你不厉害')
-            return
-
-        auto_reply = _do_auto_reply_retrieve(user_id, group_id, message)
-        if auto_reply:
-            await session.send(auto_reply)
-            return
-
-        message = message.strip()
-        fetch_result = _repeat_and_palindrome_fetch(message)
-        if fetch_result:
-            await session.send(fetch_result)
-            return
+        #
+        # if '为什么' in message and randint(1, 100) == 1:
+        #     await session.send('因为你不厉害')
+        #     return
+        #
+        # auto_reply = _do_auto_reply_retrieve(user_id, group_id, message)
+        # if auto_reply:
+        #     await session.send(auto_reply)
+        #     return
+        #
+        # message = message.strip()
+        # fetch_result = _repeat_and_palindrome_fetch(message)
+        # if fetch_result:
+        #     await session.send(fetch_result)
+        #     return
 
     # fetch_result = await _check_if_asking_definition(message)
     # if fetch_result:
