@@ -6,13 +6,12 @@ import aiocqhttp.event
 import aiohttp
 import nonebot
 from aiocqhttp import MessageSegment
-from loguru import logger
 from nonebot.message import CanceledException
 from nonebot.plugin import PluginManager
 
-from Services import waifu_finder, ark_nights, shadiao, pcr_news
+from Services import ark_nights, shadiao, pcr_news
 from Services.rate_limiter import UserLimitModifier
-from Services.util.common_util import get_general_ctx_info, HttpxHelperClient
+from Services.util.common_util import HttpxHelperClient
 from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id, get_message_id
 from awesome.Constants import user_permission as perm, group_permission
 from awesome.Constants.function_key import ARKNIGHTS_PULLS, ARKNIGHTS_SINGLE_PULL, ARKNIGHTS_SIX_STAR_PULL, YULU_CHECK, \
@@ -183,25 +182,6 @@ async def message_preprocessing(_: nonebot.NoneBot, event: aiocqhttp.event, __: 
     else:
         if str(user_id) != str(SUPER_USER):
             raise CanceledException('User disabled')
-
-
-@nonebot.on_command('来个老婆', aliases=('来张waifu', '来个waifu', '老婆来一个'), only_to_me=False)
-async def send_waifu(session: nonebot.CommandSession):
-    waifu_api = waifu_finder.WaifuFinder()
-    path, message = await waifu_api.get_image()
-    message_id, user_id, group_id = await get_general_ctx_info(session.ctx.copy())
-
-    # 10秒内只能查询一次waifu
-    user_limit = UserLimitModifier(10.0, 1.0, True)
-    rate_limiter_check = await global_rate_limiter.user_limit_check('waifu_finder', user_id, user_limit)
-    if isinstance(rate_limiter_check, str):
-        await session.finish(f'[CQ:reply,id={message_id}]{rate_limiter_check}')
-
-    if not path:
-        await session.send(message)
-    else:
-        logger.info(f'Get waifu pic: {path}')
-        await session.send(f'[CQ:image,file=file:///{path}]\n{message}')
 
 
 @nonebot.on_command('来点怪话', only_to_me=False)

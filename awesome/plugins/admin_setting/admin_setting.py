@@ -27,8 +27,8 @@ async def free_speech_switch(session: CommandSession):
     user_id = get_user_id(ctx)
     group_id = get_group_id(ctx)
 
-    if group_id == -1 or not get_privilege(user_id, OWNER):
-        await session.finish()
+    if group_id == -1 or (ctx['sender']['role'] == 'member' and not get_privilege(user_id, OWNER)):
+        return
 
     arg = session.current_arg_text
     set_group_permission(arg, group_id, group_permission.NLP)

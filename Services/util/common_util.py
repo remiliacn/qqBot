@@ -110,6 +110,8 @@ def markdown_to_html(string: str):
 </script>
 <style>
 p { font-size: 25px }
+ul { font-size: 25px }
+ol { font-size: 25px }
 pre { font-size: 20px !important }
 </style>
 <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">

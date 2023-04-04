@@ -48,9 +48,9 @@ async def natural_language_proc(session: nonebot.NLPSession):
                 return
 
     if 'md' in message[:4]:
-        message = message.split('\n')
-        if len(message) >= 2:
-            valid_message = '\n'.join(message[1:])
+        message_list = message.split('\n')
+        if len(message_list) >= 2:
+            valid_message = '\n'.join(message_list[1:])
             result, success = markdown_to_image(valid_message)
             if success:
                 await session.send(MessageSegment.image(f'file:///{result}'))
