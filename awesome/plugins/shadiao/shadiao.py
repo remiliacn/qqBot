@@ -115,8 +115,6 @@ async def add_group_quotes(session: nonebot.CommandSession):
             admin_group_control.add_quote(get_group_id(ctx), key_word)
             await session.finish(
                 f'已添加！（当前总语录条数：{admin_group_control.get_group_quote_count(get_group_id(ctx))})')
-    else:
-        await session.finish('啊这……')
 
 
 @nonebot.on_command('图片识别', only_to_me=False)

@@ -66,7 +66,11 @@ async def add_more_pic(session: nonebot.CommandSession):
 
 @nonebot.on_command('?', aliases='？', only_to_me=False)
 async def change_question_mark(session: nonebot.CommandSession):
-    await session.send('¿?¿?')
+    user_id = get_user_id(session.ctx.copy())
+    if not get_privilege(user_id, perm.ADMIN):
+        return
+
+    await session.finish('¿?¿?')
 
 
 @nonebot.on_command('你好', only_to_me=False)

@@ -7,7 +7,6 @@ from aiocqhttp import MessageSegment
 from loguru import logger
 
 from Services import random_services
-from Services.currency import Currency
 from Services.keylol_update import KeylolFreeGame
 from Services.util.common_util import HttpxHelperClient, markdown_to_image
 from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
@@ -94,29 +93,6 @@ async def reverse_code(session: nonebot.CommandSession):
         await bot.send_msg(message_type='group', group_id=id_num, message=key_word, auto_escape=True)
     else:
         await bot.send_msg(message_type='private', user_id=id_num, message=key_word, auto_escape=True)
-
-
-@nonebot.on_command('汇率', aliases={'汇率换算'}, only_to_me=False)
-async def get_currency_and_send(session: nonebot.CommandSession):
-    arg = session.current_arg_text
-    arg_parse = arg.split()
-    if len(arg_parse) <= 1:
-        await session.finish('正确用法：！汇率 数额 来源货币（例：！汇率 12.5 CNY）')
-
-    amount = arg_parse[0]
-    source = arg_parse[1]
-
-    try:
-        amount = float(amount)
-        if amount <= 0:
-            raise ValueError
-    except ValueError:
-        await session.finish('第一参数必须为正数')
-
-    c = Currency(amount, source)
-    result = await c.get_currency_result()
-    await session.send('无数据' if not result else result)
-
 
 @nonebot.on_command('好好说话', only_to_me=False)
 async def can_you_be_fucking_normal(session: nonebot.CommandSession):

@@ -416,7 +416,7 @@ async def get_user_xp_data_with_at(session: nonebot.CommandSession):
     group_id = get_group_id(ctx)
     if group_id != -1 and not get_privilege(get_user_id(ctx), perm.OWNER):
         if admin_group_control.get_group_permission(group_id, group_permission.BANNED):
-            await session.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
+            return
 
     requester_qq = get_user_id(ctx)
     warn, sanity = _sanity_check(group_id, requester_qq)
