@@ -4,11 +4,13 @@ import re
 import time
 
 import nonebot
+from loguru import logger
 
+from Services.rate_limiter import UserLimitModifier
 from Services.util.ctx_utility import get_user_id, get_nickname
 from awesome.Constants import user_permission as perm
 from awesome.plugins.util.helper_util import get_downloaded_image_path
-from qq_bot_core import user_control_module
+from qq_bot_core import user_control_module, global_rate_limiter
 
 
 class Votekick:
@@ -99,6 +101,8 @@ async def nei_gui_response(session: nonebot.CommandSession):
 
 @nonebot.on_command('生草', only_to_me=False)
 async def vtuber_audio(session: nonebot.CommandSession):
+    await _chitchat_global_limit_check(session)
+
     key_word = session.current_arg_text
     if key_word:
         file = await get_random_file(f'{os.getcwd()}/data/dl/audio')
@@ -131,42 +135,49 @@ async def _(session: nonebot.CommandSession):
 
 @nonebot.on_command('我什么都不行', aliases={'什么都不行', '都不行', '不行', '流泪猫猫头'}, only_to_me=False)
 async def useless_send(session: nonebot.CommandSession):
+    await _chitchat_global_limit_check(session)
     file = await get_random_file(f'{os.getcwd()}/data/dl/useless')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
 
 @nonebot.on_command('威胁', only_to_me=False)
 async def threat_send(session: nonebot.CommandSession):
+    await _chitchat_global_limit_check(session)
     file = await get_random_file(f'{os.getcwd()}/data/dl/weixie')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
 
 @nonebot.on_command('恰柠檬', aliases='吃柠檬', only_to_me=False)
 async def lemon_send(session: nonebot.CommandSession):
+    await _chitchat_global_limit_check(session)
     file = await get_random_file(f'{os.getcwd()}/data/dl/lemon')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
 
 @nonebot.on_command('迫害', only_to_me=False)
 async def send_pohai(session: nonebot.CommandSession):
+    await _chitchat_global_limit_check(session)
     file = await get_random_file(f'{os.getcwd()}/data/dl/pohai')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
 
 @nonebot.on_command('不愧是你', aliases='bukui', only_to_me=False)
 async def bu_kui_send(session: nonebot.CommandSession):
+    await _chitchat_global_limit_check(session)
     file = await get_random_file(f'{os.getcwd()}/data/dl/bukui')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
 
 @nonebot.on_command('恰桃', aliases='恰peach', only_to_me=False)
 async def send_peach(session: nonebot.CommandSession):
+    await _chitchat_global_limit_check(session)
     file = await get_random_file(f'{os.getcwd()}/data/dl/peach')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
 
 @nonebot.on_command('社保', aliases='awsl', only_to_me=False)
 async def she_bao(session: nonebot.CommandSession):
+    await _chitchat_global_limit_check(session)
     file = await get_random_file(f'{os.getcwd()}/data/dl/shebao')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
@@ -185,6 +196,7 @@ async def vote_kick_person(session: nonebot.CommandSession):
 
 @nonebot.on_command('otsukare', aliases=('おつかれ', '辛苦了'), only_to_me=False)
 async def otsukare(session: nonebot.CommandSession):
+    await _chitchat_global_limit_check(session)
     file = await get_random_file(f'{os.getcwd()}/data/dl/otsukare')
     await session.send(f'[CQ:image,file=file:///{file}]')
 
@@ -195,3 +207,14 @@ async def get_random_file(path: str) -> str:
 
     file = os.listdir(path)
     return path + '/' + random.choice(file)
+
+
+async def _chitchat_global_limit_check(session: nonebot.CommandSession):
+    user_limit = UserLimitModifier(60, 1, True)
+    user_id = get_user_id(session.ctx.copy())
+    rate_limiter_check_temp = await global_rate_limiter.user_limit_check(
+        "CHITCHAT_GLOBAL", user_id, user_limit
+    )
+    if isinstance(rate_limiter_check_temp, str):
+        logger.warning(f'User {user_id} has hit the rate limit: {rate_limiter_check_temp}')
+        await session.finish('别刷了')
