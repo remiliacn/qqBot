@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import re
 from random import randint, seed, choice
@@ -10,7 +9,7 @@ import nonebot
 from Services import poker_game, ru_game
 from Services.util.ctx_utility import get_group_id, get_user_id, get_nickname
 from awesome.Constants import user_permission as perm, group_permission
-from awesome.Constants.function_key import HORSE_RACE, ROULETTE_GAME, POKER_GAME
+from awesome.Constants.function_key import ROULETTE_GAME, POKER_GAME
 from awesome.plugins.shadiao.shadiao import admin_group_control, setu_control
 from qq_bot_core import user_control_module
 
@@ -55,98 +54,6 @@ class Storer:
             if clear_after_use:
                 self.stored_result[group_id][function][user_id] = ''
             return info
-
-
-class Horseracing:
-    def __init__(self, user_guess: str):
-        self.user_guess = user_guess
-        self.winning_goal = 7
-        self.actual_winner = -1
-        self.adding_dict = {
-            "正在勇往直前！": 6,
-            "正在一飞冲天！": 4,
-            "提起马蹄子就继续往前冲冲冲": 4,
-            "如同你打日麻放铳一样勇往直前！": 4,
-            "如同你打日麻放铳一样疾步迈进！": 3,
-            "艰难的往前迈了几步": 2,
-            "使用了忍术！它！飞！起！来！了！": 2,
-            "艰难的往前迈了一小步": 1,
-            "晃晃悠悠的往前走了一步": 1,
-            "它窜稀的后坐力竟然让它飞了起来！": 3,
-            "终于打起勇气，往前走了……一步": 1,
-            "终于打起勇气，往前走了……两步": 2,
-            "终于打起勇气，往前走了……三步": 3,
-        }
-
-        self.subtracting_dict = {
-            "被地上的沥青的颜色吓傻了！止步不前": 0,
-            '被電マplay啦！爽的倒退了2步！': -2,
-            "打假赛往反方向跑了！": -3,
-            "被旁边的选手干扰的吓得往后退了几步": -2,
-            "哼啊啊啊啊啊~的叫了起来，落后大部队！": -2,
-            "马晕厥了！可能是中暑了！这下要麻烦了！": -5,
-            "它它它，居然！马猝死了！哎？等会儿！好像它马又复活了": -10,
-            "吃多了在窜稀，暂时失去了战斗力": -1,
-            "觉得敌不动我不动，敌动了……我还是不能动": 0,
-            "觉得现在这个位置的空气不错，决定多待会儿~": 0,
-            "突然站在原地深情的开始感叹——watashi mo +1": 0,
-            "决定在原地玩会儿明日方舟": 0,
-            "决定在原地玩会儿fgo": 0,
-            "决定在原地玩会儿日麻": 0,
-        }
-
-        self.horse_list = [0, 0, 0, 0, 0, 0]
-        self.response_list = []
-
-    def if_play(self):
-        try:
-            temp = int(self.user_guess)
-            if temp > len(self.horse_list):
-                return False
-
-        except ValueError:
-            return False
-
-        return True
-
-    def if_win(self):
-        for idx, elements in enumerate(self.horse_list):
-            if elements >= self.winning_goal:
-                self.actual_winner = str(idx + 1)
-                return True
-
-        return False
-
-    def who_win(self):
-        return self.actual_winner
-
-    def get_play_result(self):
-        self.response_list.clear()
-        resp = ""
-        i = 0
-        for idx, elements in enumerate(self.horse_list):
-            if randint(0, 5) >= 2:
-                this_choice = choice(list(self.adding_dict))
-                self.horse_list[idx] += self.adding_dict[this_choice]
-                self.response_list.append(str(i + 1) + "号马, " + this_choice)
-
-            else:
-                this_choice = choice(list(self.subtracting_dict))
-                self.horse_list[idx] += self.subtracting_dict[this_choice]
-                self.response_list.append(str(i + 1) + "号马, " + this_choice)
-
-            i += 1
-
-        for elements in self.response_list:
-            resp += elements + "\n"
-
-        return resp
-
-    def player_win(self):
-        if self.actual_winner == self.user_guess:
-            return True
-
-        return False
 
 
 class DiceResult:
@@ -296,43 +203,6 @@ async def pao_tuan_shai_zi(session: nonebot.CommandSession):
         await session.finish(await _get_normal_decision_result(text_args))
     else:
         await session.finish(await _get_binary_decision_result(text_args))
-
-
-@nonebot.on_command('赛马', only_to_me=False)
-async def horse_race(session: nonebot.CommandSession):
-    winner = session.get('winner', prompt='请输入一个胜方编号进行猜测（1-6）')
-    race = Horseracing(winner)
-
-    ctx = session.ctx.copy()
-    user_id = get_user_id(ctx)
-    nickname = get_nickname(ctx)
-
-    if race.if_play():
-        while not race.if_win():
-            await session.send(race.get_play_result())
-            await asyncio.sleep(2)
-
-        if race.player_win():
-            await session.send("恭喜你猜赢啦！")
-            if 'group_id' in ctx:
-                setu_control.set_user_data(user_id, HORSE_RACE, user_nickname=nickname)
-
-        else:
-            await session.send(f"啊哦~猜输了呢！其实是{race.who_win()}号赢了哦")
-
-
-@horse_race.args_parser
-async def _(session: nonebot.CommandSession):
-    stripped_arg = session.current_arg_text
-    if session.is_first_run:
-        if stripped_arg:
-            session.state['winner'] = stripped_arg
-        return
-
-    if not stripped_arg:
-        session.pause('请输入一个胜方编号进行猜测（1-6）')
-
-    session.state[session.current_key] = stripped_arg
 
 
 @nonebot.on_command('轮盘赌', only_to_me=False)
