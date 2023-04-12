@@ -111,20 +111,27 @@ class RateLimiter:
 
         return result if isinstance(result, int) else result[0] if result is not None and result[0] is not None else 0
 
-    async def _query_group_permission(self, function_name: str, group_id: str, time_manner=60) -> (str, int):
+    async def _query_group_permission(
+            self,
+            function_name: str,
+            group_id: str,
+            time_period=60,
+            override_function_limit=None
+    ) -> (str, int):
         group_last_update_time = await self.get_user_last_update(function_name, group_id)
 
-        function_usage_limit = await self.get_function_limit(function_name)
+        function_usage_limit = await self.get_function_limit(function_name) \
+            if override_function_limit is None else override_function_limit
         if function_usage_limit <= 0:
-            return self.TEMPRORARY_DISABLED, group_last_update_time + time_manner - int(time.time())
+            return self.TEMPRORARY_DISABLED, group_last_update_time + time_period - int(time.time())
         group_hit = await self.get_user_hit(function_name, group_id)
 
-        if int(time.time()) - group_last_update_time > time_manner:
+        if int(time.time()) - group_last_update_time > time_period:
             update_group_hit = 1
             group_last_update_time_updated = int(time.time())
         else:
             if group_hit + 1 > function_usage_limit:
-                return self.LIMIT_BY_GROUP, group_last_update_time + time_manner - int(time.time())
+                return self.LIMIT_BY_GROUP, group_last_update_time + time_period - int(time.time())
             update_group_hit = group_hit + 1
             group_last_update_time_updated = group_last_update_time
 
@@ -156,7 +163,7 @@ class RateLimiter:
 
             if user_hit + 1 > user_usage_limit:
                 return self.LIMIT_BY_USER, \
-                       user_last_update_time + user_modifier.rate_limit_time - int(time.time())
+                    user_last_update_time + user_modifier.rate_limit_time - int(time.time())
 
             update_user_hit = user_hit + 1
             user_last_update_time_updated = user_last_update_time
@@ -219,7 +226,18 @@ class RateLimiter:
         query_result, wait_time = await self._query_user_permission(function_name, user_id, user_limit_modifier)
         return await self._assemble_limit_prompt(query_result, wait_time)
 
-    async def group_limit_check(self, function_name: str, group_id: Union[str, int]):
+    async def group_limit_check(
+            self,
+            function_name: str,
+            group_id: Union[str, int],
+            time_period=60,
+            function_limit=None
+    ):
         group_id = str(group_id)
-        query_result, wait_time = await self._query_group_permission(function_name, group_id)
+        query_result, wait_time = await self._query_group_permission(
+            function_name,
+            group_id,
+            time_period=time_period,
+            override_function_limit=function_limit
+        )
         return await self._assemble_limit_prompt(query_result, wait_time)
