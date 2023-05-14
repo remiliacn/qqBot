@@ -25,6 +25,20 @@ async def anti_recall_setting(session: nonebot.CommandSession):
     await session.finish('Done')
 
 
+@nonebot.on_notice('group_card')
+async def _group_card_change_handler(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    user_id = get_user_id(ctx)
+    group_id = get_group_id(ctx)
+    if user_id == session.self_id:
+        bot = nonebot.get_bot()
+        await bot.set_group_card(
+            group_id=group_id,
+            user_id=session.self_id,
+            card=ctx['card_old']
+        )
+
+
 @nonebot.on_notice('group_recall')
 async def _recall_handler(session: nonebot.NoticeSession):
     ctx = session.ctx.copy()
