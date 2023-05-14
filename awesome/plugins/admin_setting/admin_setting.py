@@ -35,6 +35,29 @@ async def free_speech_switch(session: CommandSession):
     await session.finish('我好了')
 
 
+@on_command('改名', only_to_me=False)
+async def change_name(session: CommandSession):
+    ctx = session.ctx.copy()
+    if 'group_id' not in ctx:
+        return
+
+    user_id = ctx['user_id']
+    if not user_control_module.get_user_privilege(user_id, perm.ADMIN):
+        return
+
+    group_id = ctx['group_id']
+
+    card = session.current_arg_text.replace('&#91;', '[').replace('&#93;', ']')
+    bot = get_bot()
+    await bot.set_group_card(
+        group_id=group_id,
+        user_id=session.self_id,
+        card=card
+    )
+
+    await session.finish('Done.')
+
+
 @on_command('添加监控词', only_to_me=False)
 async def add_monitor_word(session: CommandSession):
     key_word = session.get('key_word', prompt='要加什么进来呢？')
