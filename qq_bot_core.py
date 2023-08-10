@@ -10,10 +10,8 @@ import config
 from Services.cangku_api import CangkuApi
 from Services.rate_limiter import RateLimiter
 from Services.simulate_stock import SimulateStock
-from Services.steam_service import BuffRequester
 from awesome.adminControl import user_control, setu, group_control
 from awesome.adminControl.weeb_controller import WeebController
-from data.util.backfill import Backfill
 
 config_file = \
     """
@@ -42,7 +40,7 @@ config_file = \
     
     # 如果需要YouTube自动扒源功能可保留下面的参数，否则可以删除
     # 删除后可移除forDownload.py文件以及do_youtube_update_fetch()方法
-    # 该方法存在于./awesome/plugins/get_tweet.py
+    # 该方法存在于./awesome/plugins/vtuber_functions.py
     
     PATH_TO_ONEDRIVE = ''    # OneDrive盘路径，或服务器文件路径终点
     PATH_TEMP_DOWNLOAD = ''  # 视频下载的缓存地址
@@ -67,8 +65,6 @@ global_rate_limiter = RateLimiter()
 
 cangku_api = CangkuApi()
 virtual_market = SimulateStock()
-
-buff_requester = BuffRequester(is_debug=False)
 
 
 def register_true():
@@ -122,26 +118,8 @@ def create_file(path_to_check: str, dump_data=None):
             dump(dump_data, f, indent=4, ensure_ascii=False)
 
 
-def quote_backfill():
-    db_path = f'{getcwd()}/data/db'
-    if not path.exists(db_path):
-        mkdir(db_path)
-
-    backfiller = Backfill()
-
-    if not path.exists(f'{db_path}/quotes.db'):
-        backfiller.main_execution_quote()
-
-    if not path.exists(f'{db_path}/setu.db'):
-        backfiller.main_execution_setu()
-
-    if not path.exists(f'{db_path}/stats.db'):
-        backfiller.main_execution_stat()
-
-
 def main():
     # 记着生成config文件后把本文件的import config去掉注释
-    buff_requester.item_id_init()
     nonebot.init(config)
     nonebot.log.logger.setLevel('WARNING')
 
@@ -150,7 +128,6 @@ def main():
         'awesome.plugins'
     )
 
-    quote_backfill()
     logger.warning('Plugins successfully installed.')
     nonebot.run()
 

@@ -167,6 +167,23 @@ def markdown_to_image(text: str) -> (str, bool):
         return '渲染出错力', False
 
 
+class OptionalDict:
+    def __init__(self, anything=None):
+        self.anything = anything
+
+    def map(self, key) -> 'OptionalDict':
+        if self.anything is not None and key in self.anything:
+            return OptionalDict(self.anything[key])
+
+        return OptionalDict()
+
+    def or_else(self, data) -> any:
+        if self.anything is None:
+            return data
+
+        return self.anything
+
+
 class HttpxHelperClient:
     def __init__(self):
         self.headers = {
