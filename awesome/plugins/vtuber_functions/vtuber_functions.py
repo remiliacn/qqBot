@@ -122,6 +122,7 @@ async def do_dynamic_fetch():
         for group in notify_group:
             dynamic_message = await dynamic_notification.construct_string_from_data(data)
             if dynamic_message.strip():
+                logger.success(dynamic_message)
                 await bot.send_group_msg(
                     group_id=int(group),
                     message=dynamic_message.strip()

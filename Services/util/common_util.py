@@ -132,7 +132,7 @@ def html_to_image(file_name):
     options.add_argument('--headless')
     options.add_argument("--force-device-scale-factor=3.0")
     options.add_argument("--disable-gpu")
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(options=options, executable_path=f'{getcwd()}/data/chromedriver.exe')
     driver.set_page_load_timeout(5)
     driver.get(f'file:///{file_name}')
     driver.execute_script("hljs.highlightAll();")

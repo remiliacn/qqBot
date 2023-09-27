@@ -199,10 +199,14 @@ async def pao_tuan_shai_zi(session: nonebot.CommandSession):
         else:
             normal_decision = False
 
+    ctx = session.ctx.copy()
+    message_id = ctx['message_id']
+    reply_message = f'[CQ:reply,id={message_id}]\n'
+
     if normal_decision:
-        await session.finish(await _get_normal_decision_result(text_args))
+        await session.finish(reply_message + await _get_normal_decision_result(text_args))
     else:
-        await session.finish(await _get_binary_decision_result(text_args))
+        await session.finish(reply_message + await _get_binary_decision_result(text_args))
 
 
 @nonebot.on_command('轮盘赌', only_to_me=False)

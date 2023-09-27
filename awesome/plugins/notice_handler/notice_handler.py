@@ -6,6 +6,7 @@ from awesome.Constants import group_permission
 from awesome.Constants.user_permission import OWNER
 from awesome.plugins.admin_setting.admin_setting import get_privilege
 from awesome.plugins.util.helper_util import set_group_permission
+from config import SUPER_USER
 from qq_bot_core import admin_group_control
 
 
@@ -37,6 +38,19 @@ async def _group_card_change_handler(session: nonebot.CommandSession):
             user_id=session.self_id,
             card=ctx['card_old']
         )
+
+
+@nonebot.on_notice('group_ban')
+async def _group_handle_ban_events(session: nonebot.CommandSession):
+    ctx = session.ctx.copy()
+    user_id = get_user_id(ctx)
+    group_id = get_group_id(ctx)
+    duration = ctx['duration']
+
+    if user_id == session.self_id and duration >= 60 * 60 * 24:
+        bot = nonebot.get_bot()
+        await bot.set_group_leave(group_id=group_id)
+        await bot.send_private_msg(user_id=SUPER_USER, message=f'Quitting group: {group_id} because long ban time.')
 
 
 @nonebot.on_notice('group_recall')

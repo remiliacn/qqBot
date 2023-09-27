@@ -5,13 +5,15 @@ import sqlite3
 import time
 from datetime import datetime
 from os import getcwd
-from os.path import exists
 from random import randint
-from typing import Union, Dict, List
+from typing import Union, Dict
 
 from loguru import logger
 
+from Services.fake_stock_money import FakeStock
 from Services.stock import Stock, Crypto
+
+fake_stock = FakeStock()
 
 
 class StockInfo:
@@ -40,10 +42,11 @@ class StockTransaction:
 
 
 class StockPurchaseInfo:
-    def __init__(self, purchase_count: float, money_spent: float, purchase_price: float):
-        self.purchase_count = purchase_count
+    def __init__(self, purchase_count: float, money_spent: float, purchase_price: float, stock_type: str):
+        self.purchase_amount = purchase_count
         self.money_spent = money_spent
         self.purchase_price = purchase_price
+        self.stock_type = stock_type
 
 
 class UserInfo:
@@ -55,7 +58,7 @@ class UserInfo:
 
 
 def _get_price_sn_or_literal(n: float) -> str:
-    if n < 0.01:
+    if 0 < n < 0.01:
         return f'{n:.2e}'
 
     return f'{n:,.2f}'
@@ -64,6 +67,7 @@ def _get_price_sn_or_literal(n: float) -> str:
 class SimulateStock:
     def __init__(self):
         self.STOCK_NOT_EXISTS = '未开盘、产品不存在、或已退市。（如果不确定股票代码，请使用！股票 名称来找一下~）'
+        self.STOCK_NOT_EXISTS_ALTER = '产品不存在或已退市。（使用 ！商店 可以查看在售物品~）'
         self.NO_INFO = '您啥还没买呢哦~'
         self.CACHE_EXPIRATION = 80
         self.USD_TO_CNY = 6.35
@@ -87,50 +91,49 @@ class SimulateStock:
             self.stock_price_cache[r[0]] = StockInfo(r[1], r[2], r[3], r[4], r[5])
 
     def _init_user_stock_data(self):
-        if not exists(self.user_record_filename):
-            temp_connection = sqlite3.connect(self.user_record_filename)
-            temp_connection.execute(
-                """
-                create table if not exists user_stock (
-                    "user_id" varchar(20) not null unique on conflict ignore,
-                    "total_money" real not null,
-                    "nickname" varchar(150) not null,
-                    "last_reset" integer
-                )
-                """
+        temp_connection = sqlite3.connect(self.user_record_filename)
+        temp_connection.execute(
+            """
+            create table if not exists user_stock (
+                "user_id" varchar(20) not null unique on conflict ignore,
+                "total_money" real not null,
+                "nickname" varchar(150) not null,
+                "last_reset" integer
             )
-            temp_connection.execute(
-                """
-                create table if not exists user_transaction (
-                    "stock_code" varchar(100) not null unique on conflict ignore,
-                    "quote_name" varchar(100) not null unique on conflict ignore,
-                    "user_id" varchar(50) not null,
-                    "purchase_price" real not null,
-                    "purchase_count" real not null,
-                    "money_spent" real not null,
-                    "margin" real not null,
-                    "stock_type" varchar(50) not null
-                )
-                """
+            """
+        )
+        temp_connection.execute(
+            """
+            create table if not exists user_transaction (
+                "user_id" varchar(50) not null,
+                "stock_code" varchar(100) not null,
+                "quote_name" varchar(100) not null,
+                "purchase_price" real not null,
+                "purchase_count" real not null,
+                "money_spent" real not null,
+                "margin" real not null,
+                "stock_type" varchar(50) not null
             )
-            temp_connection.execute(
-                """
-                create table if not exists stock_info (
-                    "stock_quote" var(50) not null unique on conflict ignore,
-                    "stock_name" var(50) not null,
-                    "price_now" real not null,
-                    "last_updated" integer not null,
-                    "is_digital_coin" boolean not null,
-                    "stock_type" varchar(50) not null
-                )
-                """
+            """
+        )
+        temp_connection.execute(
+            """
+            create table if not exists stock_info (
+                "stock_quote" var(50) not null unique on conflict ignore,
+                "stock_name" var(50) not null,
+                "price_now" real not null,
+                "last_updated" integer not null,
+                "is_digital_coin" boolean not null,
+                "stock_type" varchar(50) not null
             )
-            temp_connection.commit()
+            """
+        )
+        temp_connection.commit()
 
     def _commit_change(self):
         self.stock_data_db.commit()
 
-    def _get_user_info(self, uid: str) -> UserInfo:
+    def _get_user_info(self, uid: str) -> Union[UserInfo, None]:
         result = self.stock_data_db.execute(
             """
             select user_id, total_money, nickname, last_reset from user_stock
@@ -195,10 +198,10 @@ class SimulateStock:
 
         return [r[0] for r in result] if result is not None else []
 
-    async def _query_user_stock_by_quote(self, uid: str, stock_code: str) -> StockPurchaseInfo:
+    async def _query_user_stock_by_quote(self, uid: str, stock_code: str) -> Union[StockPurchaseInfo, None]:
         result = self.stock_data_db.execute(
             """
-            select purchase_count, money_spent, purchase_price from user_transaction 
+            select purchase_count, money_spent, purchase_price, stock_type from user_transaction 
             where user_id = ? and stock_code = ?
             """, (uid, stock_code)
         ).fetchone()
@@ -206,7 +209,7 @@ class SimulateStock:
         if result is None:
             return None
 
-        return StockPurchaseInfo(result[0], result[1], result[2])
+        return StockPurchaseInfo(result[0], result[1], result[2], result[3])
 
     async def my_money_spent_by_stock_code(self, uid: Union[int, str], stock_code: str) -> (str, float, float):
         uid = str(uid)
@@ -215,28 +218,35 @@ class SimulateStock:
         if not stock_to_check:
             return ''
 
-        total_count = stock_to_check.purchase_count
-        if total_count == 0:
+        purchase_amount = stock_to_check.purchase_amount
+        if purchase_amount == 0:
             return ''
 
         total_money_spent = stock_to_check.money_spent
-        avg_money = stock_to_check.purchase_price
+        avg_purchase_price = stock_to_check.purchase_price
 
-        price_now, is_digital_coin, \
-        stock_name, stock_api, _, _ = await self._determine_stock_price_digital_name(stock_code)
-        if price_now <= 0:
-            return stock_name
+        if stock_to_check.stock_type == 'Fake':
+            price_now = fake_stock.get_stock_price(stock_code)
+            stock_name = stock_code
+        else:
+            price_now, is_digital_coin, \
+                stock_name, stock_api, _, _ = await self._determine_stock_price_digital_name(stock_code)
 
-        new_price = price_now * total_count
+        price_now_cost_total = abs(price_now * purchase_amount)
+        purchase_cost_total = abs(avg_purchase_price * purchase_amount)
+        if purchase_amount < 0:
+            price_diff = purchase_cost_total - price_now_cost_total
+        else:
+            price_diff = price_now_cost_total - purchase_cost_total
         if total_money_spent < 1e-6:
             total_money_spent = 1e-6
-        rate = (new_price - total_money_spent) / total_money_spent * 100
+        rate = price_diff / total_money_spent * 100
 
-        logger.success(f'Checking {stock_code} succeed: {price_now:,.2f}')
+        logger.success(f'Checking {stock_code} succeed: {price_now_cost_total:,.2f}')
 
-        return f'{stock_name}[{stock_code}] x {total_count} -> 成本{_get_price_sn_or_literal(total_money_spent)}软妹币\n' \
-               f'（最新市值：{_get_price_sn_or_literal(new_price)}软妹币 | ' \
-               f'持仓盈亏：{rate:.2f}% {"↑" if rate >= 0 else "↓"} | 平摊成本：{_get_price_sn_or_literal(avg_money)}软妹币/张）\n'
+        return f'{stock_name}[{stock_code}] x {purchase_amount} -> 成本{_get_price_sn_or_literal(total_money_spent)}软妹币\n' \
+               f'（最新市值：{_get_price_sn_or_literal(abs(price_now_cost_total))}软妹币 | ' \
+               f'持仓盈亏：{_get_price_sn_or_literal(price_diff)}（{rate:.2f}% ）{"↑" if rate >= 0 else "↓"} | 平摊成本：{_get_price_sn_or_literal(avg_purchase_price)}软妹币/张）\n'
 
     async def get_all_stonk_log_by_user(self, uid: Union[int, str]):
         uid = str(uid)
@@ -280,7 +290,7 @@ class SimulateStock:
                f'总资产{user_data["total"]:,.2f}软妹币\n' \
                f'总收益率：{user_data["ratio"]:,.2f}% {"↑" if user_data["ratio"] >= 0 else "↓"}\n' \
                f'账户盈亏：{"+ " if money_diff >= 0 else ""} {money_diff:,.2f}软妹币 {"↑" if money_diff >= 0 else "↓"}\n\n' \
-               + '\n'.join(response)
+            + '\n'.join(response)
 
     @staticmethod
     def _partition(lst, size):
@@ -294,7 +304,7 @@ class SimulateStock:
             """
         ).fetchall()
 
-        user_data_info: List[dict] = []
+        user_data_info = []
         response = ''
         tasks = []
         for uid in user_data:
@@ -376,8 +386,8 @@ class SimulateStock:
                 purchase_count = ?,
                 purchase_price = ?,
                 money_spent = ?
-                where stock_code = ?
-            """, (data.purchase_count, data.purchase_price, data.money_spent, stock_code)
+                where stock_code = ? and user_id = ?
+            """, (data.purchase_amount, data.purchase_price, data.money_spent, stock_code, user_data.user_id)
         )
         self.stock_data_db.execute(
             """
@@ -399,12 +409,9 @@ class SimulateStock:
 
         try:
             price_now, is_digital_coin, \
-            stock_name, stock_api, _, stock_rate = await self._determine_stock_price_digital_name(stock_code)
+                stock_name, stock_api, _, stock_rate = await self._determine_stock_price_digital_name(stock_code)
         except TypeError:
             return self.STOCK_NOT_EXISTS
-
-        if price_now - stock_rate[1] <= 0.02:
-            return '目前跌停无法卖出'
 
         if price_now <= 0:
             return stock_name
@@ -412,19 +419,16 @@ class SimulateStock:
         if not is_digital_coin:
             if amount < 100 or amount % 100 != 0:
                 return '出售数量必须为大于100且为100倍数的正整数'
-        else:
-            if amount <= 0:
-                return '?'
 
         if isinstance(stock_api, Stock):
             stock_code = stock_api.code
 
         query_data = await self._query_user_stock_by_quote(uid, stock_code)
-        if query_data.purchase_count < amount:
+        if query_data.purchase_amount < amount:
             return '您没那么多谢谢'
 
         price_now, is_digital_coin, \
-        stock_name, stock_api, _, stock_rate = await self._determine_stock_price_digital_name(stock_code)
+            stock_name, stock_api, _, stock_rate = await self._determine_stock_price_digital_name(stock_code)
 
         if price_now - stock_rate[1] <= 0.015:
             return '目前跌停无法卖出'
@@ -441,7 +445,7 @@ class SimulateStock:
             price_now *= ratio_change
             special_event = f'\n(在您卖出的时候，该产品的价格出现了小幅波动： -{random_percentage / 1e2}%）'
 
-        query_data.purchase_count -= amount
+        query_data.purchase_amount -= amount
         price_earned = price_now * amount
 
         user_data = self._get_user_info(uid)
@@ -449,15 +453,67 @@ class SimulateStock:
         user_data.total_money += price_earned * 0.999
 
         fee = price_earned * .001
-        if query_data.purchase_count == 0:
+        if query_data.purchase_amount == 0:
             await self._delete_user_stock_by_quote(uid, stock_code)
         else:
             query_data.money_spent -= price_earned
-            query_data.purchase_price = query_data.money_spent / query_data.purchase_count
+            query_data.purchase_price = query_data.money_spent / query_data.purchase_amount
 
         await self._update_user_transaction(query_data, stock_code, user_data)
         return f'您已每{"股" if not is_digital_coin else "个"}{_get_price_sn_or_literal(price_now)}' \
                f'软妹币的价格卖出了{amount}{"股" if not is_digital_coin else "个"}' \
+               f'{stock_name}{special_event}\n（印花税：{_get_price_sn_or_literal(fee)}软妹币），' \
+               f'现在您有{user_data.total_money:,.2f}软妹币了~'
+
+    async def sell_stupid_stock(self, uid: Union[int, str], stock_name: str, amount: Union[int, str]):
+        stock_name = stock_name.lower()
+        fake_stock.update_all_stocks()
+        if not amount.isdigit():
+            try:
+                amount = float(amount)
+            except ValueError:
+                return f'卖不了{amount}'
+
+        uid = str(uid)
+        amount = round(float(amount), 2)
+
+        price_now = fake_stock.get_stock_price(stock_name)
+        if price_now <= 0:
+            return stock_name
+
+        query_data = await self._query_user_stock_by_quote(uid, stock_name)
+        if query_data is None:
+            return '名字打错了吧？'
+        if abs(query_data.purchase_amount) < abs(amount):
+            return '您没那么多谢谢'
+
+        if query_data.purchase_amount < 0 <= amount:
+            amount *= -1
+
+        special_event = ''
+
+        query_data.purchase_amount -= amount
+
+        price_earned = price_now * abs(amount)
+        purchase_used_money = query_data.money_spent * abs(amount)
+
+        user_data = self._get_user_info(uid)
+
+        if query_data.purchase_amount < 0:
+            user_data.total_money += purchase_used_money - (purchase_used_money - price_earned) * .999
+        else:
+            user_data.total_money += price_earned * 0.999
+
+        fee = abs(price_earned * .001)
+        if query_data.purchase_amount == 0:
+            await self._delete_user_stock_by_quote(uid, stock_name)
+        else:
+            query_data.money_spent -= abs(price_earned)
+            query_data.purchase_price = query_data.money_spent / query_data.purchase_amount
+
+        await self._update_user_transaction(query_data, stock_name, user_data)
+        return f'您已每个{_get_price_sn_or_literal(price_now)}' \
+               f'软妹币的价格卖出了{amount}个' \
                f'{stock_name}{special_event}\n（印花税：{_get_price_sn_or_literal(fee)}软妹币），' \
                f'现在您有{user_data.total_money:,.2f}软妹币了~'
 
@@ -486,40 +542,37 @@ class SimulateStock:
         total_money = data['total_money']
         nickname = data['nickname']
 
-        current_stock_money = 0
-        ratio = ((total_money - (10 ** 6 * 5)) / (10 ** 6 * 5)) * 100
-
         stocks = await self._query_all_user_stonk_stock_code(uid)
         self._init_price_cache()
         for stock in stocks:
-            if stock not in self.stock_price_cache:
-                logger.warning(f'Reading {stock}')
-                price_now, is_digital_coin, \
-                stock_name, stock_api, _, _ = await self._determine_stock_price_digital_name(
-                    stock, valid_time=valid_time
-                )
-
-                if price_now <= 0:
-                    return {
-                        "total": total_money,
-                        "ratio": ratio,
-                        "nickname": nickname
-                    }
+            if fake_stock.check_if_stock_name_exists(stock):
+                price_now = fake_stock.get_stock_price(stock)
             else:
-                price_now = await self._get_stock_price_from_cache_by_identifier(stock)
-                is_digital_coin = self.stock_price_cache[stock].is_digital
-                stock_name = self.stock_price_cache[stock].stock_name
-                stock_api = Stock(stock) if not is_digital_coin else Crypto(stock)
-                if not is_digital_coin:
-                    stock_api.set_type(self.stock_price_cache[stock].stock_type)
+                if stock not in self.stock_price_cache:
+                    logger.warning(f'Reading {stock}')
+                    price_now, is_digital_coin, \
+                        stock_name, stock_api, _, _ = await self._determine_stock_price_digital_name(
+                        stock, valid_time=valid_time
+                    )
+                else:
+                    price_now = await self._get_stock_price_from_cache_by_identifier(stock)
+                    is_digital_coin = self.stock_price_cache[stock].is_digital
+                    stock_name = self.stock_price_cache[stock].stock_name
+                    stock_api = Stock(stock) if not is_digital_coin else Crypto(stock)
+                    if not is_digital_coin:
+                        stock_api.set_type(self.stock_price_cache[stock].stock_type)
 
+                stock_type = stock_api.type if isinstance(stock_api, Stock) else 'Crypto'
+                self.set_stock_cache(stock, stock_name, stock_type, price_now, is_digital_coin)
             user_stock_data = await self._query_user_stock_by_quote(uid, stock)
+            # e.g. purchase price 15, current 30. Put option: lose -15, Call option: gain 15.
+            purchase_price_total = abs(user_stock_data.purchase_amount * user_stock_data.purchase_price)
+            current_price_total = abs(price_now * user_stock_data.purchase_amount)
+            if user_stock_data.purchase_amount < 0:
+                total_money += purchase_price_total + (purchase_price_total - current_price_total)
+            else:
+                total_money += current_price_total
 
-            stock_type = stock_api.type if isinstance(stock_api, Stock) else 'Crypto'
-            self.set_stock_cache(stock, stock_name, stock_type, price_now, is_digital_coin)
-            current_stock_money += price_now * user_stock_data.purchase_count
-
-        total_money += current_stock_money
         if round(total_money, 2) == 5000000.00:
             return {}
 
@@ -532,7 +585,7 @@ class SimulateStock:
 
     async def _get_stock_price_from_cache_by_identifier(self, identifier) -> Union[int, float]:
         price_now, is_digital, \
-        stock_name, stock_api, _, _ = await self._determine_stock_price_digital_name(identifier, 60 * 60 * 1)
+            stock_name, stock_api, _, _ = await self._determine_stock_price_digital_name(identifier, 60 * 60 * 1)
 
         return price_now
 
@@ -570,13 +623,14 @@ class SimulateStock:
         self.stock_data_db.execute(
             """
             insert or replace into user_transaction (
-                stock_code, quote_name, user_id, purchase_price, purchase_count, money_spent, margin, stock_type
+                user_id, stock_code, quote_name, purchase_price, purchase_count, money_spent, margin, stock_type
             ) values (
                 ?, ?, ?, ?, ?, ?, ?, ?
             )
             """, (
+                data.user_id,
                 data.stock_code,
-                data.quote_name, data.user_id,
+                data.quote_name,
                 data.purchase_price, data.purchase_count,
                 data.money_spent, data.margin, data.stock_type
             )
@@ -592,6 +646,78 @@ class SimulateStock:
         )
         self._commit_change()
 
+    async def buy_stupid_stonk(self, uid: Union[int, str], stock_name: str, amount: Union[str, int], margin=1,
+                               ctx=None):
+        stock_name = stock_name.lower()
+        fake_stock.update_all_stocks()
+        if isinstance(amount, str):
+            if not amount.isdigit():
+                try:
+                    amount = float(amount)
+                except ValueError:
+                    return '购买数量不合法'
+
+            amount = round(float(amount), 2)
+        try:
+            price_now = fake_stock.get_stock_price(stock_name)
+        except TypeError:
+            return self.STOCK_NOT_EXISTS_ALTER
+
+        nickname = ctx['sender']['nickname']
+
+        uid = str(uid)
+        user_money = await self._get_user_money(uid)
+        if user_money == -1:
+            user_money = 5000000
+
+        special_event = ''
+
+        need_money = amount * price_now
+        fee = abs(need_money * 0.001)
+        need_money += fee
+
+        if abs(need_money) > user_money:
+            return f'您没钱了（剩余：{user_money:,.2f}，需要：{abs(need_money):,.2f}）'
+
+        stock_code = stock_name
+
+        user_money -= abs(need_money)
+        current_stock = await self._query_user_stock_by_quote(uid, stock_code)
+        if current_stock is None:
+            purchase_count = 0
+            money_spent = 0
+        else:
+            purchase_count = current_stock.purchase_amount
+            money_spent = current_stock.money_spent
+
+        purchase_count += amount
+        money_spent += abs(need_money)
+        purchase_price = money_spent / abs(purchase_count)
+
+        stock_type = 'Fake'
+        transaction = StockTransaction(
+            stock_code, stock_name, uid, purchase_price,
+            purchase_count, money_spent, margin, stock_type
+        )
+        if amount < 0:
+            profit_warning = f'最大亏损：无限制，最大盈利：{_get_price_sn_or_literal(abs(amount) * price_now)}'
+        else:
+            profit_warning = f'最大亏损：{_get_price_sn_or_literal(abs(need_money))}，最大盈利：无限制'
+        if current_stock is None:
+            await self._insert_user_transaction(transaction, user_money, nickname)
+        else:
+            purchase_info = StockPurchaseInfo(purchase_count, money_spent, purchase_price, stock_type)
+            user_info = self._get_user_info(uid)
+            user_info = UserInfo(uid, user_money, nickname, user_info.last_reset)
+            await self._update_user_transaction(purchase_info, stock_code, user_info)
+
+        return f'您花费了{_get_price_sn_or_literal(abs(need_money))}软妹币已每' \
+               f'个{_get_price_sn_or_literal(price_now)}' \
+               f'软妹币的价格{"购买" if amount >= 0 else "做空"}了{amount}个{stock_name}{special_event}' \
+               f'\n（印花税：{_get_price_sn_or_literal(fee)}软妹币，' \
+               f'余额：{user_money:,.2f}软妹币）\n\n' \
+               f'{profit_warning}'
+
     async def buy_with_code_and_amount(
             self, uid: Union[int, str], stock_code: str, amount: Union[str, int], margin=1, ctx=None
     ) -> str:
@@ -606,7 +732,7 @@ class SimulateStock:
             amount = round(float(amount), 2)
         try:
             price_now, is_digital_coin, \
-            stock_name, stock_api, _, stock_rate = await self._determine_stock_price_digital_name(stock_code)
+                stock_name, stock_api, _, stock_rate = await self._determine_stock_price_digital_name(stock_code)
         except TypeError:
             return self.STOCK_NOT_EXISTS
 
@@ -643,23 +769,23 @@ class SimulateStock:
         fee = need_money * 0.001
         need_money += fee
 
-        if need_money + fee > user_money:
-            return f'您没钱了（剩余：{user_money:,.2f}，需要：{need_money:,.2f}）'
+        if abs(need_money) > user_money:
+            return f'您没钱了（剩余：{user_money:,.2f}，需要：{abs(need_money):,.2f}）'
 
         if isinstance(stock_api, Stock):
             stock_code = stock_api.code
 
-        user_money -= (need_money + fee)
+        user_money -= abs(need_money)
         current_stock = await self._query_user_stock_by_quote(uid, stock_code)
         if current_stock is None:
             purchase_count = 0
             money_spent = 0
         else:
-            purchase_count = current_stock.purchase_count
+            purchase_count = current_stock.purchase_amount
             money_spent = current_stock.money_spent
 
         purchase_count += amount
-        money_spent += need_money
+        money_spent += abs(need_money)
         purchase_price = money_spent / purchase_count
 
         stock_type = stock_api.type if isinstance(stock_api, Stock) else 'Crypto'
@@ -667,11 +793,17 @@ class SimulateStock:
             stock_code, stock_name, uid, purchase_price,
             purchase_count, money_spent, margin, stock_type
         )
-        await self._insert_user_transaction(transaction, user_money, nickname)
+        if current_stock is None:
+            await self._insert_user_transaction(transaction, user_money, nickname)
+        else:
+            purchase_info = StockPurchaseInfo(purchase_count, money_spent, purchase_price, stock_type)
+            user_info = self._get_user_info(uid)
+            user_info = UserInfo(uid, user_money - money_spent, nickname, user_info.last_reset)
+            await self._update_user_transaction(purchase_info, stock_code, user_info)
 
-        return f'您花费了{_get_price_sn_or_literal(need_money)}软妹币已每' \
+        return f'您花费了{_get_price_sn_or_literal(abs(need_money))}软妹币已每' \
                f'{"股" if not is_digital_coin else "个"}{_get_price_sn_or_literal(price_now)}' \
-               f'软妹币的价格购买了{amount}{"股" if not is_digital_coin else "个"}{stock_name}{special_event}' \
+               f'软妹币的价格{"购买" if amount >= 0 else "做空"}了{amount}{"股" if not is_digital_coin else "个"}{stock_name}{special_event}' \
                f'\n（印花税：{_get_price_sn_or_literal(fee)}软妹币，' \
                f'余额：{user_money:,.2f}软妹币）'
 
@@ -735,7 +867,7 @@ class SimulateStock:
                     return True, self.stock_price_cache[stock_code]
             else:
                 return last_updated_exact.hour >= 15 and last_updated_exact.day == day_now.day, \
-                       self.stock_price_cache[stock_code]
+                    self.stock_price_cache[stock_code]
 
         # 港股闭市时间
         if self.stock_price_cache[stock_code].stock_type == '116' \
@@ -749,7 +881,7 @@ class SimulateStock:
                     return True, self.stock_price_cache[stock_code]
             else:
                 return last_updated_exact.hour >= 16 and last_updated_exact.day == day_now.day, \
-                       self.stock_price_cache[stock_code]
+                    self.stock_price_cache[stock_code]
 
         # 开盘竞价时可能无数据
         if datetime.now().hour == 9 and datetime.now().minute <= 25:
@@ -805,8 +937,8 @@ class SimulateStock:
         if get_stored_info is not None and is_valid_store:
             is_digital_coin = get_stored_info.is_digital
             return get_stored_info.price_now, is_digital_coin, \
-                   get_stored_info.stock_name, \
-                   Stock(stock_code) if not is_digital_coin else Crypto(stock_code), stock_code, stock_rate
+                get_stored_info.stock_name, \
+                Stock(stock_code) if not is_digital_coin else Crypto(stock_code), stock_code, stock_rate
 
         if not stock_code.isdigit():
             # 虚拟币一般是全字母，然后有可能有“-USDT”的部分
@@ -838,7 +970,7 @@ class SimulateStock:
 
                         stock_api.code = stock_code
                         price_now, _, \
-                        stock_name, stock_api, stock_code, _ = await self._determine_stock_price_digital_name(
+                            stock_name, stock_api, stock_code, _ = await self._determine_stock_price_digital_name(
                             stock_code
                         )
 
@@ -860,7 +992,3 @@ class SimulateStock:
 
         logger.success(f'Checking {stock_code} succeed.')
         return price_now, is_digital_coin, stock_name, stock_api, stock_code, stock_rate
-
-
-if __name__ == '__main__':
-    o = SimulateStock()

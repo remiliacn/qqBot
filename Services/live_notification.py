@@ -1,3 +1,4 @@
+import asyncio
 import sqlite3
 from json import dumps, loads
 from os import getcwd
@@ -236,6 +237,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
         self.TEXT_DYNAMIC_TYPE = 'RICH_TEXT_NODE_TYPE_TEXT'
         self.EMOJI_DYNAMIC_TYPE = 'RICH_TEXT_NODE_TYPE_EMOJI'
         self.AT_DYNAMIC_TYPE = 'RICH_TEXT_NODE_TYPE_AT'
+        self.LIVESTREAM_DYNAMIC_TYPE = 'DYNAMIC_TYPE_LIVE_RCMD'
         self.VIDEO_DYNAMIC_TYPE = 'MAJOR_TYPE_ARCHIVE'
         self._init_database()
 
@@ -247,6 +249,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
                 isEnabled boolean not null,
                 mid text not null,
                 last_dynamic_id var(255) not null,
+                dynamic_time var(100) not null,
                 group_to_notify text not null
             )
             """
@@ -276,15 +279,15 @@ class BilibiliDynamicNotifcation(LiveNotification):
             self.live_database.execute(
                 """
                 insert or replace into dynamic_notification_bilibili
-                 (name, isEnabled, mid, last_dynamic_id, group_to_notify)
-                 VALUES (?, ?, ?, ?, ?)
-                """, (name, True, mid, '0', dumps(group_ids))
+                 (name, isEnabled, mid, last_dynamic_id, dynamic_time, group_to_notify)
+                 VALUES (?, ?, ?, ?, ?, ?)
+                """, (name, True, mid, '0', '0', dumps(group_ids))
             )
             self.live_database.commit()
         else:
             self.live_database.execute(
                 """
-                update dynamic_notification_bilibili set group_to_notify = ?, isEnabled = TRUE where name = ?
+                update dynamic_notification_bilibili set group_to_notify = ?, isEnabled = 1 where name = ?
                 """, (dumps(group_ids), name)
             )
 
@@ -297,11 +300,11 @@ class BilibiliDynamicNotifcation(LiveNotification):
 
         return loads(data) if isinstance(data, str) else (loads(data[0]) if data is not None else None)
 
-    async def update_latest_dynamic_id_for_user(self, name, dynamic_id):
+    async def update_latest_dynamic_id_for_user(self, name, dynamic_id, dynamic_time):
         self.live_database.execute(
             """
-            update dynamic_notification_bilibili set last_dynamic_id = ? where name = ?
-            """, (dynamic_id, name)
+            update dynamic_notification_bilibili set last_dynamic_id = ?, dynamic_time = ? where name = ?
+            """, (dynamic_id, dynamic_time, name)
         )
         self.live_database.commit()
 
@@ -321,11 +324,14 @@ class BilibiliDynamicNotifcation(LiveNotification):
 
             mid = user_needs_to_be_checked[2]
             last_dynamic_id = user_needs_to_be_checked[3]
+            last_check_dynamic_time = int(user_needs_to_be_checked[4])
 
-            dynamic_response = await client.get(self.dynamic_url + mid, headers={
-                'Cookie': 'SESSDATA=xie_xie_bilibili.com',
-                'User-Agent': 'Mozilla/5.0',
-            })
+            dynamic_response = await client.get(
+                self.dynamic_url + mid + f'&_={int(time())}',
+                headers={
+                    'Cookie': 'SESSDATA=xie_xie_bilibili.com',
+                    'User-Agent': 'Mozilla/5.0',
+                })
             dynamic_json = dynamic_response.json()
             for item in OptionalDict(dynamic_json).map('data').map('items').or_else([]):
                 modules = OptionalDict(item).map('modules').or_else({})
@@ -334,11 +340,22 @@ class BilibiliDynamicNotifcation(LiveNotification):
                     continue
 
                 dynamic_id = OptionalDict(item).map('id_str').or_else('')
+                dynamic_time = OptionalDict(modules).map('module_author').map('pub_ts').or_else(0)
+                dynamic_type = OptionalDict(item).map('type').or_else('')
+                if dynamic_type == self.LIVESTREAM_DYNAMIC_TYPE:
+                    continue
+
+                # Reverted to one of the past dynamic for some reasons
+                # Possibly because a dynamic being deleted or revoked.
+                if dynamic_time <= last_check_dynamic_time:
+                    break
+
+                # Dynamic update is up-to-date.
                 if dynamic_id == str(last_dynamic_id):
                     break
 
                 orig_text = await self._analyze_dynamic(item)
-                await self.update_latest_dynamic_id_for_user(user_name, dynamic_id)
+                await self.update_latest_dynamic_id_for_user(user_name, dynamic_id, str(dynamic_time))
                 return DynamicNotificationData(user_name, orig_text)
 
         return None
@@ -376,8 +393,8 @@ class BilibiliDynamicNotifcation(LiveNotification):
 
         client = HttpxHelperClient()
         orig_text = ''
-        for item in OptionalDict(orig_draw_node).map('items').or_else([]):
-            file_name = f"{getcwd()}/data/bilibiliPic/{draw_id}.jpg"
+        for idx, item in enumerate(OptionalDict(orig_draw_node).map('items').or_else([])):
+            file_name = f"{getcwd()}/data/bilibiliPic/{draw_id}_{idx}.jpg"
             await client.download(item['src'], file_name)
             orig_text += f'\n[CQ:image,file=file:///{file_name}]'
 
@@ -389,7 +406,9 @@ class BilibiliDynamicNotifcation(LiveNotification):
             orig_text += OptionalDict(text_node).map('orig_text').or_else('')
             node_type = OptionalDict(text_node).map('type').or_else('')
             if node_type == self.AT_DYNAMIC_TYPE:
-                orig_text += '@' + orig_text + ' '
+                at_text = OptionalDict(text_node).map('orig_text').or_else('')
+                orig_text += '@' if '@' not in at_text else '' \
+                                                            + OptionalDict(text_node).map('orig_text').or_else('') + ' '
             elif node_type == self.EMOJI_DYNAMIC_TYPE:
                 file_name = f"{getcwd()}/data/bilibiliPic/" \
                             f"{OptionalDict(text_node).map('emoji').map('text').or_else(str(time()))}.jpg"
@@ -408,14 +427,25 @@ class BilibiliDynamicNotifcation(LiveNotification):
             .or_else([])
         orig_text = await self._fetch_content_in_text_node(rich_text_node)
         pic = OptionalDict(orig_data).map('major').map('draw').or_else({})
+        archive = OptionalDict(orig_data).map('major').map('archive').or_else({})
         if pic:
             pic_id = pic['id']
-            file_name = f"{getcwd()}/data/bilibiliPic/{pic_id}.jpg"
             files = pic['items']
-            for file in files:
+            for idx, file in enumerate(files):
+                file_name = f"{getcwd()}/data/bilibiliPic/{pic_id}_{idx}.jpg"
                 client = HttpxHelperClient()
                 await client.download(file['src'], file_name)
                 orig_text += f'\n[CQ:image,file=file:///{file_name}]'
+
+        if archive:
+            bvid = archive['bvid']
+            forwarded_video_cover = f"{getcwd()}/data/bilibiliPic/{bvid}.jpg"
+            client = HttpxHelperClient()
+            await client.download(archive['cover'], forwarded_video_cover)
+
+            orig_text += f'\n转发视频标题：{archive["title"]}\n' \
+                         f'转发视频bvid：{bvid}\n' \
+                         f'[CQ:image,file=file:///{forwarded_video_cover}]'
 
         return orig_text
 
@@ -428,7 +458,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
 
         notify_list = []
         for data in datas:
-            name, is_enabled, _, _, _ = data
+            name, is_enabled, _, _, _, _ = data
             if is_enabled:
                 dynamic_info = await self.fetch_bilibili_newest_dynamic_for_up(name)
                 if dynamic_info is not None:
@@ -450,5 +480,19 @@ class BilibiliDynamicNotifcation(LiveNotification):
 
         return f'发布了新视频：\n' \
                f'标题：{OptionalDict(archive_object).map("title").or_else("未知")}\n' \
-               f'链接：{OptionalDict(archive_object).map("jump_url").or_else("未知")}\n' \
+               f'bvid：{bvid}\n' \
                f'[CQ:image,file=file:///{file_name}]\n'
+
+
+async def main():
+    d = BilibiliDynamicNotifcation()
+    await d.add_to_dynamic_notification_queue('话梅糖', '3493264923560048', '212345')
+    dd = await d.fetch_all_dynamic_updates()
+    for ddd in dd:
+        if ddd is not None:
+            print(await d.construct_string_from_data(ddd))
+
+
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
