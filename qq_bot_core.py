@@ -76,7 +76,6 @@ def register_true():
         create_dir(f'{getcwd()}/data/lol/')
         create_dir(f'{getcwd()}/data/live/')
         create_dir(f'{getcwd()}/config/')
-        create_dir(f'{getcwd()}/Waifu/')
         create_dir(f'{getcwd()}/data/')
         create_dir(f'{getcwd()}/data/bot')
         create_dir(f'{getcwd()}/data/bot/stock')
