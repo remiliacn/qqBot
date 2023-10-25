@@ -1,13 +1,30 @@
 import asyncio
+import codecs
+import dataclasses
+import pickle
 import sqlite3
+import subprocess
+import uuid
 from json import dumps, loads
 from os import getcwd
-from time import time
-from typing import Union, List
+from time import time, time_ns
+from typing import Union, List, Dict
 
 from loguru import logger
+from wordcloud import WordCloud
 
 from Services.util.common_util import HttpxHelperClient, OptionalDict
+from config import DANMAKU_PROCESS
+
+
+@dataclasses.dataclass
+class LivestreamDanmakuData:
+    danmaku_frequency_dict: Dict = None
+    danmaku_count: int = 0
+    qq_group_dumped: str = ''
+    gift_received_count: int = 0
+    like_received_count: int = 0
+    highest_rank: int = 999
 
 
 class DynamicNotificationData:
@@ -48,6 +65,14 @@ class LiveNotification:
                 last_checked_date varchar(200),
                 last_record_live_status boolean,
                 group_to_notify text
+            )
+            """
+        )
+        self.live_database.execute(
+            """
+            create table if not exists bilibili_danmaku_data (
+                uid text not null unique on conflict ignore,
+                data_dump text
             )
             """
         )
@@ -151,6 +176,72 @@ class LiveNotification:
 
         return response
 
+    def dump_live_data(self, data: str):
+        uid = str(uuid.uuid1())
+        self.live_database.execute(
+            """
+            insert into bilibili_danmaku_data (uid, data_dump) values (?, ?)
+            """, (uid, data)
+        )
+        self.live_database.commit()
+
+    def get_dumped_live_data(self):
+        data = self.live_database.execute(
+            """
+            select * from bilibili_danmaku_data
+            """
+        ).fetchall()
+
+        return self._analyze_dumped_live_data(data)
+
+    @staticmethod
+    def stringify_danmaku_data(data: LivestreamDanmakuData) -> str:
+        word_cloud = WordCloud(font_path=f'{getcwd()}/Services/util/SourceHanSansSC-Bold.otf',
+                               background_color='#fff',
+                               max_words=90,
+                               width=1920,
+                               height=1080).generate_from_frequencies(data.danmaku_frequency_dict)
+        path = f'{getcwd()}/data/pixivPic/{int(time_ns())}.png'
+        word_cloud.to_file(path)
+        return '直播已结束！撒花~✿✿ヽ(°▽°)ノ✿\n' \
+               f'一共收到啦{data.danmaku_count}枚弹幕\n' \
+               f'被点赞共{data.like_received_count}次\n' \
+               f'收到礼物（包括SC）{data.gift_received_count}个\n' \
+               f'最高人气排名：{data.highest_rank}\n' \
+               f'[CQ:image,file=file:///{path}]'
+
+    def _delete_dumped_live_data(self, uid):
+        self.live_database.execute(
+            """
+            delete from bilibili_danmaku_data where uid = ?
+            """, (uid,)
+        )
+        self.live_database.commit()
+
+    def _analyze_dumped_live_data(self, datas) -> List[LivestreamDanmakuData]:
+        unpickled_data_list = []
+        for data in datas:
+            uid = data[0]
+            dumped_data: str = data[1]
+            unpickled_data: LivestreamDanmakuData = pickle.loads(codecs.decode(dumped_data.encode(), "base64"))
+            unpickled_data_list.append(unpickled_data)
+
+            self._delete_dumped_live_data(uid)
+
+        return unpickled_data_list
+
+    def check_if_live_cached(self, room_id: str) -> bool:
+        user_needs_to_be_checked = self.live_database.execute(
+            """
+            select * from live_notification_bilibili where uid = ?
+            """, (room_id,)
+        ).fetchone()
+
+        is_live = user_needs_to_be_checked is not None and user_needs_to_be_checked[4]
+        logger.success(f'Live cache hit, result returned: {is_live}')
+
+        return is_live
+
     async def check_if_live(self, room_id: str, streamer_name: str) -> LiveNotificationData:
         logger.info(f'Checking live stat for {streamer_name}, room id: {room_id}')
         url = self.bilibili_live_check_url + room_id
@@ -165,7 +256,7 @@ class LiveNotification:
             .map('live_status') \
             .or_else(0)
 
-        if not is_live:
+        if is_live != 1:
             logger.info(f'{streamer_name} is not live.')
             return LiveNotificationData(
                 streamer_name,
@@ -210,6 +301,7 @@ class LiveNotification:
             is_enabled = live_data[1]
             room_id = live_data[2]
             last_record_state = live_data[4]
+            group_ids = live_data[5]
 
             if not is_enabled:
                 logger.info(f'{streamer_name} is disable to send notification.')
@@ -220,8 +312,9 @@ class LiveNotification:
                 if notify_data.is_live:
                     notify_data.set_live_change_status('开播啦！')
                     live_data_list.append(notify_data)
+                    subprocess.Popen(f'{DANMAKU_PROCESS} {room_id} {group_ids}')
                 else:
-                    notify_data = LiveNotificationData('糖糖', False)
+                    notify_data = LiveNotificationData(streamer_name, False)
                     notify_data.set_live_change_status('下播啦！')
                     live_data_list.append(notify_data)
 

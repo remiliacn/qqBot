@@ -1,3 +1,5 @@
+from os import getcwd
+
 # noinspection PyUnresolvedReferences
 from nonebot.default_config import *
 
@@ -32,3 +34,6 @@ OKEX_PASSPHRASE = ''
 HOST = ''
 PORT = 0
 SUPER_USER = 0
+
+DANMAKU_PROCESS = f'path_to_py310_python_executable' + \
+                  f' {getcwd()}/blive_danmaku_report_generator.py'

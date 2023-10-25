@@ -1,5 +1,6 @@
 import asyncio
 from json import loads
+from typing import List
 
 import nonebot
 from loguru import logger
@@ -107,6 +108,14 @@ async def do_bilibili_live_fetch():
             await bot.send_group_msg(
                 group_id=int(group),
                 message=await live_notification.convert_live_data_to_string(data))
+
+    unpickled_danmaku_datas = live_notification.get_dumped_live_data()
+    for danmaku_data in unpickled_danmaku_datas:
+        notified_group: List[str] = loads(danmaku_data.qq_group_dumped)
+        for group in notified_group:
+            await bot.send_group_msg(
+                group_id=int(group),
+                message=live_notification.stringify_danmaku_data(danmaku_data))
 
 
 async def do_dynamic_fetch():
