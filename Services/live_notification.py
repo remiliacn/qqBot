@@ -447,7 +447,11 @@ class BilibiliDynamicNotifcation(LiveNotification):
                         headers=self.headers, cookies=self.cookies) as resp:
                     dynamic_json = await resp.json()
 
+            code = OptionalDict(dynamic_json).map("code").or_else("?")
             logger.info(f'Dynamic json: {OptionalDict(dynamic_json).map("code").or_else("?")}')
+
+            if code != 0:
+                self.cookies = await update_buvid_params()
             for item in OptionalDict(dynamic_json).map('data').map('items').or_else([]):
                 modules = OptionalDict(item).map('modules').or_else({})
                 module_tag = OptionalDict(modules).map('module_tag').map('text').or_else('')

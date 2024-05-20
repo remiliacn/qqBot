@@ -5,9 +5,8 @@ import random
 import struct
 import time
 
+import httpx
 from aiohttp import ClientSession
-
-from Services.util.common_util import HttpxHelperClient
 
 MOD = 1 << 64
 
@@ -324,8 +323,8 @@ async def update_buvid_params() -> dict:
         'Content-Type': 'application/json'
     })
     # get buvid3, buvid4
-    client = HttpxHelperClient(headers=headers)
-    spi_response = await client.get(url=_spi_url, headers=headers)
+    client = httpx.Client(headers=headers)
+    spi_response = client.get(url=_spi_url, headers=headers)
     spi_data = spi_response.json()['data']
 
     # active buvid
@@ -343,3 +342,17 @@ async def update_buvid_params() -> dict:
         async with s.post(url=_exclimbwuzhi_url, headers=headers, data=payload, cookies=cookies) as resp:
             cookies.update(resp.cookies)
     return cookies
+
+
+async def main():
+    cookie = await update_buvid_params()
+    async with ClientSession() as s:
+        async with s.get(
+                url='https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?host_mid=2&offset=',
+                headers=headers, cookies=cookie) as resp:
+            print(await resp.json())
+
+
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())

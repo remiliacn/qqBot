@@ -164,12 +164,11 @@ async def add_ai_real_response(session: CommandSession):
 
     has_image = findall(r'[a-z0-9]+\.image', answer)
     bot = get_bot()
-    if has_image:
-        response = await bot.get_image(file=has_image[0])
+    if session.current_arg_images:
         answer = sub(
             r'.*?file=(.*?\.image)',
             get_downloaded_image_path(
-                response,
+                session.current_arg_images[0],
                 f'{getcwd()}/data/bot/response/'
             ),
             answer
@@ -267,6 +266,7 @@ async def send_answer(session: CommandSession):
                 )
 
 
+# noinspection PyUnresolvedReferences
 @send_answer.args_parser
 async def _send_answer(session: CommandSession):
     stripped_arg = session.current_arg_text
@@ -524,6 +524,7 @@ async def get_answer_info(session: CommandSession):
         await session.send(user_control_module.get_response_info(key_word))
 
 
+# noinspection PyUnresolvedReferences
 @delete_ai_response.args_parser
 @add_monitor_word.args_parser
 @add_blacklist_word.args_parser
@@ -567,6 +568,7 @@ async def unban_someone(session: CommandSession):
         await session.send('您无权进行该操作')
 
 
+# noinspection PyUnresolvedReferences
 @ban_someone.args_parser
 @unban_someone.args_parser
 @add_whitelist.args_parser

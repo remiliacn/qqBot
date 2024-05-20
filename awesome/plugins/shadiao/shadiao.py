@@ -106,11 +106,8 @@ async def add_group_quotes(session: nonebot.CommandSession):
     if '屑bot' in key_word.lower():
         await session.finish('爬')
 
-    bot = nonebot.get_bot()
-    has_image = re.findall(r'[a-z0-9]+\.image', key_word)
-    if has_image:
-        response = await bot.get_image(file=has_image[0])
-        key_word = get_downloaded_image_path(response, f'{os.getcwd()}/data/lol')
+    if session.current_arg_images:
+        key_word = get_downloaded_image_path(session.current_arg_images[0], f'{os.getcwd()}/data/lol')
 
         if key_word:
             admin_group_control.add_quote(get_group_id(ctx), key_word)
@@ -303,7 +300,6 @@ async def set_r18(session: nonebot.CommandSession):
         id_num = get_group_id(ctx)
     else:
         await session.finish('请在需要禁用或开启R18的群内使用本指令')
-        id_num = -1
 
     setting = session.get('stats', prompt='请设置开启或关闭')
 
@@ -500,6 +496,7 @@ async def entertain_switch(session: nonebot.CommandSession):
         await session.finish('已开启娱乐功能！')
 
 
+# noinspection PyUnresolvedReferences
 @check_pcr_drop.args_parser
 @entertain_switch.args_parser
 @clear_group_quotes.args_parser

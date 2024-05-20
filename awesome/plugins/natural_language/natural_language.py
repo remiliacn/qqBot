@@ -37,10 +37,8 @@ async def natural_language_proc(session: nonebot.NLPSession):
 
     if '添加语录' in message:
         bot = nonebot.get_bot()
-        has_image = re.findall(r'[a-z0-9]+\.image', message)
-        if has_image:
-            response = await bot.get_image(file=has_image[0])
-            path = get_downloaded_image_path(response, f'{getcwd()}/data/lol')
+        if session.msg_images:
+            path = get_downloaded_image_path(session.msg_images[0], f'{getcwd()}/data/lol')
 
             if path:
                 admin_group_control.add_quote(group_id, path)

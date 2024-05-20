@@ -1,4 +1,5 @@
 import time
+from asyncio import sleep
 from os import remove, getcwd
 from os.path import exists
 from typing import Union
@@ -15,6 +16,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
+from tqdm import tqdm
 
 from Services.util.ctx_utility import get_user_id, get_group_id
 
@@ -195,34 +197,48 @@ class HttpxHelperClient:
         else:
             self.headers = headers
 
-    async def get(self, url: str, timeout=5.0, headers=None):
+    async def get(self, url: str, timeout=5.0, headers=None, cookies=None, redirect=False):
         headers = headers if headers is not None else self.headers
 
-        async with AsyncClient(timeout=timeout, headers=headers, verify=False) as client:
-            return await client.get(url)
+        async with AsyncClient(timeout=timeout, headers=headers, cookies=cookies) as client:
+            return await client.get(url, follow_redirects=redirect)
 
-    async def post(self, url: str, json=None, headers=None, timeout=10.0):
+    async def post(self, url: str, json: dict, headers=None, timeout=10.0):
         headers = headers if headers is not None else self.headers
         async with AsyncClient(headers=headers, timeout=timeout, default_encoding='utf-8') as client:
-            if json is not None:
-                return await client.post(url, json=json)
+            return await client.post(url, json=json)
 
-            return await client.post(url)
-
-    async def download(self, url: str, file_name: str, timeout=20.0, headers=None):
+    async def download(self, url: str, file_name: str, timeout=20.0, headers=None, retry=0):
         file_name = file_name.replace('\\', '/')
         headers = headers if headers is not None else self.headers
+        if retry > 5:
+            logger.error('Retry exceeds the limit')
+            return '?'
 
+        logger.info(f'Downloading file name: {file_name.split("/")[-1]}')
         try:
             if not exists(file_name):
-                with open(file_name, 'wb') as file:
-                    async with AsyncClient(timeout=timeout, headers=headers) as client:
-                        async with client.stream('GET', url) as response:
-                            async for chunk in response.aiter_bytes():
-                                file.write(chunk)
+                async with AsyncClient(timeout=timeout, headers=headers) as client:
+                    # noinspection PyArgumentList
+                    async with client.stream('GET', url=url, follow_redirects=True) as response:
+                        if response.status_code == 403:
+                            logger.warning(f'Download retry: {retry + 1}, url: {url}')
+                            await sleep(15 * (retry + 1))
+                            return await self.download(url, file_name, timeout, headers, retry + 1)
+                        file_size = int(response.headers['Content-Length'])
+                        with tqdm(total=file_size, unit='B', unit_scale=True, unit_divisor=1024) as progress:
+                            with open(file_name, 'wb') as file:
+                                async for chunk in response.aiter_bytes():
+                                    file.write(chunk)
+                                    progress.update(len(chunk))
 
             return file_name
         except Exception as err:
             logger.warning(f'Download failed in common util download: {err.__class__}')
+            if exists(file_name):
+                logger.warning("Retrying...")
+                remove(file_name)
+
+            await self.download(url, file_name, timeout, headers, retry + 1)
 
         return ''

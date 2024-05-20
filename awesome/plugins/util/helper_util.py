@@ -23,13 +23,12 @@ def set_group_permission(message: str, group_id: Union[str, int], tag: str) -> b
 
 
 def download_image_to_path(response, path):
-    url = response['url']
     image_response = requests.get(
-        url,
+        response,
         stream=True
     )
     image_response.raise_for_status()
-    path = f'{path}/{response["filename"]}'
+    path = f'{path}/{response.split("/")[-2]}.png'
     if not os.path.exists(path):
         with open(path, 'wb') as file:
             file.write(image_response.content)
@@ -37,7 +36,7 @@ def download_image_to_path(response, path):
     return path
 
 
-def get_downloaded_image_path(response: dict, path: str):
+def get_downloaded_image_path(response: str, path: str):
     path = download_image_to_path(response, path)
     resp = str(MessageSegment.image(f'file:///{path}'))
     return resp
