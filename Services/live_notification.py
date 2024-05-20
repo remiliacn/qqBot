@@ -10,9 +10,11 @@ from os import getcwd
 from time import time, time_ns
 from typing import Union, List, Dict
 
+from aiohttp import ClientSession
 from loguru import logger
 from wordcloud import WordCloud
 
+from Services.get_bvid import update_buvid_params
 from Services.util.common_util import HttpxHelperClient, OptionalDict
 from config import DANMAKU_PROCESS
 
@@ -51,6 +53,17 @@ class LiveNotificationData:
 
 class LiveNotification:
     def __init__(self):
+        self.headers = {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',  # noqa
+            'Accept-Charset': 'UTF-8,*;q=0.5',
+            'Accept-Encoding': 'gzip,deflate,sdch',
+            'Accept-Language': 'en-US,en;q=0.8',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)'
+                          ' Chrome/79.0.3945.74 Safari/537.36 Edg/79.0.309.43',
+            # noqa
+            'Referer': 'https://www.bilibili.com/'
+        }
+        self.cookies = None
         self.live_database = sqlite3.connect(f'{getcwd()}/data/db/live_notification_data.db')
         self.bilibili_live_check_url = 'https://api.live.bilibili.com/room/v1/Room/get_info?room_id='
         self._init_database()
@@ -323,10 +336,18 @@ class LiveNotification:
         return live_data_list
 
 
+def create_new_cookie(r1):
+    return f'innersign=0; buvid3={r1["data"]["b_3"]}; b_nut=1704873471;' \
+           f' i-wanna-go-back=-1; b_ut=7; b_lsid=9910433CB_18CF260AB89;' \
+           f' _uuid=312C2F31-1D48-E108C-4232-D7E96B104A8D1070864infoc; enable_web_push=DISABLE; ' \
+           f'header_theme_version=undefined; home_feed_column=4; browser_resolution=839-959;' \
+           f' buvid4={r1["data"]["b_4"]}; buvid_fp=946265982c5f2c530cfed6f97df5cf65'
+
+
 class BilibiliDynamicNotifcation(LiveNotification):
     def __init__(self):
         super().__init__()
-        self.dynamic_url = f'https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?offset=&host_mid='
+        self.dynamic_url = f'https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?host_mid='
         self.TEXT_DYNAMIC_TYPE = 'RICH_TEXT_NODE_TYPE_TEXT'
         self.EMOJI_DYNAMIC_TYPE = 'RICH_TEXT_NODE_TYPE_EMOJI'
         self.AT_DYNAMIC_TYPE = 'RICH_TEXT_NODE_TYPE_AT'
@@ -408,7 +429,6 @@ class BilibiliDynamicNotifcation(LiveNotification):
             """, (name,)
         ).fetchone()
 
-        client = HttpxHelperClient()
         if user_needs_to_be_checked is not None:
             user_name = user_needs_to_be_checked[0]
             is_enabled = user_needs_to_be_checked[1]
@@ -419,13 +439,15 @@ class BilibiliDynamicNotifcation(LiveNotification):
             last_dynamic_id = user_needs_to_be_checked[3]
             last_check_dynamic_time = int(user_needs_to_be_checked[4])
 
-            dynamic_response = await client.get(
-                self.dynamic_url + mid + f'&_={int(time())}',
-                headers={
-                    'Cookie': 'SESSDATA=xie_xie_bilibili.com',
-                    'User-Agent': 'Mozilla/5.0',
-                })
-            dynamic_json = dynamic_response.json()
+            if self.cookies is None:
+                self.cookies = await update_buvid_params()
+            async with ClientSession() as client:
+                async with client.get(
+                        self.dynamic_url + mid + f'&_={int(time())}',
+                        headers=self.headers, cookies=self.cookies) as resp:
+                    dynamic_json = await resp.json()
+
+            logger.info(f'Dynamic json: {OptionalDict(dynamic_json).map("code").or_else("?")}')
             for item in OptionalDict(dynamic_json).map('data').map('items').or_else([]):
                 modules = OptionalDict(item).map('modules').or_else({})
                 module_tag = OptionalDict(modules).map('module_tag').map('text').or_else('')

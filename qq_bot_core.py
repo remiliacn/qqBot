@@ -8,6 +8,7 @@ from nonebot.log import logger
 # 如果下面这行报错，请暂时注释掉这行然后运行下面的main()
 import config
 from Services.cangku_api import CangkuApi
+from Services.live_notification import LiveNotification
 from Services.rate_limiter import RateLimiter
 from Services.simulate_stock import SimulateStock
 from awesome.adminControl import user_control, setu, group_control

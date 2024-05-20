@@ -89,7 +89,7 @@ async def bilibili_dynamic_track(session: nonebot.CommandSession):
     await dynamic_notification.add_to_dynamic_notification_queue(args[0], args[1], args[2])
 
 
-@nonebot.scheduler.scheduled_job('interval', minutes=2, misfire_grace_time=5)
+@nonebot.scheduler.scheduled_job('interval', minutes=1, misfire_grace_time=5)
 async def scheduled_jobs():
     await asyncio.gather(do_bilibili_live_fetch(), do_dynamic_fetch())
 

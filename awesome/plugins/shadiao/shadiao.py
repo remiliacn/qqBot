@@ -10,7 +10,6 @@ from nonebot.message import CanceledException
 from nonebot.plugin import PluginManager
 
 from Services import ark_nights, shadiao, pcr_news
-from Services.rate_limiter import UserLimitModifier
 from Services.util.common_util import HttpxHelperClient
 from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id, get_message_id
 from awesome.Constants import user_permission as perm, group_permission
@@ -83,9 +82,11 @@ async def get_group_quotes(session: nonebot.CommandSession):
     user_id = get_user_id(ctx)
     message_id = ctx['message_id']
 
-    # 两秒内只能查询一次group_quote
-    user_limit = UserLimitModifier(2.0, 1.0, True)
-    rate_limiter_check = await global_rate_limiter.user_limit_check('group_quote', user_id, user_limit)
+    rate_limiter_check = await global_rate_limiter.group_limit_check(
+        'group_quote',
+        get_group_id(ctx),
+        time_period=15,
+        function_limit=2)
     if isinstance(rate_limiter_check, str):
         await session.finish(f'[CQ:reply,id={message_id}]{rate_limiter_check}')
 

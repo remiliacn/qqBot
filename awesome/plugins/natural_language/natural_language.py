@@ -72,6 +72,10 @@ async def natural_language_proc(session: nonebot.NLPSession):
         if match(r'.*?哼{2,}啊+', message):
             await session.send('别臭了别臭了！孩子要臭傻了')
             return
+
+        if fullmatch(r'^(\S)\1need$', message.strip()):
+            await session.send(f'不许{message[0]}')
+            return
         #
         # if '为什么' in message and randint(1, 100) == 1:
         #     await session.send('因为你不厉害')

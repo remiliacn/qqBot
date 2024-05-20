@@ -185,12 +185,15 @@ class OptionalDict:
 
 
 class HttpxHelperClient:
-    def __init__(self):
-        self.headers = {
-            'User-Agent': 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                          'AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/84.0.4147.125 Safari/537.36'
-        }
+    def __init__(self, headers=None):
+        if headers is None:
+            self.headers = {
+                'User-Agent': 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                              'AppleWebKit/537.36 (KHTML, like Gecko) '
+                              'Chrome/84.0.4147.125 Safari/537.36'
+            }
+        else:
+            self.headers = headers
 
     async def get(self, url: str, timeout=5.0, headers=None):
         headers = headers if headers is not None else self.headers
@@ -198,10 +201,13 @@ class HttpxHelperClient:
         async with AsyncClient(timeout=timeout, headers=headers, verify=False) as client:
             return await client.get(url)
 
-    async def post(self, url: str, json: dict, headers=None, timeout=10.0):
+    async def post(self, url: str, json=None, headers=None, timeout=10.0):
         headers = headers if headers is not None else self.headers
         async with AsyncClient(headers=headers, timeout=timeout, default_encoding='utf-8') as client:
-            return await client.post(url, json=json)
+            if json is not None:
+                return await client.post(url, json=json)
+
+            return await client.post(url)
 
     async def download(self, url: str, file_name: str, timeout=20.0, headers=None):
         file_name = file_name.replace('\\', '/')
