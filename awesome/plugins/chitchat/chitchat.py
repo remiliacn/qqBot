@@ -55,12 +55,8 @@ async def add_more_pic(session: nonebot.CommandSession):
     }
 
     path = key_dict[args[0]]
-
-    has_image = re.findall(r'.*?file=(.*?\.image)', args[1])
-    if has_image:
-        bot = nonebot.get_bot()
-        response = await bot.get_image(file=has_image[0])
-        _ = get_downloaded_image_path(response, path)
+    if session.current_arg_images:
+        _ = get_downloaded_image_path(session.current_arg_images[0], path)
         await session.finish('图片已添加！')
 
     await session.finish('你发的smjb玩意……')
@@ -122,6 +118,7 @@ async def vtuber_audio(session: nonebot.CommandSession):
     await session.finish(f'[CQ:record,file=file:///{file}]')
 
 
+# noinspection PyUnresolvedReferences
 @vtuber_audio.args_parser
 async def _(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text

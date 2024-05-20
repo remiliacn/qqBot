@@ -13,8 +13,8 @@ from Services import ark_nights, shadiao, pcr_news
 from Services.util.common_util import HttpxHelperClient
 from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id, get_message_id
 from awesome.Constants import user_permission as perm, group_permission
-from awesome.Constants.function_key import ARKNIGHTS_PULLS, ARKNIGHTS_SINGLE_PULL, ARKNIGHTS_SIX_STAR_PULL, YULU_CHECK, \
-    ARKNIGHTS_BAD_LUCK_PULL, POKER_GAME, SETU, QUESTION, HIT_XP, ROULETTE_GAME, HORSE_RACE
+from awesome.Constants.function_key import ARKNIGHTS_PULLS, ARKNIGHTS_SINGLE_PULL, ARKNIGHTS_SIX_STAR_PULL, \
+    YULU_CHECK, ARKNIGHTS_BAD_LUCK_PULL, POKER_GAME, SETU, QUESTION, HIT_XP, ROULETTE_GAME, HORSE_RACE
 from awesome.plugins.util.helper_util import get_downloaded_image_path, ark_helper, set_group_permission
 from config import SUPER_USER
 from qq_bot_core import admin_group_control, global_rate_limiter
@@ -477,6 +477,7 @@ async def get_xp_stat_data(session: nonebot.CommandSession):
     await session.finish(response)
 
 
+# noinspection PyTestUnpassedFixture
 @nonebot.on_command('娱乐开关', only_to_me=False)
 async def entertain_switch(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -513,6 +514,7 @@ async def _set_group_property(session: nonebot.CommandSession):
     session.state[session.current_key] = stripped_arg
 
 
+# noinspection PyUnresolvedReferences
 @add_ark_op.args_parser
 @up_ten_polls.args_parser
 async def _(session: nonebot.CommandSession):

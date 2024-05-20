@@ -94,6 +94,7 @@ async def reverse_code(session: nonebot.CommandSession):
     else:
         await bot.send_msg(message_type='private', user_id=id_num, message=key_word, auto_escape=True)
 
+
 @nonebot.on_command('好好说话', only_to_me=False)
 async def can_you_be_fucking_normal(session: nonebot.CommandSession):
     start_time = time.time()

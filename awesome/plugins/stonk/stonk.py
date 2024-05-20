@@ -164,7 +164,6 @@ async def my_stonks(session: nonebot.CommandSession):
         user_hold = await virtual_market.get_all_stonk_log_by_user(user_id)
     except ClientConnectionError:
         await session.finish('加载失败，请求过于频繁。')
-        return
 
     await session.finish(
         f'[CQ:reply,id={message_id}]' +
@@ -180,19 +179,18 @@ async def stonk_stat_send(session: nonebot.CommandSession):
         leaderboard = await virtual_market.get_all_user_info(valid_time=60 * 60)
     except ClientConnectionError:
         await session.finish('查询过于频繁，请重试。')
-        return
     except Exception as err:
         bot = nonebot.get_bot()
         logger.error(f'龙虎榜功能未知错误：{err}')
         await bot.send_private_msg(user_id=SUPER_USER, message=f'战绩功能出错：{err}\n{traceback.format_exc()}')
         await session.finish('查询出现未知错误')
-        return
 
     await session.finish(
         f'[CQ:image,file=file:///{await text_to_image(get_attention() + leaderboard)}]'
     )
 
 
+# noinspection PyUnresolvedReferences
 @k_line.args_parser
 @crypto_search.args_parser
 async def _(session: nonebot.CommandSession):

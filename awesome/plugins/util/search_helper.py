@@ -16,10 +16,14 @@ async def get_definition(
     client = HttpxHelperClient()
     response = await client.get(f'{url}{key_word}')
     text = response.text
+    if text is None:
+        return ''
+
     e = etree.HTML(text)
     text_sections = e.xpath(
         f'//*[@id="mw-content-text"]/div[1]/p[{"1" if not recursive else "2"}]//text()'
     )
+
     if len(text_sections) <= 1 and not recursive:
         info_text = await get_definition(
             key_word,

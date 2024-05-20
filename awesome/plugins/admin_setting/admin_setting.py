@@ -162,8 +162,6 @@ async def add_ai_real_response(session: CommandSession):
     if match(r'\$', answer) and not get_privilege(get_user_id(ctx), perm.OWNER):
         await session.finish('您无权封印此语料')
 
-    has_image = findall(r'[a-z0-9]+\.image', answer)
-    bot = get_bot()
     if session.current_arg_images:
         answer = sub(
             r'.*?file=(.*?\.image)',

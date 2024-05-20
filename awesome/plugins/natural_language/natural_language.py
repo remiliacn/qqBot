@@ -1,4 +1,5 @@
 import re
+from asyncio import sleep
 from os import getcwd
 from random import seed, randint
 from re import fullmatch, findall, match, sub
@@ -36,7 +37,6 @@ async def natural_language_proc(session: nonebot.NLPSession):
     message = str(context['raw_message'])
 
     if '添加语录' in message:
-        bot = nonebot.get_bot()
         if session.msg_images:
             path = get_downloaded_image_path(session.msg_images[0], f'{getcwd()}/data/lol')
 
@@ -90,11 +90,11 @@ async def natural_language_proc(session: nonebot.NLPSession):
         #     await session.send(fetch_result)
         #     return
 
-    # fetch_result = await _check_if_asking_definition(message)
-    # if fetch_result:
-    #     sleep_time = len(fetch_result) // 25
-    #     await asyncio.sleep(sleep_time)
-    #     await session.send(fetch_result)
+    fetch_result = await _check_if_asking_definition(message)
+    if fetch_result:
+        sleep_time = len(fetch_result) // 25
+        await sleep(sleep_time)
+        await session.send(fetch_result)
 
 
 async def _get_flash_image_entry(message: str) -> str:
@@ -130,7 +130,15 @@ async def _check_if_asking_definition(message: str) -> str:
                 key_word = sentence
 
             logger.info(f'second pass keyword: {key_word}')
-            result = await search_helper.get_definition(key_word)
+            if key_word == '这':
+                return ''
+
+            try:
+                result = await search_helper.get_definition(key_word)
+            except Exception as err:
+                logger.error(f'No result found on wikipedia {err.__class__}')
+                result = ''
+
             if not result and key_word.isalpha():
                 result = await hhsh(key_word)
 
@@ -159,7 +167,7 @@ def _repeat_and_palindrome_fetch(message: str) -> str:
     repeat_syntax = r'^(.*?)\1+$'
     rand_chance = randint(0, 10)
     if rand_chance > 3:
-        return
+        return ''
 
     if fullmatch(repeat_syntax, message):
         word_repeat = findall(repeat_syntax, message)[0]

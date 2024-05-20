@@ -206,9 +206,6 @@ async def pixiv_send(session: nonebot.CommandSession):
 
     elif '屑bot' in key_word:
         await session.finish('你屑你🐴呢')
-
-    json_result = {}
-
     try:
         if '最新' in key_word:
             json_result = pixiv_api.illust_ranking('week')
@@ -252,7 +249,7 @@ async def pixiv_send(session: nonebot.CommandSession):
     is_work_r18 = illust.sanity_level == 6
     if not allow_r18:
         if is_work_r18 and not key_word.isdigit():
-            # Try 10 times to find a SFW image.
+            # Try 10 times to find an SFW image.
             for i in range(10):
                 illust = random.choice(json_result.illusts)
                 is_work_r18 = illust.sanity_level == 6
@@ -396,7 +393,6 @@ async def get_user_xp_wordcloud(session: nonebot.CommandSession):
         cloud_img_path = await get_word_cloud_img(pixiv_api, pixiv_id)
     except PixivError:
         await session.finish('P站请求失败！请重新使用本指令！')
-        return
 
     message_id = ctx['message_id']
     messages = compile_forward_message(session.self_id, f'[CQ:reply,id={message_id}]\n' +
@@ -645,6 +641,7 @@ async def cangku_search(session: nonebot.CommandSession):
     await session.finish(dissect_to_string)
 
 
+# noinspection PyUnresolvedReferences
 @pixiv_send.args_parser
 @cangku_search.args_parser
 async def _(session: nonebot.CommandSession):
@@ -660,6 +657,7 @@ async def _(session: nonebot.CommandSession):
     session.state[session.current_key] = stripped_arg
 
 
+# noinspection PyUnresolvedReferences
 @set_black_list_group.args_parser
 async def _set_group_property(session: nonebot.CommandSession):
     stripped_arg = session.current_arg_text
