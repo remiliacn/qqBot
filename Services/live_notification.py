@@ -285,7 +285,8 @@ class LiveNotification:
             .map('user_cover') \
             .or_else(None)
         if thumbnail_url is not None:
-            stream_thumbnail_filename = f'{getcwd()}/data/bilibiliPic/{thumbnail_url.split("/")[-1]}'
+            stream_thumbnail_filename = \
+                f'{getcwd()}/data/bilibiliPic/{thumbnail_url.split("/")[-1].replace("]", "").replace("[", "")}'
             await client.download(thumbnail_url, file_name=stream_thumbnail_filename)
         else:
             stream_thumbnail_filename = ''
@@ -464,7 +465,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
                 if dynamic_type == self.LIVESTREAM_DYNAMIC_TYPE:
                     continue
 
-                # Reverted to one of the past dynamic for some reasons
+                # Reverted to one of the past dynamic for some reason
                 # Possibly because a dynamic being deleted or revoked.
                 if dynamic_time <= last_check_dynamic_time:
                     break
@@ -522,15 +523,17 @@ class BilibiliDynamicNotifcation(LiveNotification):
     async def _fetch_content_in_text_node(self, rich_text_node):
         orig_text = ''
         for text_node in rich_text_node:
-            orig_text += OptionalDict(text_node).map('orig_text').or_else('')
             node_type = OptionalDict(text_node).map('type').or_else('')
+            if node_type != self.EMOJI_DYNAMIC_TYPE:
+                orig_text += OptionalDict(text_node).map('orig_text').or_else('')
             if node_type == self.AT_DYNAMIC_TYPE:
                 at_text = OptionalDict(text_node).map('orig_text').or_else('')
                 orig_text += '@' if '@' not in at_text else '' \
                                                             + OptionalDict(text_node).map('orig_text').or_else('') + ' '
             elif node_type == self.EMOJI_DYNAMIC_TYPE:
-                file_name = f"{getcwd()}/data/bilibiliPic/" \
-                            f"{OptionalDict(text_node).map('emoji').map('text').or_else(str(time()))}.jpg"
+                file_name = (f"{getcwd()}/data/bilibiliPic/"
+                             f"{OptionalDict(text_node).map('emoji').map('text').or_else(str(time()))}.jpg"
+                             .replace('[', '').replace(']', ''))
                 file_url = OptionalDict(text_node).map('emoji').map('icon_url').or_else('')
                 if file_url:
                     client = HttpxHelperClient()
