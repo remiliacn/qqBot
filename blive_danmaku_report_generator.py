@@ -77,7 +77,7 @@ class MyDanmakuHandler(BaseHandler):
                 qq_group_dumped=self.group_ids,
                 like_received_count=self.like_received_count,
                 gift_received_count=self.gift_received_count,
-                highest_rank=self.highest_rank if self.highest_rank > 100 else '未知'
+                highest_rank=self.highest_rank if self.highest_rank <= 100 else '未知'
             )), 'base64').decode()
             live_notification.dump_live_data(pickled_data)
             exit(1)
