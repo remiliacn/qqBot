@@ -10,7 +10,7 @@ import aiohttp
 import brotli
 from loguru import logger
 
-from .. import handlers, utils
+from blivedm import utils
 
 USER_AGENT = (
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36'
@@ -101,7 +101,7 @@ class WebSocketClientBase:
         self._heartbeat_interval = heartbeat_interval
 
         self._need_init_room = True
-        self._handler: Optional[handlers.HandlerInterface] = None
+        self._handler = None
         """消息处理器"""
         self._get_reconnect_interval: Callable[[int], float] = DEFAULT_RECONNECT_POLICY
         """重连间隔时间增长策略"""
@@ -131,7 +131,7 @@ class WebSocketClientBase:
         """
         return self._room_id
 
-    def set_handler(self, handler: Optional['handlers.HandlerInterface']):
+    def set_handler(self, handler):
         """
         设置消息处理器
 

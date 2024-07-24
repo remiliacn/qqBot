@@ -79,6 +79,11 @@ async def get_group_quotes(session: nonebot.CommandSession):
     if 'group_id' not in ctx:
         await session.finish()
 
+    group_id = get_group_id(ctx)
+    permission_check_succeed = admin_group_control.get_group_permission(group_id, group_permission.NLP)
+    if not permission_check_succeed:
+        await session.finish('本群的语录功能已被关闭，请联系群管理。')
+
     user_id = get_user_id(ctx)
     message_id = ctx['message_id']
 

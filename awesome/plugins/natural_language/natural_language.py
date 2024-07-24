@@ -1,5 +1,4 @@
 import re
-from asyncio import sleep
 from os import getcwd
 from random import seed, randint
 from re import fullmatch, findall, match, sub
@@ -90,11 +89,11 @@ async def natural_language_proc(session: nonebot.NLPSession):
         #     await session.send(fetch_result)
         #     return
 
-    fetch_result = await _check_if_asking_definition(message)
-    if fetch_result:
-        sleep_time = len(fetch_result) // 25
-        await sleep(sleep_time)
-        await session.send(fetch_result)
+    # fetch_result = await _check_if_asking_definition(message)
+    # if fetch_result:
+    #     sleep_time = len(fetch_result) // 25
+    #     await sleep(sleep_time)
+    #     await session.send(fetch_result)
 
 
 async def _get_flash_image_entry(message: str) -> str:

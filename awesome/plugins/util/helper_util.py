@@ -1,5 +1,6 @@
 import json
 import os
+from time import time
 from typing import Union
 
 import requests
@@ -28,7 +29,11 @@ def download_image_to_path(response, path):
         stream=True
     )
     image_response.raise_for_status()
-    path = f'{path}/{response.split("/")[-2]}.png'
+    if 'multimedia.nt' not in response:
+        path = f'{path}/{response.split("/")[-2]}.png'
+    else:
+        path = f'{path}/{time()}.png'
+
     if not os.path.exists(path):
         with open(path, 'wb') as file:
             file.write(image_response.content)
