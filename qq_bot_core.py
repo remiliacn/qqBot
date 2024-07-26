@@ -1,3 +1,4 @@
+import sqlite3
 from json import dump
 from os import path, getcwd, mkdir
 from time import sleep
@@ -8,7 +9,6 @@ from nonebot.log import logger
 # 如果下面这行报错，请暂时注释掉这行然后运行下面的main()
 import config
 from Services.cangku_api import CangkuApi
-from Services.live_notification import LiveNotification
 from Services.rate_limiter import RateLimiter
 from Services.simulate_stock import SimulateStock
 from awesome.adminControl import user_control, setu, group_control
@@ -61,6 +61,7 @@ user_control_module = user_control.UserControl()
 setu_control = setu.SetuFunction()
 admin_group_control = group_control.GroupControlModule()
 weeb_learning = WeebController()
+temp_message_db = sqlite3.connect(f'{getcwd()}/data/db/temp_messages.db')
 
 global_rate_limiter = RateLimiter()
 
@@ -118,7 +119,21 @@ def create_file(path_to_check: str, dump_data=None):
             dump(dump_data, f, indent=4, ensure_ascii=False)
 
 
+def _create_temp_message_db():
+    temp_message_db.execute(
+        """
+create table if not exists temp_messages
+(
+    uid            text unique on conflict ignore,
+    message_content         text,
+    group_to_notify         text
+)
+        """
+    )
+
+
 def main():
+    _create_temp_message_db()
     # 记着生成config文件后把本文件的import config去掉注释
     nonebot.init(config)
     nonebot.log.logger.setLevel('WARNING')

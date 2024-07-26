@@ -1,3 +1,4 @@
+import dataclasses
 import time
 from asyncio import sleep
 from os import remove, getcwd
@@ -5,6 +6,7 @@ from os.path import exists
 from typing import Union
 
 import markdown2
+from aiocqhttp import CQHttp
 from httpx import AsyncClient
 from loguru import logger
 from lxml import html
@@ -19,6 +21,17 @@ from selenium.webdriver.support.wait import WebDriverWait
 from tqdm import tqdm
 
 from Services.util.ctx_utility import get_user_id, get_group_id
+
+
+@dataclasses.dataclass
+class Status:
+    is_success: bool
+    message: any
+
+
+@dataclasses.dataclass
+class TwitchDownloadStatus(Status):
+    file_path: str
 
 
 def chunk_string(string, length):
