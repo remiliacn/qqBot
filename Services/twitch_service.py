@@ -17,7 +17,7 @@ from youtube_dl.utils import sanitize_filename
 
 from Services.live_notification import LiveNotificationData
 from Services.util.common_util import OptionalDict, HttpxHelperClient, Status, TwitchDownloadStatus
-from config import SUPER_USER, PATH_TO_ONEDRIVE, SHARE_LINK
+from config import SUPER_USER, PATH_TO_ONEDRIVE, SHARE_LINK, CLOUD_STORAGE_SIZE_LIMIT_GB
 
 
 class TwitchLiveData:
@@ -235,7 +235,6 @@ class TwitchClipInstruction:
 class TwitchClippingService:
     def __init__(self):
         self.TIMESTAMP_FORMAT = re.compile(r'\d{2}[：:]\d{2}[：:]\d{2}')
-        self.SIZE_LIMIT_GB = 4.8
 
     async def analyze_clip_comment(self, message_arg: str) -> Status:
         message_arg = message_arg.split()
@@ -264,10 +263,36 @@ class TwitchClippingService:
         start_time = start_time.replace('：', ':')
         end_time = end_time.replace('：', ':')
 
+        validate_start_time = await self._validate_timestamp(start_time)
+        validate_end_time = await self._validate_timestamp(end_time)
+
+        if not validate_end_time.is_success:
+            return validate_end_time
+
+        if not validate_start_time.is_success:
+            return validate_start_time
+
         return Status(True, TwitchClipInstruction(video_id, start_time, end_time))
 
-    async def _check_space_used(self):
-        size_limit_bytes = self.SIZE_LIMIT_GB * (1024 ** 3)
+    @staticmethod
+    async def _validate_timestamp(timestamp: str) -> Status:
+        hour, minute, second = timestamp.split(':')
+        hour = int(hour)
+        minute = int(minute)
+        second = int(second)
+
+        if hour < 0:
+            return Status(False, '你在干嘛？')
+        if minute < 0 or minute > 59:
+            return Status(False, '你在干嘛？')
+        if second < 0 or second > 59:
+            return Status(False, '你在干嘛？')
+
+        return Status(True, None)
+
+    @staticmethod
+    async def _check_space_used():
+        size_limit_bytes = CLOUD_STORAGE_SIZE_LIMIT_GB * (1024 ** 3)
         for root, _, files in walk(f'{getcwd()}/data/twitch'):
             for file in files:
                 file_path = path.join(root, file)
