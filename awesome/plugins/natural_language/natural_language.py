@@ -16,10 +16,9 @@ from loguru import logger
 from Services.util.common_util import compile_forward_message, markdown_to_image
 from Services.util.ctx_utility import get_group_id
 from Services.util.sauce_nao_helper import sauce_helper
-from awesome.plugins.util.helper_util import anime_reverse_search_response, get_downloaded_image_path
+from awesome.plugins.util.helper_util import anime_reverse_search_response, get_downloaded_image_qr_code
 from qq_bot_core import admin_group_control, user_control_module
 from ..little_helper.little_helper import hhsh
-from ..util import search_helper
 from ...Constants import user_permission as perm, group_permission
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
@@ -37,7 +36,7 @@ async def natural_language_proc(session: nonebot.NLPSession):
 
     if '添加语录' in message:
         if session.msg_images:
-            path = get_downloaded_image_path(session.msg_images[0], f'{getcwd()}/data/lol')
+            path = get_downloaded_image_qr_code(session.msg_images[0], f'{getcwd()}/data/lol')
 
             if path:
                 admin_group_control.add_quote(group_id, path)
@@ -89,11 +88,9 @@ async def natural_language_proc(session: nonebot.NLPSession):
         #     await session.send(fetch_result)
         #     return
 
-    # fetch_result = await _check_if_asking_definition(message)
-    # if fetch_result:
-    #     sleep_time = len(fetch_result) // 25
-    #     await sleep(sleep_time)
-    #     await session.send(fetch_result)
+        fetch_result = await _check_if_asking_definition(message)
+        if fetch_result:
+            await session.send(fetch_result)
 
 
 async def _get_flash_image_entry(message: str) -> str:
@@ -132,13 +129,8 @@ async def _check_if_asking_definition(message: str) -> str:
             if key_word == '这':
                 return ''
 
-            try:
-                result = await search_helper.get_definition(key_word)
-            except Exception as err:
-                logger.error(f'No result found on wikipedia {err.__class__}')
-                result = ''
-
-            if not result and key_word.isalpha():
+            result = ''
+            if key_word.isalpha():
                 result = await hhsh(key_word)
 
             return result

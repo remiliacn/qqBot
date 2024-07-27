@@ -9,13 +9,13 @@ from loguru import logger
 from nonebot import CommandSession, on_command, get_bot
 
 import config
-from Services.util.common_util import is_float, check_if_number_user_id, HttpxHelperClient
+from Services.util.common_util import is_float, check_if_number_user_id
 from Services.util.ctx_utility import get_user_id, get_group_id, get_nickname
 from awesome.Constants import user_permission as perm, group_permission
 from awesome.Constants.function_key import QUESTION
 from awesome.Constants.user_permission import OWNER
 from awesome.plugins.shadiao.shadiao import setu_control
-from awesome.plugins.util.helper_util import get_downloaded_image_path, set_group_permission
+from awesome.plugins.util.helper_util import get_downloaded_image_qr_code, set_group_permission
 from qq_bot_core import user_control_module
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
@@ -165,7 +165,7 @@ async def add_ai_real_response(session: CommandSession):
     if session.current_arg_images:
         answer = sub(
             r'.*?file=(.*?\.image)',
-            get_downloaded_image_path(
+            get_downloaded_image_qr_code(
                 session.current_arg_images[0],
                 f'{getcwd()}/data/bot/response/'
             ),
@@ -248,20 +248,8 @@ async def send_answer(session: CommandSession):
         else:
             logger.info("It is not a normal question.")
             ai_process = _simple_ai_process(question, ctx)
-            if question == ai_process:
-                response = await _request_api_response(question)
-                await session.send(
-                    response +
-                    f'\n'
-                    f'回答用时：{(time() - start_time):.2f}s'
-                )
-
-            else:
-                await session.send(
-                    ai_process +
-                    f'\n'
-                    f'回答用时：{(time() - start_time):.2f}s'
-                )
+            if question != ai_process:
+                await session.send(ai_process + f'\n回答用时：{(time() - start_time):.2f}s')
 
 
 # noinspection PyUnresolvedReferences
@@ -471,62 +459,9 @@ def _prefetch(question: str, user_id: int) -> str:
     return ''
 
 
-async def _request_api_response(question: str) -> str:
-    client = HttpxHelperClient()
-    response = ''
-    if '鸡汤' in question:
-        page = await client.get('https://api.daidr.me/apis/poisonous')
-        response = page.text
-
-    else:
-        try:
-            page = await client.post('https://api.mlyai.com/reply', headers={
-                'Api-Key': config.ITPK_KEY,
-                'Api-Secret': config.ITPK_SECRET,
-                'Content-Type': 'application/json;charset=UTF-8'
-            }, json={
-                'content': question,
-                'type': 2,
-                'from': '1',
-                'to': '2'
-            })
-            data = page.json()
-            if 'code' in data and data['code'] == '00000':
-                return data['data'][0]['content']
-
-        except Exception as err:
-            logger.warning(err)
-            response = '我还不太会回答这个问题哦！不如换种问法？'
-
-    return response
-
-
-@on_command('移除语料', only_to_me=False)
-async def delete_ai_response(session: CommandSession):
-    ctx = session.ctx.copy()
-    if get_privilege(get_user_id(ctx), perm.WHITELIST):
-        key_word = session.get('key_word', prompt='请输入要移除的语料')
-        if user_control_module.delete_response(key_word):
-            await session.send('已删除该语料')
-        else:
-            await session.send('语料删除失败，关键词未找到。')
-    else:
-        await session.send('您无权删除语料。')
-
-
-@on_command('语料查询', only_to_me=False)
-async def get_answer_info(session: CommandSession):
-    context = session.ctx.copy()
-    if get_privilege(context['user_id'], perm.WHITELIST):
-        key_word = session.get('key_word', prompt='请输入需要查询的预料关键词')
-        await session.send(user_control_module.get_response_info(key_word))
-
-
 # noinspection PyUnresolvedReferences
-@delete_ai_response.args_parser
 @add_monitor_word.args_parser
 @add_blacklist_word.args_parser
-@get_answer_info.args_parser
 async def _delete_ai_response(session: CommandSession):
     stripped_arg = session.current_arg_text
     if session.is_first_run:

@@ -9,18 +9,17 @@ from aiocqhttp import MessageSegment
 from nonebot.message import CanceledException
 from nonebot.plugin import PluginManager
 
-from Services import ark_nights, shadiao, pcr_news
+from Services import ark_nights, shadiao
 from Services.util.common_util import HttpxHelperClient
 from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id, get_message_id
 from awesome.Constants import user_permission as perm, group_permission
 from awesome.Constants.function_key import ARKNIGHTS_PULLS, ARKNIGHTS_SINGLE_PULL, ARKNIGHTS_SIX_STAR_PULL, \
     YULU_CHECK, ARKNIGHTS_BAD_LUCK_PULL, POKER_GAME, SETU, QUESTION, HIT_XP, ROULETTE_GAME, HORSE_RACE
-from awesome.plugins.util.helper_util import get_downloaded_image_path, ark_helper, set_group_permission
+from awesome.plugins.util.helper_util import get_downloaded_image_qr_code, ark_helper, set_group_permission
 from config import SUPER_USER
 from qq_bot_core import admin_group_control, global_rate_limiter
-from qq_bot_core import user_control_module, setu_control, weeb_learning
+from qq_bot_core import user_control_module, setu_control
 
-pcr_api = pcr_news.GetPCRNews()
 arknights_api = ark_nights.ArkHeadhunt(times=10)
 ark_pool_pity = ark_nights.ArknightsPity()
 
@@ -112,7 +111,7 @@ async def add_group_quotes(session: nonebot.CommandSession):
         await session.finish('爬')
 
     if session.current_arg_images:
-        key_word = get_downloaded_image_path(session.current_arg_images[0], f'{os.getcwd()}/data/lol')
+        key_word = get_downloaded_image_qr_code(session.current_arg_images[0], f'{os.getcwd()}/data/lol')
 
         if key_word:
             admin_group_control.add_quote(get_group_id(ctx), key_word)
@@ -185,72 +184,6 @@ async def message_preprocessing(_: nonebot.NoneBot, event: aiocqhttp.event, __: 
             raise CanceledException('User disabled')
 
 
-@nonebot.on_command('来点怪话', only_to_me=False)
-async def say_something_weird(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    msg = ctx['raw_message']
-    args = msg.split()
-    if len(args) != 2:
-        return
-
-    response = weeb_learning.get_weeb_reply_by_keyword(args[1])
-    if isinstance(response, list):
-        response = random.choice(response)
-
-    await session.send(response)
-
-
-@nonebot.on_command('我教你怪话', only_to_me=False)
-async def teach_you_weeb_shit(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    msg = ctx['raw_message']
-    args = msg.split()
-
-    if len(args) < 3:
-        await session.finish('使用方法应该是：！我教你怪话 {关键词} {二刺猿的答复}')
-
-    response = ' '.join(args[2:])
-
-    uuid, keyword, response = weeb_learning.set_weeb_word_wait_approve(keyword=args[1], response=response)
-    if uuid:
-        await session.send('已汇报给机器人的主人！请等待审批！')
-        bot = nonebot.get_bot()
-        await bot.send_private_msg(
-            user_id=SUPER_USER,
-            message=f'新的二刺猿语录等待审批：\n'
-                    f'uuid: {uuid}\n'
-                    f'关键词：{keyword}\n'
-                    f'回复：{response}\n'
-                    f'添加人qq：{get_user_id(ctx)}\n'
-                    f'添加人昵称：{get_nickname(ctx)}\n'
-                    f'来自群：{get_group_id(ctx)}'
-        )
-    else:
-        await session.finish('已检测到该词条存在，将拒绝添加。')
-
-
-@nonebot.on_command('决定怪话', only_to_me=False)
-async def decision_on_weeb_shit(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    user_id = get_user_id(ctx)
-    if not get_privilege(user_id, perm.OWNER):
-        await session.finish('您无权使用本命令')
-
-    message = ctx['raw_message']
-    args = message.split()
-    if len(args) != 3:
-        await session.finish('使用方法：！决定怪话 {uuid} {y/n}')
-
-    uuid = args[1]
-    decision = args[2].lower()
-    decision = decision == 'y'
-
-    if weeb_learning.set_weeb_word_to_main_dict(uuid, decision):
-        await session.finish('完成！')
-
-    await session.finish('添加失败（uuid不存在或重复添加语录）')
-
-
 @nonebot.on_command('你群有多色', only_to_me=False)
 async def get_setu_stat(session: nonebot.CommandSession):
     ctx = session.ctx.copy()
@@ -311,13 +244,6 @@ async def set_r18(session: nonebot.CommandSession):
     set_group_permission(setting, id_num, group_permission.ALLOW_R18)
 
     await session.finish('Done!')
-
-
-@nonebot.on_command('掉落查询', only_to_me=False)
-async def check_pcr_drop(session: nonebot.CommandSession):
-    query = session.get('group_id', prompt='请输入要查询的道具名称')
-    response = await pcr_api.pcr_check(query=query)
-    await session.finish(response)
 
 
 @nonebot.on_command('方舟十连', only_to_me=False)
@@ -503,7 +429,6 @@ async def entertain_switch(session: nonebot.CommandSession):
 
 
 # noinspection PyUnresolvedReferences
-@check_pcr_drop.args_parser
 @entertain_switch.args_parser
 @clear_group_quotes.args_parser
 async def _set_group_property(session: nonebot.CommandSession):

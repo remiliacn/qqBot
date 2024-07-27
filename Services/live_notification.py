@@ -449,7 +449,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
                     dynamic_json = await resp.json()
 
             code = OptionalDict(dynamic_json).map("code").or_else("?")
-            logger.info(f'Dynamic json: {OptionalDict(dynamic_json).map("code").or_else("?")}')
+            logger.info(f'Dynamic json for {name}: {OptionalDict(dynamic_json).map("code").or_else("?")}')
 
             if code != 0:
                 self.cookies = await update_buvid_params()

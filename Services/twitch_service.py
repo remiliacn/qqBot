@@ -12,6 +12,7 @@ from time import time
 from typing import Union, List
 
 from loguru import logger
+from nonebot import CommandSession
 from twitchdl import twitch
 from youtube_dl.utils import sanitize_filename
 
@@ -204,25 +205,18 @@ create table if not exists live_notification_twitch
             notify_data = await self.get_twitch_if_live(streamer_name)
             if last_record_state != notify_data.is_live:
                 if notify_data.is_live:
+                    logger.success(f'{streamer_name} is live')
                     notify_data.set_live_change_status('开播啦！')
                     live_data_list.append(notify_data)
                 else:
                     notify_data = LiveNotificationData(streamer_name, False)
+                    logger.success(f'{streamer_name} is gone!!!!')
                     notify_data.set_live_change_status('下播啦！')
                     live_data_list.append(notify_data)
 
                 await self.update_live_status(streamer_name, notify_data.is_live)
 
         return live_data_list
-
-    @staticmethod
-    async def _get_twitch_archive_list(channel_name: str) -> dict:
-        total_count, generator = twitch.channel_videos_generator(
-            channel_name, 5, 'time', 'archive', game_ids=[]
-        )
-        videos = list(generator)
-        data = {"count": len(videos), "totalCount": total_count, "videos": videos}
-        return data
 
 
 @dataclasses.dataclass
@@ -236,13 +230,20 @@ class TwitchClippingService:
     def __init__(self):
         self.TIMESTAMP_FORMAT = re.compile(r'\d{2}[：:]\d{2}[：:]\d{2}')
 
-    async def analyze_clip_comment(self, message_arg: str) -> Status:
+    async def analyze_clip_comment(self, message_arg: str, session: CommandSession) -> Status:
         message_arg = message_arg.split()
         if len(message_arg) < 1:
             return Status(False,
                           '指令错误，应该为！切片 视频id 开始时间戳 停切时间戳\n例子：！切片 2206229026 00:00:00 00:05:00')
 
         video_id = message_arg[0]
+        if not video_id.isnumeric():
+            video_list = await self._get_twitch_archive_list(video_id)
+            if not video_list['videos']:
+                return Status(False, '你这是让我切谁呢？要不你给个videoID我再试试？')
+
+            video_id = video_list['videos'][0]['id']
+
         start_time = ''
         end_time = ''
 
@@ -272,7 +273,17 @@ class TwitchClippingService:
         if not validate_start_time.is_success:
             return validate_start_time
 
+        await session.send('我去去就回~')
         return Status(True, TwitchClipInstruction(video_id, start_time, end_time))
+
+    @staticmethod
+    async def _get_twitch_archive_list(channel_name: str) -> dict:
+        total_count, generator = twitch.channel_videos_generator(
+            channel_name, 5, 'time', 'archive', game_ids=[]
+        )
+        videos = list(generator)
+        data = {"count": len(videos), "totalCount": total_count, "videos": videos}
+        return data
 
     @staticmethod
     async def _validate_timestamp(timestamp: str) -> Status:
@@ -303,7 +314,8 @@ class TwitchClippingService:
                                              f' there is not enough space in the disk.')
                 except OSError as err:
                     return Status(False,
-                                  f'Someone tell [CQ:at,qq={SUPER_USER}] there is problem with downloading. {err.__class__}')
+                                  f'Someone tell [CQ:at,qq={SUPER_USER}] '
+                                  f'there is problem with downloading. {err.__class__}')
 
         return Status(True, None)
 

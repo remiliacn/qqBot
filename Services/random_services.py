@@ -1,8 +1,6 @@
 import json
 import os
-import random
 import re
-import time
 from datetime import datetime
 
 from nonebot.log import logger
@@ -11,30 +9,6 @@ from Services.util.common_util import HttpxHelperClient
 
 with open('config/downloader_data.json', 'r') as f:
     JSON_DATA = json.loads(f.read())
-
-
-class Earthquakeinfo:
-    def __init__(self):
-        random.seed(time.time_ns())
-        self.base_url = 'http://news.ceic.ac.cn/ajax/google?rand=%d' % random.randint(0, 5)
-        self.client = HttpxHelperClient()
-
-    async def _get_earth_dict(self):
-        page = await self.client.get(self.base_url, timeout=10)
-        page = page.json()
-        return page[len(page) - 1]
-
-    async def get_newest_info(self):
-        earth_dict = await self._get_earth_dict()
-        return '最新地震情况：\n' \
-               '地震强度：%s级\n' \
-               '发生时间（UTC+8)：%s\n' \
-               '纬度：%s°\n' \
-               '经度：%s°\n' \
-               '震源深度：%skm\n' \
-               '震源位置：%s' % (earth_dict['M'], earth_dict['O_TIME'], earth_dict['EPI_LAT'],
-                            earth_dict['EPI_LON'], earth_dict['EPI_DEPTH'],
-                            earth_dict['LOCATION_C'])
 
 
 class YouTubeLiveTracker:
@@ -214,9 +188,3 @@ class YouTubeLiveTracker:
         JSON_DATA[self.ch_name] = self.live_data
         with open('config/downloader_data.json', 'w+') as file:
             json.dump(JSON_DATA, file, indent=4)
-
-
-if __name__ == '__main__':
-    api = YouTubeLiveTracker('UC9pYOJPB5UYlMlGKKZWo-Bw', 'test')
-    if api.get_live_status():
-        print(api.get_live_details())

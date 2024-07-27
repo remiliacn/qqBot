@@ -23,7 +23,7 @@ def set_group_permission(message: str, group_id: Union[str, int], tag: str) -> b
     return False
 
 
-def download_image_to_path(response, path):
+def _download_image_to_path(response, path):
     image_response = requests.get(
         response,
         stream=True
@@ -41,8 +41,8 @@ def download_image_to_path(response, path):
     return path
 
 
-def get_downloaded_image_path(response: str, path: str):
-    path = download_image_to_path(response, path)
+def get_downloaded_image_qr_code(response: str, path: str):
+    path = _download_image_to_path(response, path)
     resp = str(MessageSegment.image(f'file:///{path}'))
     return resp
 
@@ -57,6 +57,7 @@ def ark_helper(args: list) -> str:
     return ''
 
 
+@DeprecationWarning
 def send_message_with_mini_program(title: str, content: list, image=None, action: list = None) -> str:
     data = {
         "app": "com.tencent.miniapp",
@@ -121,6 +122,7 @@ def anime_reverse_search_response(response_data: dict) -> str:
     return response
 
 
+@DeprecationWarning
 def send_as_xml_message(
         brief: str, title: str, summary: str,
         url: str = None, image: str = None,

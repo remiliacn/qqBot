@@ -6,15 +6,10 @@ from aiocache.serializers import PickleSerializer
 from aiocqhttp import MessageSegment
 from loguru import logger
 
-from Services import random_services
-from Services.keylol_update import KeylolFreeGame
 from Services.util.common_util import HttpxHelperClient, markdown_to_image
 from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
-from awesome.Constants import user_permission as perm
 from awesome.Constants.function_key import HHSH_FUNCTION
 from awesome.plugins.shadiao.shadiao import setu_control
-from awesome.plugins.util import search_helper
-from qq_bot_core import user_control_module
 
 
 @nonebot.on_command('markdown', aliases={'md'}, only_to_me=False)
@@ -32,15 +27,7 @@ async def markdown_text_to_image(session: nonebot.CommandSession):
 
 @nonebot.on_command('搜索', only_to_me=False)
 async def search_command(session: nonebot.CommandSession):
-    arg = session.current_arg
-    if not arg:
-        await session.finish('你在干神魔？')
-
-    result = await search_helper.get_definition(arg)
-    if result:
-        await session.finish(result)
-
-    await session.finish('找不到，自己查罢。')
+    await session.finish('改功能已被废弃，请使用！灵夜。')
 
 
 @nonebot.on_command('help', only_to_me=False)
@@ -50,24 +37,6 @@ async def send_help(session: nonebot.CommandSession):
         'https://github.com/remiliacn/Lingye-Bot/blob/master/README.md\n'
         '如果有新功能想要添加，请提交issue!'
     )
-
-
-@nonebot.on_command('免费游戏', only_to_me=False)
-async def get_free_game(session: nonebot.CommandSession):
-    keylol = KeylolFreeGame()
-    await keylol.get_update()
-    await session.send(keylol.get_free_game_list())
-
-
-@nonebot.on_command('最新地震', only_to_me=False)
-async def send_earth_quake_info(session: nonebot.CommandSession):
-    ctx = session.ctx.copy()
-    if user_control_module.get_user_privilege(get_user_id(ctx), perm.BANNED):
-        await session.finish('略略略，我主人把你拉黑了。哈↑哈↑哈')
-
-    earth_quake_api_new = random_services.Earthquakeinfo()
-    new_earthquake_info = await earth_quake_api_new.get_newest_info()
-    await session.send(new_earthquake_info)
 
 
 @nonebot.on_command('反码', only_to_me=False)
@@ -145,18 +114,20 @@ async def hhsh(entry: str) -> str:
         print(e)
         return ''
 
-    result = '这个缩写可能的意味有：\n'
-    try:
-        for element in json_data:
-            result += f'当缩写为{element["name"]}时，其意味可以是：\n{"，".join(element["trans"])}\n'
-
-    except KeyError:
+    result = ''
+    if json_data:
+        result = '这个缩写可能的意味有：\n'
         try:
-            return result + json_data[0]['inputting'][0]
+            for element in json_data:
+                result += f'当缩写为{element["name"]}时，其意味可以是：\n{"，".join(element["trans"])}\n'
+
         except KeyError:
-            return '这……我也不懂啊草，能不能好好说话（'
-    except Exception as err:
-        logger.info(f'hhsh err: {err}')
-        return ''
+            try:
+                return result + json_data[0]['inputting'][0]
+            except KeyError:
+                return '这……我也不懂啊草，能不能好好说话（'
+        except Exception as err:
+            logger.info(f'hhsh err: {err}')
+            return ''
 
     return result.strip()
