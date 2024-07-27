@@ -13,7 +13,7 @@ from aiocache.serializers import PickleSerializer
 from aiocqhttp import ActionFailed, MessageSegment
 from loguru import logger
 
-from Services.util.common_util import compile_forward_message, markdown_to_image
+from Services.util.common_util import compile_forward_message, markdown_to_image, OptionalDict
 from Services.util.ctx_utility import get_group_id
 from Services.util.sauce_nao_helper import sauce_helper
 from awesome.plugins.util.helper_util import anime_reverse_search_response, get_downloaded_image_qr_code
@@ -242,22 +242,18 @@ async def _do_soutu_operation(message: str) -> str:
     response = ''
     bot = nonebot.get_bot()
     data = await bot.get_msg(message_id=int(reply_id[0]))
-    possible_image_content = data['message']
-    if not possible_image_content:
-        possible_image_content = data['raw_message'] if 'raw_message' in data else ''
-
-    has_image = findall(r'[a-z0-9]+\.image', possible_image_content)
-    if has_image:
-        for idx, element in enumerate(has_image):
-            image = await bot.get_image(file=element)
-            url = image['url']
+    possible_image_content = OptionalDict(data).map('message').or_else('')
+    if isinstance(possible_image_content, list) and possible_image_content:
+        possible_image_content = [OptionalDict(x).map('data').map('url').or_else('') for x in possible_image_content]
+        possible_image_content = [x for x in possible_image_content if x]
+        for idx, url in enumerate(possible_image_content):
             logger.info(f'URL extracted: {url}')
             try:
                 response_data = await sauce_helper(url)
                 if not response_data:
                     response += f'图片{idx + 1}无法辨别的说！'
                 else:
-                    response += f'==={idx + 1}===\n' if len(has_image) > 1 else ''
+                    response += f'==={idx + 1}===\n' if len(possible_image_content) > 1 else ''
                     response += anime_reverse_search_response(response_data)
 
             except Exception as err:

@@ -23,6 +23,11 @@ def set_group_permission(message: str, group_id: Union[str, int], tag: str) -> b
     return False
 
 
+def get_downloaded_image_qr_code(response: str, path: str):
+    path = _download_image_to_path(response, path)
+    resp = str(MessageSegment.image(f'file:///{path}'))
+    return resp
+
 def _download_image_to_path(response, path):
     image_response = requests.get(
         response,
@@ -41,10 +46,6 @@ def _download_image_to_path(response, path):
     return path
 
 
-def get_downloaded_image_qr_code(response: str, path: str):
-    path = _download_image_to_path(response, path)
-    resp = str(MessageSegment.image(f'file:///{path}'))
-    return resp
 
 
 def ark_helper(args: list) -> str:
