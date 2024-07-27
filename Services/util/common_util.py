@@ -6,7 +6,6 @@ from os.path import exists
 from typing import Union
 
 import markdown2
-from aiocqhttp import CQHttp
 from httpx import AsyncClient
 from loguru import logger
 from lxml import html
@@ -32,6 +31,22 @@ class Status:
 @dataclasses.dataclass
 class TwitchDownloadStatus(Status):
     file_path: str
+
+
+@dataclasses.dataclass
+class DiscordMessageStatus(Status):
+    group_to_notify: str = ''
+    has_update: bool = False
+    is_edit: bool = False
+
+
+@dataclasses.dataclass
+class DiscordGroupNotification(Status):
+    has_update: bool
+    group_to_notify: str
+    channel_name: str
+    channel_id: str
+    is_edit: bool
 
 
 def chunk_string(string, length):

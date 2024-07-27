@@ -1,5 +1,6 @@
 import sqlite3
 from json import dump
+from logging import getLogger, ERROR
 from os import path, getcwd, mkdir
 from time import sleep
 
@@ -12,7 +13,6 @@ from Services.cangku_api import CangkuApi
 from Services.rate_limiter import RateLimiter
 from Services.simulate_stock import SimulateStock
 from awesome.adminControl import user_control, setu, group_control
-from awesome.adminControl.weeb_controller import WeebController
 
 config_file = \
     """
@@ -60,7 +60,6 @@ config_file = \
 user_control_module = user_control.UserControl()
 setu_control = setu.SetuFunction()
 admin_group_control = group_control.GroupControlModule()
-weeb_learning = WeebController()
 temp_message_db = sqlite3.connect(f'{getcwd()}/data/db/temp_messages.db')
 
 global_rate_limiter = RateLimiter()
@@ -144,6 +143,7 @@ def main():
     )
 
     logger.warning('Plugins successfully installed.')
+    getLogger('asyncio').setLevel(ERROR)
     nonebot.run()
 
 

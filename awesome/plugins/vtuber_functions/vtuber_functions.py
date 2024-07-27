@@ -5,10 +5,12 @@ from typing import List
 import nonebot
 from loguru import logger
 
+from Services.discord_service import DiscordService
 from Services.live_notification import LiveNotification, BilibiliDynamicNotifcation
 from Services.twitch_service import TwitchService, TwitchClippingService
 from Services.util.ctx_utility import get_user_id, get_group_id
 from awesome.Constants.user_permission import ADMIN
+from config import SUPER_USER
 from qq_bot_core import user_control_module
 
 get_privilege = lambda x, y: user_control_module.get_user_privilege(x, y)
@@ -16,6 +18,7 @@ live_notification = LiveNotification()
 twitch_notification = TwitchService()
 dynamic_notification = BilibiliDynamicNotifcation()
 twitch_clipping = TwitchClippingService()
+discord_notification = DiscordService()
 
 
 async def start_verification(session: nonebot.CommandSession):
@@ -68,17 +71,16 @@ async def bilibili_live_tracking(session: nonebot.CommandSession):
 
 @nonebot.on_command('切片', only_to_me=False)
 async def twitch_live_tracking(session: nonebot.CommandSession):
-    if not await start_verification(session):
+    group_id = get_group_id(session.ctx.copy())
+    if group_id == -1:
         return
 
     args = session.current_arg_text
-    verification_status = await twitch_clipping.analyze_clip_comment(args)
+    verification_status = await twitch_clipping.analyze_clip_comment(args, session)
     if not verification_status.is_success:
         await session.finish(verification_status.message)
 
     download_status = await twitch_clipping.download_twitch_videos(verification_status.message)
-    # if download_status.is_success:
-    #     await session.send(MessageSegment.video(f'file:///{download_status.file_path}'))
     await session.finish(download_status.message)
 
 
@@ -133,23 +135,46 @@ async def bilibili_dynamic_track(session: nonebot.CommandSession):
 
 @nonebot.scheduler.scheduled_job('interval', minutes=1, misfire_grace_time=5)
 async def scheduled_jobs():
-    await asyncio.gather(do_bilibili_live_fetch(), do_dynamic_fetch(), do_twitch_live_fetch())
+    await asyncio.gather(do_bilibili_live_fetch(), do_dynamic_fetch(), do_discord_live_fetch())
 
 
-async def do_twitch_live_fetch():
-    logger.info('Automatically fetching twitch live info...')
-    live_notification_data_list = await twitch_notification.check_live_twitch()
+# async def do_twitch_live_fetch():
+#     logger.info('Automatically fetching twitch live info...')
+#     live_notification_data_list = await twitch_notification.check_live_twitch()
+#
+#     bot = nonebot.get_bot()
+#     for data in live_notification_data_list:
+#         logger.info(f'New data found for {data.streamer_name}. twitch live.')
+#         notify_group = loads(twitch_notification.get_group_ids_for_streamer(data.streamer_name))
+#         if notify_group is None:
+#             continue
+#         for group in notify_group:
+#             await bot.send_group_msg(
+#                 group_id=int(group),
+#                 message=await twitch_notification.convert_live_data_to_string(data))
 
+
+async def do_discord_live_fetch():
+    logger.info('Automatically fetching discord info...')
+    data_list = await discord_notification.check_discord_updates()
     bot = nonebot.get_bot()
-    for data in live_notification_data_list:
-        logger.info(f'New data found for {data.streamer_name}. twitch live.')
-        notify_group = loads(twitch_notification.get_group_ids_for_streamer(data.streamer_name))
+
+    for data in data_list:
+        logger.info(f'New data found for {data.channel_name} for discord')
+        notify_group = loads(discord_notification.get_group_ids_for_notification(data.channel_id))
         if notify_group is None:
             continue
         for group in notify_group:
-            await bot.send_group_msg(
-                group_id=int(group),
-                message=await twitch_notification.convert_live_data_to_string(data))
+            if data.is_success:
+                await bot.send_group_msg(
+                    group_id=int(group),
+                    message=await discord_notification.group_notification_to_literal_string(data))
+            else:
+                await bot.send_private_msg(
+                    user_id=SUPER_USER,
+                    message=f'discord动态更新出了点小问题，user：{data.channel_name},'
+                            f' channel id: {data.channel_id},'
+                            f' error message: {data.message}')
 
 
 async def do_bilibili_live_fetch():

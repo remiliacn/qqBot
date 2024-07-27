@@ -35,5 +35,7 @@ HOST = ''
 PORT = 0
 SUPER_USER = 0
 
+DISCORD_AUTH = ''
+
 DANMAKU_PROCESS = f'path_to_py310_python_executable' + \
                   f' {getcwd()}/blive_danmaku_report_generator.py'
