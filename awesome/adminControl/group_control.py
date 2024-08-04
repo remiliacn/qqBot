@@ -8,7 +8,7 @@ GROUP_PERMISSION_DEFAULT = {
     'IS_ENABLED': True,
     'ALLOW_R18': False,
     'RECALL_CATCH': False,
-    'NLP_PROCESS': True,
+    'NLP_PROCESS': False,
     'RATE_LIMITED': False
 }
 

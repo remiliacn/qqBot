@@ -224,6 +224,7 @@ class TwitchClipInstruction:
     video_id: str
     start_time: str = ''
     end_time: str = ''
+    file_name: str = ''
 
 
 class TwitchClippingService:
@@ -246,12 +247,13 @@ class TwitchClippingService:
 
         start_time = ''
         end_time = ''
+        file_name = ''
 
         if len(message_arg) == 2:
             start_time = message_arg[1].strip()
             if not self.TIMESTAMP_FORMAT.fullmatch(start_time):
                 return Status(False, '起始时间戳必须是小时:分钟:秒钟的格式')
-        if len(message_arg) == 3:
+        if len(message_arg) >= 3:
             start_time = message_arg[1].strip()
             end_time = message_arg[2].strip()
 
@@ -260,6 +262,9 @@ class TwitchClippingService:
 
             if not self.TIMESTAMP_FORMAT.fullmatch(end_time):
                 return Status(False, '结束时间戳必须是小时:分钟:秒钟的格式')
+
+            if len(message_arg) == 4:
+                file_name = f'{sanitize_filename(message_arg[-1].strip())}.mp4'
 
         start_time = start_time.replace('：', ':')
         end_time = end_time.replace('：', ':')
@@ -274,7 +279,7 @@ class TwitchClippingService:
             return validate_start_time
 
         await session.send('我去去就回~')
-        return Status(True, TwitchClipInstruction(video_id, start_time, end_time))
+        return Status(True, TwitchClipInstruction(video_id, start_time, end_time, file_name))
 
     @staticmethod
     async def _get_twitch_archive_list(channel_name: str) -> dict:
@@ -319,10 +324,10 @@ class TwitchClippingService:
 
         return Status(True, None)
 
-    async def download_twitch_videos(self, instruction: TwitchClipInstruction) -> Union[TwitchDownloadStatus, Status]:
+    async def download_twitch_videos(self, instruction: TwitchClipInstruction) -> TwitchDownloadStatus:
         disk_check_status = await self._check_space_used()
         if not disk_check_status.is_success:
-            return disk_check_status
+            return TwitchDownloadStatus(disk_check_status.is_success, message='')
         try:
             file_name = ('{channel_login}_{date}*_{title_slug}.{format}'.replace(
                 '*',
@@ -342,7 +347,7 @@ class TwitchClippingService:
                 if line_out:
                     print(f'Stdout: {line_out.decode().strip()}')  # Print each line of stdout
                 if line_err:
-                    print(f'Stdout: {line_err.decode().strip()}')  # Print each line of stdout
+                    print(f'stderr: {line_err.decode().strip()}')  # Print each line of stdout
                 else:
                     break
 
@@ -350,15 +355,17 @@ class TwitchClippingService:
             logger.success(f'Download completed with instruction {instruction}')
             files = [f for f in listdir(getcwd()) if f.endswith('.mp4')]
             if not files:
-                return Status(False, 'VideoID 发错了？')
+                return TwitchDownloadStatus(False, 'VideoID 发错了？')
 
+            file_path_to_return = ''
             for file in files:
                 creator_folder = PATH_TO_ONEDRIVE + "/" + sanitize_filename(file.split("_")[0])
+                file_path_to_return = f'{creator_folder}/{file}'
                 if not exists(creator_folder):
                     mkdir(creator_folder)
-                move(f'{getcwd()}/{file}', f'{creator_folder}/{file}')
+                move(f'{getcwd()}/{file}', file_path_to_return)
             return TwitchDownloadStatus(True, f'下载好了哦~文件名:\n {files[0]}\n'
-                                              f'{SHARE_LINK}', f'{PATH_TO_ONEDRIVE}/{files[0]}')
+                                              f'{SHARE_LINK}', file_path_to_return)
         except Exception as err:
-            return Status(False, f'Someone tell [CQ:at,qq={SUPER_USER}] '
-                                 f'there is some problem with my clip. {err.__class__}')
+            return TwitchDownloadStatus(False, f'Someone tell [CQ:at,qq={SUPER_USER}] '
+                                               f'there is some problem with my clip. {err.__class__}')

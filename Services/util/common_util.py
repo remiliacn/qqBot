@@ -14,10 +14,12 @@ from nonebot import CommandSession
 from selenium import webdriver
 from selenium.common import TimeoutException
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 from tqdm import tqdm
+from webdriver_manager.chrome import ChromeDriverManager
 
 from Services.util.ctx_utility import get_user_id, get_group_id
 
@@ -30,7 +32,7 @@ class Status:
 
 @dataclasses.dataclass
 class TwitchDownloadStatus(Status):
-    file_path: str
+    file_path: str = ''
 
 
 @dataclasses.dataclass
@@ -75,8 +77,14 @@ async def time_to_literal(time_string: int) -> str:
 
     minute = time_string // 60
     second = time_string % 60
+    day = 0
 
     result = ''
+    if hour >= 24:
+        day = hour // 24
+        hour -= day * 24
+
+    result += f'{day}日' if day > 0 else ''
     result += f'{hour}时' if hour > 0 else ''
     result += f'{minute}分' if minute > 0 else ''
     result += f'{second}秒'
@@ -162,7 +170,8 @@ def html_to_image(file_name):
     options.add_argument('--headless')
     options.add_argument("--force-device-scale-factor=3.0")
     options.add_argument("--disable-gpu")
-    driver = webdriver.Chrome(options=options, executable_path=f'{getcwd()}/data/chromedriver.exe')
+    services = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(options=options, service=services)
     driver.set_page_load_timeout(5)
     driver.get(f'file:///{file_name}')
     driver.execute_script("hljs.highlightAll();")

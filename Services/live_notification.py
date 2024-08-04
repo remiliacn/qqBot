@@ -27,6 +27,7 @@ class LivestreamDanmakuData:
     gift_received_count: int = 0
     like_received_count: int = 0
     highest_rank: int = 999
+    gift_total_price: float = 0
 
 
 class DynamicNotificationData:
@@ -77,7 +78,8 @@ class LiveNotification:
                 uid varchar(200),
                 last_checked_date varchar(200),
                 last_record_live_status boolean,
-                group_to_notify text
+                group_to_notify text,
+                fetch_gift_price boolean
             )
             """
         )
@@ -216,10 +218,12 @@ class LiveNotification:
                                height=1080).generate_from_frequencies(data.danmaku_frequency_dict)
         path = f'{getcwd()}/data/pixivPic/{int(time_ns())}.png'
         word_cloud.to_file(path)
+
+        gift_price_string = f'（SC收入：￥{data.gift_total_price:.2f}）' if data.gift_total_price > 0 else ''
         return '直播已结束！撒花~✿✿ヽ(°▽°)ノ✿\n' \
                f'一共收到啦{data.danmaku_count}枚弹幕\n' \
                f'被点赞共{data.like_received_count}次\n' \
-               f'收到礼物（包括SC）{data.gift_received_count}个\n' \
+               f'收到礼物（包括SC）{data.gift_received_count}个 {gift_price_string}\n' \
                f'最高人气排名：{data.highest_rank}\n' \
                f'[CQ:image,file=file:///{path}]'
 
@@ -254,6 +258,18 @@ class LiveNotification:
         logger.success(f'Live cache hit, result returned: {is_live}')
 
         return is_live
+
+    def is_fetch_gift_price(self, room_id: str) -> bool:
+        user_needs_to_be_checked = self.live_database.execute(
+            """
+            select fetch_gift_price from live_notification_bilibili where uid = ?
+            """, (room_id,)
+        ).fetchone()
+
+        fetch_gift_price = user_needs_to_be_checked is not None and user_needs_to_be_checked[0]
+        logger.success(f'If fetch gift price?: {fetch_gift_price}')
+
+        return fetch_gift_price
 
     async def check_if_live(self, room_id: str, streamer_name: str) -> LiveNotificationData:
         logger.info(f'Checking live stat for {streamer_name}, room id: {room_id}')

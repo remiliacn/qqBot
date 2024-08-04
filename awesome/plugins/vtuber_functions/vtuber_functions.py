@@ -1,5 +1,6 @@
 import asyncio
 from json import loads
+from time import time
 from typing import List
 
 import nonebot
@@ -7,7 +8,7 @@ from loguru import logger
 
 from Services.discord_service import DiscordService
 from Services.live_notification import LiveNotification, BilibiliDynamicNotifcation
-from Services.twitch_service import TwitchService, TwitchClippingService
+from Services.twitch_service import TwitchService, TwitchClippingService, TwitchClipInstruction
 from Services.util.ctx_utility import get_user_id, get_group_id
 from awesome.Constants.user_permission import ADMIN
 from config import SUPER_USER
@@ -80,7 +81,20 @@ async def twitch_live_tracking(session: nonebot.CommandSession):
     if not verification_status.is_success:
         await session.finish(verification_status.message)
 
-    download_status = await twitch_clipping.download_twitch_videos(verification_status.message)
+    twitch_clip_instruction: TwitchClipInstruction = verification_status.message
+    download_status = await twitch_clipping.download_twitch_videos(twitch_clip_instruction)
+
+    try:
+        temp_group_filename = f'{str(int(time()))}.mp4'
+        if download_status.is_success and download_status.file_path:
+            bot = nonebot.get_bot()
+            await bot.upload_group_file(
+                group_id=group_id,
+                file=download_status.file_path,
+                name=twitch_clip_instruction.file_name if twitch_clip_instruction.file_name else temp_group_filename)
+    except Exception as err:
+        logger.error(f'Failed to upload to group file. skipping that. {err.__class__}')
+
     await session.finish(download_status.message)
 
 

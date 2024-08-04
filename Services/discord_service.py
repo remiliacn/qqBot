@@ -3,11 +3,13 @@ from datetime import datetime
 from json import dumps, loads
 from os import getcwd
 from re import findall
+from time import time
 from typing import List
 
 from loguru import logger
+from youtube_dl.utils import sanitize_filename
 
-from Services.util.common_util import HttpxHelperClient, DiscordGroupNotification, DiscordMessageStatus
+from Services.util.common_util import HttpxHelperClient, DiscordGroupNotification, DiscordMessageStatus, time_to_literal
 from awesome.Constants.vtuber_function_constants import GPT_4_MODEL_NAME
 from config import SUPER_USER, DISCORD_AUTH
 
@@ -153,7 +155,8 @@ class DiscordService:
             json={
                 'message': 'Please help to translate the following message to Chinese, While translating,'
                            'please ignore and remove messges that in this pattern: `[CQ:.*?]` '
-                           'in your response and only response with the result of the translation: \n\n'
+                           'in your response and only response with the result of the translation. '
+                           "Do not translate name, and translate \"stream\" to 直播: \n\n"
                            + discord_status.message,
                 'is_chat': False,
                 'user': SUPER_USER,
@@ -233,6 +236,9 @@ class DiscordService:
 
     @staticmethod
     async def _analyze_discord_message(discord_msg_result: str):
+        discord_msg_result = (discord_msg_result.replace('[(', '')
+                              .replace('])', '')
+                              .replace('()', ''))
         special_message_data: List[str] = findall(r'<(.*?)>', discord_msg_result)
         replacement_dict = {}
 
@@ -243,6 +249,11 @@ class DiscordService:
                     dt = datetime.fromtimestamp(float(timestamp))
                     translated_timestamp = dt.strftime('%B %d, %Y')
                     replacement_dict[message] = translated_timestamp
+            elif message.startswith('t') and message.endswith('R'):
+                timestamp = message.replace('t:', '').replace(':R', '')
+                if timestamp.isdigit():
+                    time_until_that_timestamp = int(timestamp) - int(time())
+                    replacement_dict[message] = f'{await time_to_literal(time_until_that_timestamp)}后'
             else:
                 replacement_dict[message] = ''
 
@@ -255,11 +266,11 @@ class DiscordService:
         orig_text = ''
         for attachment in attachments:
             file_type, file_extension = attachment['content_type'].split('/')
+            placeholder_name = sanitize_filename(attachment['placeholder'])
             if file_type == 'image':
-                file_name = (f"{getcwd()}/data/bilibiliPic/{attachment['placeholder']}"
-                             f"_{attachment['placeholder']}.{file_extension}")
+                file_name = f"{getcwd()}/data/bilibiliPic/{placeholder_name}.{file_extension}"
 
-                await self.client.download(attachment['url'], file_name)
+                await self.client.download(attachment['url'], file_name, headers=self.headers)
                 orig_text += f'\n[CQ:image,file=file:///{file_name}]'
 
         return orig_text

@@ -28,6 +28,7 @@ class MyDanmakuHandler(BaseHandler):
         self.rank_area = ''
         self.like_received_count = 0
         self.gift_received_count = 0
+        self.gift_price = 0
         self.room_id = ''
         self.group_ids = ''
 
@@ -70,20 +71,25 @@ class MyDanmakuHandler(BaseHandler):
 
     def _on_heartbeat(self, client: ws_base.WebSocketClientBase, message: web_models.HeartbeatMessage):
         if not live_notification.check_if_live_cached(self.room_id):
-            logger.success(f'Livestream is not going anymore for room id: {self.room_id}, dumping the data.')
+            logger.success(f'Livestream is not going anymore for room id: {self.room_id},'
+                           f' dumping the data. Total gift value: {self.gift_price}')
             pickled_data = codecs.encode(pickle.dumps(LivestreamDanmakuData(
                 danmaku_count=self.danmaku_count,
                 danmaku_frequency_dict=self.danmaku_frequency_dict,
                 qq_group_dumped=self.group_ids,
                 like_received_count=self.like_received_count,
                 gift_received_count=self.gift_received_count,
-                highest_rank=self.highest_rank if self.highest_rank <= 100 else '未知'
+                highest_rank=self.highest_rank if self.highest_rank <= 100 else '未知',
+                gift_total_price=self.gift_price if live_notification.is_fetch_gift_price(self.room_id) else 0
             )), 'base64').decode()
             live_notification.dump_live_data(pickled_data)
             exit(1)
 
     def _on_gift(self, client: BLiveClient, message: web_models.GiftMessage):
         self.gift_received_count += message.num
+        if message.coin_type.lower() == 'gold':
+            self.gift_price += message.total_coin / 1000
+
         logger.info(f'[{client.room_id}] {message.uname} 赠送{message.gift_name}x{message.num}'
                     f' （{message.coin_type}瓜子x{message.total_coin}）')
 
@@ -93,6 +99,7 @@ class MyDanmakuHandler(BaseHandler):
 
     def _on_super_chat(self, client: BLiveClient, message: web_models.SuperChatMessage):
         self.gift_received_count += 1
+        self.gift_price += message.price
         logger.info(f'[{client.room_id}] 醒目留言 ¥{message.price} {message.uname}：{message.message}')
 
 
