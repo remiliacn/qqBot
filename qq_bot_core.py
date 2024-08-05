@@ -1,7 +1,7 @@
 import sqlite3
 from json import dump
 from logging import getLogger, ERROR
-from os import path, getcwd, mkdir
+from os import path, getcwd, mkdir, environ
 from time import sleep
 
 import nonebot
@@ -148,6 +148,7 @@ def main():
 
 
 if __name__ == '__main__':
+    environ['PYTHONUTF8'] = '1'
     if not path.exists(f'{getcwd()}/config.py'):
         logger.warning('未检测到配置文件，尝试生成模板中……')
 

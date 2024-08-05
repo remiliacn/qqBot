@@ -205,7 +205,7 @@ class DiscordService:
             final_text = poster_name + ':\n' + discord_msg_parsed_result + '\n' + attachment_msg_parsed_result
             await self._update_previous_timestamp(channel_id, latest_msg_timestamp)
 
-        if edited_msg_timestamp > latest_msg_timestamp:
+        if edited_msg_timestamp > latest_timestamp and edited_msg_timestamp > latest_msg_timestamp:
             discord_msg_parsed_result = await self._analyze_discord_message(discord_msg_result['content'])
             attachment_msg_parsed_result = await self._analyze_discord_attachments(discord_msg_result['attachments'])
 
