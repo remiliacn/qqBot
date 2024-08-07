@@ -6,7 +6,7 @@ import http.cookies
 import pickle
 import re
 import sys
-from typing import Optional
+from typing import Optional, Set
 
 import aiohttp
 from loguru import logger
@@ -18,12 +18,14 @@ from blivedm import BaseHandler, BLiveClient
 from blivedm.clients import ws_base
 
 live_notification = LiveNotification()
+logger.add('./logs/blive_log.log', level='INFO', colorize=False, backtrace=True, diagnose=True, rotation='50MB')
 
 
 class MyDanmakuHandler(BaseHandler):
     def __init__(self):
         self.danmaku_frequency_dict = {}
-        self.blacklist_word = ['老板大气', 'B站无互动', '请移步T台', ' 中奖喷雾', '点点红包', '转人工']
+        # TODO: make this store in a file or a db.
+        self.blacklist_word: Set[str] = {'老板大气', 'B站无互动', '请移步T台', ' 中奖喷雾', '点点红包', '转人工'}
         self.danmaku_count = 0
         self.highest_rank = 99999
         self.rank_area = ''

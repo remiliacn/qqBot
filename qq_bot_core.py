@@ -70,9 +70,9 @@ virtual_market = SimulateStock()
 
 def register_true():
     try:
+        create_dir(f'{getcwd()}/logs/')
         create_dir(f'{getcwd()}/data/biaoqing')
         create_dir(f'{getcwd()}/data/bilibiliPic')
-        create_dir(f'{getcwd()}/data/pixivPic/')
         create_dir(f'{getcwd()}/data/pixivPic/')
         create_dir(f'{getcwd()}/data/lol/')
         create_dir(f'{getcwd()}/data/live/')
