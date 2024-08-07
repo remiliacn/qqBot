@@ -1,6 +1,7 @@
 import dataclasses
 import time
 from asyncio import sleep
+from functools import lru_cache
 from os import remove, getcwd
 from os.path import exists
 from typing import Union
@@ -28,6 +29,11 @@ from Services.util.ctx_utility import get_user_id, get_group_id
 class Status:
     is_success: bool
     message: any
+
+
+@dataclasses.dataclass
+class ValidatedTimestampStatus(Status):
+    validated_timestamp: str = ''
 
 
 @dataclasses.dataclass
@@ -90,6 +96,28 @@ async def time_to_literal(time_string: int) -> str:
     result += f'{second}秒'
 
     return result
+
+
+@lru_cache(maxsize=None)
+def find_repeated_substring(input_str: str) -> str:
+    if not input_str:
+        return ''
+
+    num_of_chars = len(input_str)
+    prefix = [0] * num_of_chars
+    j = 0
+    for i in range(1, num_of_chars):
+        while j > 0 and input_str[i] != input_str[j]:
+            j = prefix[j - 1]
+        if input_str[i] == input_str[j]:
+            j += 1
+        prefix[i] = j
+
+    repeated_length = num_of_chars - prefix[-1]
+    if repeated_length < num_of_chars and num_of_chars % repeated_length == 0:
+        return input_str[:repeated_length]
+
+    return input_str
 
 
 def compile_forward_message(self_id: Union[int, str], *args: str) -> list:

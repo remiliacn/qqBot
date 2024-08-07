@@ -17,7 +17,8 @@ from twitchdl import twitch
 from youtube_dl.utils import sanitize_filename
 
 from Services.live_notification import LiveNotificationData
-from Services.util.common_util import OptionalDict, HttpxHelperClient, Status, TwitchDownloadStatus
+from Services.util.common_util import OptionalDict, HttpxHelperClient, Status, TwitchDownloadStatus, \
+    ValidatedTimestampStatus
 from config import SUPER_USER, PATH_TO_ONEDRIVE, SHARE_LINK, CLOUD_STORAGE_SIZE_LIMIT_GB
 
 
@@ -229,7 +230,7 @@ class TwitchClipInstruction:
 
 class TwitchClippingService:
     def __init__(self):
-        self.TIMESTAMP_FORMAT = re.compile(r'\d{2}[：:]\d{2}[：:]\d{2}')
+        self.TIMESTAMP_FORMAT = re.compile(r'(\d+[：:]){1,2}\d+')
 
     async def analyze_clip_comment(self, message_arg: str, session: CommandSession) -> Status:
         message_arg = message_arg.split()
@@ -263,8 +264,8 @@ class TwitchClippingService:
             if not self.TIMESTAMP_FORMAT.fullmatch(end_time):
                 return Status(False, '结束时间戳必须是小时:分钟:秒钟的格式')
 
-            if len(message_arg) == 4:
-                file_name = f'{sanitize_filename(message_arg[-1].strip())}.mp4'
+            if len(message_arg) >= 4:
+                file_name = f'{sanitize_filename("_".join(message_arg[3:]).strip())}.mp4'
 
         start_time = start_time.replace('：', ':')
         end_time = end_time.replace('：', ':')
@@ -278,6 +279,8 @@ class TwitchClippingService:
         if not validate_start_time.is_success:
             return validate_start_time
 
+        start_time = validate_start_time.validated_timestamp
+        end_time = validate_end_time.validated_timestamp
         await session.send('我去去就回~')
         return Status(True, TwitchClipInstruction(video_id, start_time, end_time, file_name))
 
@@ -291,20 +294,26 @@ class TwitchClippingService:
         return data
 
     @staticmethod
-    async def _validate_timestamp(timestamp: str) -> Status:
-        hour, minute, second = timestamp.split(':')
+    async def _validate_timestamp(timestamp: str) -> ValidatedTimestampStatus:
+        splitted_data = timestamp.split(':')
+        hour = '0'
+        if len(splitted_data) == 2:
+            minute, second = splitted_data
+        else:
+            hour, minute, second = splitted_data
+
         hour = int(hour)
         minute = int(minute)
         second = int(second)
 
         if hour < 0:
-            return Status(False, '你在干嘛？')
+            return ValidatedTimestampStatus(False, '你在干嘛？')
         if minute < 0 or minute > 59:
-            return Status(False, '你在干嘛？')
+            return ValidatedTimestampStatus(False, '你在干嘛？')
         if second < 0 or second > 59:
-            return Status(False, '你在干嘛？')
+            return ValidatedTimestampStatus(False, '你在干嘛？')
 
-        return Status(True, None)
+        return ValidatedTimestampStatus(True, '', f'{hour:02}:{minute:02}:{second:02}')
 
     @staticmethod
     async def _check_space_used():
@@ -332,6 +341,9 @@ class TwitchClippingService:
             file_name = ('{channel_login}_{date}*_{title_slug}.{format}'.replace(
                 '*',
                 f'+{instruction.start_time.replace(":", "_")}+{instruction.end_time.replace(":", "_")}'))
+
+            if instruction.file_name:
+                file_name = file_name.replace('{title_slug}', sanitize_filename(instruction.file_name).rstrip('.mp4'))
             process = await create_subprocess_shell(
                 f'twitch-dl download '
                 f'-o {file_name} -q source {f"-s {instruction.start_time}" if instruction.start_time else ""} '

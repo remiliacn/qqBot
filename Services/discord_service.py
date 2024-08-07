@@ -159,7 +159,7 @@ class DiscordService:
                            "Do not translate name, and translate \"stream\" to 直播: \n\n"
                            + discord_status.message,
                 'is_chat': False,
-                'user': SUPER_USER,
+                'user_id': SUPER_USER,
                 'model_name': GPT_4_MODEL_NAME
             },
             timeout=20.0

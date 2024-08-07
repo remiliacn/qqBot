@@ -84,6 +84,7 @@ async def twitch_live_tracking(session: nonebot.CommandSession):
     twitch_clip_instruction: TwitchClipInstruction = verification_status.message
     download_status = await twitch_clipping.download_twitch_videos(twitch_clip_instruction)
 
+    await session.send(download_status.message)
     try:
         temp_group_filename = f'{str(int(time()))}.mp4'
         if download_status.is_success and download_status.file_path:
@@ -94,8 +95,6 @@ async def twitch_live_tracking(session: nonebot.CommandSession):
                 name=twitch_clip_instruction.file_name if twitch_clip_instruction.file_name else temp_group_filename)
     except Exception as err:
         logger.error(f'Failed to upload to group file. skipping that. {err.__class__}')
-
-    await session.finish(download_status.message)
 
 
 @nonebot.on_command('twitch监控', only_to_me=False)

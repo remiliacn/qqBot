@@ -219,7 +219,7 @@ class LiveNotification:
         path = f'{getcwd()}/data/pixivPic/{int(time_ns())}.png'
         word_cloud.to_file(path)
 
-        gift_price_string = f'（SC收入：￥{data.gift_total_price:.2f}）' if data.gift_total_price > 0 else ''
+        gift_price_string = f'（礼物收入：￥{data.gift_total_price:.2f}）' if data.gift_total_price > 0 else ''
         return '直播已结束！撒花~✿✿ヽ(°▽°)ノ✿\n' \
                f'一共收到啦{data.danmaku_count}枚弹幕\n' \
                f'被点赞共{data.like_received_count}次\n' \

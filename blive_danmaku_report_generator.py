@@ -13,7 +13,7 @@ from loguru import logger
 
 import blivedm.models.web as web_models
 from Services.live_notification import LiveNotification, LivestreamDanmakuData
-from Services.util.common_util import OptionalDict
+from Services.util.common_util import OptionalDict, find_repeated_substring
 from blivedm import BaseHandler, BLiveClient
 from blivedm.clients import ws_base
 
@@ -23,6 +23,7 @@ live_notification = LiveNotification()
 class MyDanmakuHandler(BaseHandler):
     def __init__(self):
         self.danmaku_frequency_dict = {}
+        self.blacklist_word = ['老板大气', 'B站无互动', '请移步T台', ' 中奖喷雾', '点点红包', '转人工']
         self.danmaku_count = 0
         self.highest_rank = 99999
         self.rank_area = ''
@@ -46,9 +47,12 @@ class MyDanmakuHandler(BaseHandler):
         else:
             message_list = [msg]
         for message in message_list:
-            message = message.strip()
+            message = find_repeated_substring(message.strip())
+
             if len(message) <= 5 and message:
-                logger.success(f'{message} is noted.')
+                if message in self.blacklist_word:
+                    continue
+
                 if message not in self.danmaku_frequency_dict:
                     self.danmaku_frequency_dict[message] = 1
                 else:
@@ -60,13 +64,16 @@ class MyDanmakuHandler(BaseHandler):
         self.like_received_count += 1
         logger.info(f'收到点赞， {client.room_id}, 点赞人：{OptionalDict(command).map("data").map("uname").or_else("?")}')
 
+    # noinspection PyUnusedLocal
     def _popularity_change(self, client: BLiveClient, command: dict):
         rank = OptionalDict(command).map("data").map("rank").or_else(999)
         logger.info(f'人气榜变动，目前人气档位：{rank}')
         if rank > 0:
             self.highest_rank = min(self.highest_rank, rank)
 
+    # noinspection PyTypeChecker
     _CMD_CALLBACK_DICT['LIKE_INFO_V3_CLICK'] = _like_info_v3_callback
+    # noinspection PyTypeChecker
     _CMD_CALLBACK_DICT['POPULAR_RANK_CHANGED'] = _popularity_change
 
     def _on_heartbeat(self, client: ws_base.WebSocketClientBase, message: web_models.HeartbeatMessage):
@@ -83,6 +90,8 @@ class MyDanmakuHandler(BaseHandler):
                 gift_total_price=self.gift_price if live_notification.is_fetch_gift_price(self.room_id) else 0
             )), 'base64').decode()
             live_notification.dump_live_data(pickled_data)
+
+            find_repeated_substring.cache_clear()
             exit(1)
 
     def _on_gift(self, client: BLiveClient, message: web_models.GiftMessage):
@@ -164,4 +173,4 @@ if __name__ == '__main__':
     try:
         asyncio.run(main())
     finally:
-        print(handler.danmaku_frequency_dict)
+        print()
