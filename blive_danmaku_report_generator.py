@@ -31,6 +31,7 @@ class MyDanmakuHandler(BaseHandler):
         self.rank_area = ''
         self.like_received_count = 0
         self.gift_received_count = 0
+        self.new_captains = 0
         self.gift_price = 0
         self.room_id = ''
         self.group_ids = ''
@@ -73,10 +74,26 @@ class MyDanmakuHandler(BaseHandler):
         if rank > 0:
             self.highest_rank = min(self.highest_rank, rank)
 
+    # noinspection PyUnusedLocal
+    def _user_toast_msg(self, client: BLiveClient, command: dict):
+        if OptionalDict(command).map("guard_info").or_else(None) is not None:
+            captain_data = OptionalDict(command).map("data").map("pay_info").or_else({})
+            captain_price = OptionalDict(captain_data).map("price").or_else(0)
+            captain_count = OptionalDict(captain_data).map("num").or_else(0)
+
+            logger.info(f'有新舰长？：'
+                        f'{OptionalDict(command).map("guard_info").map("role_name").or_else("未知数据")}'
+                        f' x {captain_count} -> 价格：{captain_price}')
+            if captain_price > 0:
+                self.gift_price += captain_price * captain_count
+
+            self.new_captains += 1
+
     # noinspection PyTypeChecker
     _CMD_CALLBACK_DICT['LIKE_INFO_V3_CLICK'] = _like_info_v3_callback
     # noinspection PyTypeChecker
     _CMD_CALLBACK_DICT['POPULAR_RANK_CHANGED'] = _popularity_change
+    _CMD_CALLBACK_DICT['USER_TOAST_MSG_V2'] = _user_toast_msg
 
     def _on_heartbeat(self, client: ws_base.WebSocketClientBase, message: web_models.HeartbeatMessage):
         if not live_notification.check_if_live_cached(self.room_id):
@@ -89,7 +106,8 @@ class MyDanmakuHandler(BaseHandler):
                 like_received_count=self.like_received_count,
                 gift_received_count=self.gift_received_count,
                 highest_rank=self.highest_rank if self.highest_rank <= 100 else '未知',
-                gift_total_price=self.gift_price if live_notification.is_fetch_gift_price(self.room_id) else 0
+                gift_total_price=self.gift_price if live_notification.is_fetch_gift_price(self.room_id) else 0,
+                new_captains=self.new_captains
             )), 'base64').decode()
             live_notification.dump_live_data(pickled_data)
 
