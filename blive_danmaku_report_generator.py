@@ -6,19 +6,27 @@ import http.cookies
 import pickle
 import re
 import sys
-from typing import Optional, Set
+import time
+from os import getpid
+from typing import Optional, Set, List, Dict
 
 import aiohttp
 from loguru import logger
 
 import blivedm.models.web as web_models
 from Services.live_notification import LiveNotification, LivestreamDanmakuData
-from Services.util.common_util import OptionalDict, find_repeated_substring
+from Services.util.common_util import OptionalDict, find_repeated_substring, construct_timestamp_string
 from blivedm import BaseHandler, BLiveClient
 from blivedm.clients import ws_base
 
+
+def _get_log_filename() -> str:
+    return f'log_{int(time.time())}_{getpid()}.log'
+
+
 live_notification = LiveNotification()
-logger.add('./logs/blive_log.log', level='INFO', colorize=False, backtrace=True, diagnose=True, rotation='50MB')
+logger.add(f'./logs/{_get_log_filename()}', level='INFO', colorize=False, backtrace=True, diagnose=True,
+           rotation='50MB', retention='3 days')
 
 
 class MyDanmakuHandler(BaseHandler):
@@ -26,15 +34,14 @@ class MyDanmakuHandler(BaseHandler):
         self.danmaku_frequency_dict = {}
         # TODO: make this store in a file or a db.
         self.blacklist_word: Set[str] = {'老板大气', 'B站无互动', '请移步T台', ' 中奖喷雾', '点点红包', '转人工'}
-        self.danmaku_count = 0
+
         self.highest_rank = 99999
-        self.rank_area = ''
-        self.like_received_count = 0
-        self.gift_received_count = 0
-        self.new_captains = 0
-        self.gift_price = 0
-        self.room_id = ''
-        self.group_ids = ''
+        self.like_received_count = self.danmaku_count = 0
+        self.gift_received_count = self.new_captains = self.gift_price = 0
+        self.room_id = self.group_ids = ''
+
+        self.stream_start_time = time.time()
+        self.stream_hotspot_timestamp_list: List[float] = []
 
     def set_room_id(self, parsed_in_room_id: str):
         self.room_id = parsed_in_room_id
@@ -93,12 +100,20 @@ class MyDanmakuHandler(BaseHandler):
     _CMD_CALLBACK_DICT['LIKE_INFO_V3_CLICK'] = _like_info_v3_callback
     # noinspection PyTypeChecker
     _CMD_CALLBACK_DICT['POPULAR_RANK_CHANGED'] = _popularity_change
+    # noinspection PyTypeChecker
     _CMD_CALLBACK_DICT['USER_TOAST_MSG_V2'] = _user_toast_msg
 
     def _on_heartbeat(self, client: ws_base.WebSocketClientBase, message: web_models.HeartbeatMessage):
         if not live_notification.check_if_live_cached(self.room_id):
             logger.success(f'Livestream is not going anymore for room id: {self.room_id},'
                            f' dumping the data. Total gift value: {self.gift_price}')
+
+            try:
+                hotspot_timestamp_data = get_sorted_timestamp_hotspot(self.stream_hotspot_timestamp_list)
+            except Exception as err:
+                logger.error(f'Failed to get hotspot data: {err.__class__}')
+                hotspot_timestamp_data = []
+
             pickled_data = codecs.encode(pickle.dumps(LivestreamDanmakuData(
                 danmaku_count=self.danmaku_count,
                 danmaku_frequency_dict=self.danmaku_frequency_dict,
@@ -107,7 +122,8 @@ class MyDanmakuHandler(BaseHandler):
                 gift_received_count=self.gift_received_count,
                 highest_rank=self.highest_rank if self.highest_rank <= 100 else '未知',
                 gift_total_price=self.gift_price if live_notification.is_fetch_gift_price(self.room_id) else 0,
-                new_captains=self.new_captains
+                new_captains=self.new_captains,
+                top_five_crazy_timestamps=hotspot_timestamp_data,
             )), 'base64').decode()
             live_notification.dump_live_data(pickled_data)
 
@@ -125,6 +141,7 @@ class MyDanmakuHandler(BaseHandler):
     def _on_danmaku(self, client: BLiveClient, message: web_models.DanmakuMessage):
         logger.info(f'Message received: {message.msg}, name: {message.uname}, receive_time: {message.timestamp}')
         self.add_danmaku_into_frequency_dict(message.msg)
+        self.stream_hotspot_timestamp_list.append(time.time() - self.stream_start_time)
 
     def _on_super_chat(self, client: BLiveClient, message: web_models.SuperChatMessage):
         self.gift_received_count += 1
@@ -168,6 +185,28 @@ def init_session():
     global session
     session = aiohttp.ClientSession()
     session.cookie_jar.update_cookies(cookies)
+
+
+def hotspot_analyzation(timestamps: List[float], intervals=60) -> Dict[float, float]:
+    """Analyzing frequency for a given list of danmaku in a certain interval"""
+    timestamps.sort()
+    result_dict = {}
+
+    timestamp_set = set()
+
+    for timestamp in timestamps:
+        if timestamp not in timestamp_set:
+            result_dict[timestamp] = len([t for t in timestamps if timestamp <= t <= timestamp + intervals])
+            timestamp_set.add(timestamp)
+
+    return result_dict
+
+
+def get_sorted_timestamp_hotspot(stream_time_frequency_list: List[float], intervals=60) -> List[str]:
+    hotspot_analyzation_result = hotspot_analyzation(stream_time_frequency_list, intervals)
+    sorted_result = sorted(hotspot_analyzation_result.items(), key=lambda x: x[1], reverse=True)[:5]
+    hotspot_timestamp_data = [x[0] for x in sorted_result]
+    return [construct_timestamp_string(x) for x in hotspot_timestamp_data]
 
 
 async def run_listening():

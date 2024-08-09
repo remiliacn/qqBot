@@ -2,6 +2,7 @@ import dataclasses
 import time
 from asyncio import sleep
 from functools import lru_cache
+from math import ceil
 from os import remove, getcwd
 from os.path import exists
 from typing import Union
@@ -96,6 +97,16 @@ async def time_to_literal(time_string: int) -> str:
     result += f'{second}秒'
 
     return result
+
+
+def construct_timestamp_string(seconds: float) -> str:
+    seconds = ceil(seconds)
+
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    seconds = seconds % 60
+
+    return f'{hours:02}:{minutes:02}:{seconds:02}'
 
 
 @lru_cache(maxsize=None)
