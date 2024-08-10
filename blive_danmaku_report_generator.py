@@ -7,6 +7,7 @@ import pickle
 import re
 import sys
 import time
+from functools import lru_cache
 from os import getpid
 from typing import Optional, Set, List, Dict
 
@@ -18,6 +19,9 @@ from Services.live_notification import LiveNotification, LivestreamDanmakuData
 from Services.util.common_util import OptionalDict, find_repeated_substring, construct_timestamp_string
 from blivedm import BaseHandler, BLiveClient
 from blivedm.clients import ws_base
+from config import BILI_SESS_DATA
+
+FIVE_MINUTES = 300
 
 
 def _get_log_filename() -> str:
@@ -33,7 +37,7 @@ class MyDanmakuHandler(BaseHandler):
     def __init__(self):
         self.danmaku_frequency_dict = {}
         # TODO: make this store in a file or a db.
-        self.blacklist_word: Set[str] = {'老板大气', 'B站无互动', '请移步T台', ' 中奖喷雾', '点点红包', '转人工'}
+        self.blacklist_word: Set[str] = {'老板大气', 'B站无互动', '请移步T台', '中奖喷雾', '点点红包', '转人工'}
 
         self.highest_rank = 99999
         self.like_received_count = self.danmaku_count = 0
@@ -49,26 +53,41 @@ class MyDanmakuHandler(BaseHandler):
     def set_group_ids(self, group_ids_dumped: str):
         self.group_ids = group_ids_dumped
 
-    def add_danmaku_into_frequency_dict(self, msg):
-        self.danmaku_count += 1
+    def add_danmaku_into_frequency_dict(self, message):
+        msg = message.msg
         msg = msg.replace('（', '').replace('）', '').replace('(', '').replace(')', '')
+
+        if self._is_blacklist_word(msg):
+            return
+
+        self.danmaku_count += 1
+        logger.info(f'Message received: {message.msg}, name: {message.uname}, receive_time: {message.timestamp}')
+
+        time_elapsed_time = time.time() - self.stream_start_time
+        if time_elapsed_time > FIVE_MINUTES:
+            self.stream_hotspot_timestamp_list.append(time_elapsed_time)
+
         if not re.fullmatch(r'[\s+,，。、?？！!]+', msg):
             message_list = re.split(r'[\s+,，。、?？！!]', msg)
         else:
             message_list = [msg]
         for message in message_list:
             message = find_repeated_substring(message.strip())
-
-            if len(message) <= 5 and message:
-                if message in self.blacklist_word:
-                    continue
-
+            if message and len(message) <= 9:
                 if message not in self.danmaku_frequency_dict:
                     self.danmaku_frequency_dict[message] = 1
                 else:
                     self.danmaku_frequency_dict[message] += 1
 
     _CMD_CALLBACK_DICT = BaseHandler._CMD_CALLBACK_DICT.copy()
+
+    @lru_cache(maxsize=800)
+    def _is_blacklist_word(self, message: str) -> bool:
+        for blacklist in self.blacklist_word:
+            if blacklist in message:
+                return True
+
+        return False
 
     def _like_info_v3_callback(self, client: BLiveClient, command: dict):
         self.like_received_count += 1
@@ -83,23 +102,29 @@ class MyDanmakuHandler(BaseHandler):
 
     # noinspection PyUnusedLocal
     def _user_toast_msg(self, client: BLiveClient, command: dict):
-        if OptionalDict(command).map("guard_info").or_else(None) is not None:
-            captain_data = OptionalDict(command).map("data").map("pay_info").or_else({})
-            captain_price = OptionalDict(captain_data).map("price").or_else(0)
-            captain_count = OptionalDict(captain_data).map("num").or_else(0)
+        if command['cmd'] == 'USER_TOAST_MSG_V2':
+            if OptionalDict(command).map("guard_info").or_else(None) is not None:
+                captain_data = OptionalDict(command).map("data").map("pay_info").or_else({})
+                captain_price = OptionalDict(captain_data).map("price").or_else(0)
+                captain_count = OptionalDict(captain_data).map("num").or_else(0)
+        else:
+            if OptionalDict(command).map("data").or_else(None) is not None:
+                captain_price = OptionalDict(command).map("data").map("price").or_else(0)
+                captain_count = OptionalDict(command).map("data").map("num").or_else(0)
+                logger.info(f'有新舰长？：'
+                            f'{OptionalDict(command).map("guard_info").map("role_name").or_else("未知数据")}'
+                            f' x {captain_count} -> 价格：{captain_price}')
+                if captain_price > 0:
+                    self.gift_price += (captain_price // 1000) * captain_count
 
-            logger.info(f'有新舰长？：'
-                        f'{OptionalDict(command).map("guard_info").map("role_name").or_else("未知数据")}'
-                        f' x {captain_count} -> 价格：{captain_price}')
-            if captain_price > 0:
-                self.gift_price += captain_price * captain_count
-
-            self.new_captains += 1
+                self.new_captains += 1
 
     # noinspection PyTypeChecker
     _CMD_CALLBACK_DICT['LIKE_INFO_V3_CLICK'] = _like_info_v3_callback
     # noinspection PyTypeChecker
     _CMD_CALLBACK_DICT['POPULAR_RANK_CHANGED'] = _popularity_change
+    # noinspection PyTypeChecker
+    _CMD_CALLBACK_DICT['USER_TOAST_MSG'] = _user_toast_msg
     # noinspection PyTypeChecker
     _CMD_CALLBACK_DICT['USER_TOAST_MSG_V2'] = _user_toast_msg
 
@@ -109,7 +134,7 @@ class MyDanmakuHandler(BaseHandler):
                            f' dumping the data. Total gift value: {self.gift_price}')
 
             try:
-                hotspot_timestamp_data = get_sorted_timestamp_hotspot(self.stream_hotspot_timestamp_list)
+                hotspot_timestamp_data = get_sorted_timestamp_hotspot(self.stream_hotspot_timestamp_list, FIVE_MINUTES)
             except Exception as err:
                 logger.error(f'Failed to get hotspot data: {err.__class__}')
                 hotspot_timestamp_data = []
@@ -139,9 +164,7 @@ class MyDanmakuHandler(BaseHandler):
                     f' （{message.coin_type}瓜子x{message.total_coin}）')
 
     def _on_danmaku(self, client: BLiveClient, message: web_models.DanmakuMessage):
-        logger.info(f'Message received: {message.msg}, name: {message.uname}, receive_time: {message.timestamp}')
-        self.add_danmaku_into_frequency_dict(message.msg)
-        self.stream_hotspot_timestamp_list.append(time.time() - self.stream_start_time)
+        self.add_danmaku_into_frequency_dict(message)
 
     def _on_super_chat(self, client: BLiveClient, message: web_models.SuperChatMessage):
         self.gift_received_count += 1
@@ -153,7 +176,7 @@ class MyDanmakuHandler(BaseHandler):
 TEST_ROOM_IDS = []
 
 # 这里填一个已登录账号的cookie。不填cookie也可以连接，但是收到弹幕的用户名会打码，UID会变成0
-SESSDATA = ''
+SESSDATA = BILI_SESS_DATA
 
 session: Optional[aiohttp.ClientSession] = None
 handler = MyDanmakuHandler()
@@ -192,12 +215,12 @@ def hotspot_analyzation(timestamps: List[float], intervals=60) -> Dict[float, fl
     timestamps.sort()
     result_dict = {}
 
-    timestamp_set = set()
-
     for timestamp in timestamps:
-        if timestamp not in timestamp_set:
-            result_dict[timestamp] = len([t for t in timestamps if timestamp <= t <= timestamp + intervals])
-            timestamp_set.add(timestamp)
+        interval_key = float(timestamp // intervals) * intervals
+        if interval_key not in result_dict:
+            result_dict[interval_key] = 1
+        else:
+            result_dict[interval_key] += 1
 
     return result_dict
 
