@@ -12,7 +12,7 @@ from time import time
 from typing import Union, List
 
 from loguru import logger
-from nonebot import CommandSession
+from nonebot.internal.matcher import Matcher
 from twitchdl import twitch
 from youtube_dl.utils import sanitize_filename
 
@@ -232,7 +232,7 @@ class TwitchClippingService:
     def __init__(self):
         self.TIMESTAMP_FORMAT = re.compile(r'(\d+[：:]){1,2}\d+')
 
-    async def analyze_clip_comment(self, message_arg: str, session: CommandSession) -> Status:
+    async def analyze_clip_comment(self, message_arg: str, session: Matcher) -> Status:
         message_arg = message_arg.split()
         if len(message_arg) < 1:
             return Status(False,

@@ -5,7 +5,7 @@ from typing import Union, List, Tuple
 from awesome.Constants.function_key import USER_XP
 
 
-class SetuFunction:
+class SetuFunctionControl:
     def __init__(self):
         self.max_sanity = 100
         self.blacklist_freq_keyword = ('R-18', 'オリジナル', '女の子')

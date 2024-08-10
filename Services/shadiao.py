@@ -2,8 +2,6 @@ import os
 import random
 from json import dump, loads
 
-INFO_NOT_AVAILABLE = "信息暂不可用"
-
 
 class Flatter:
     def __init__(self):
@@ -20,7 +18,7 @@ class Flatter:
         with open(self.flatter_path, 'r', encoding='utf8') as file:
             return loads(file.read())
 
-    def get_flatter_result(self, name: int) -> str:
+    def get_flatter_result(self, name: str) -> str:
         flatter_list = self.flatter_dict['data']
         if flatter_list:
             return random.choice(flatter_list).replace('${name}', f'[CQ:at,qq={name}]')

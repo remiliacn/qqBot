@@ -1,12 +1,12 @@
 import json
 import os
 from time import time
-from typing import Union
+from typing import Union, List
 
 import requests
-from aiocqhttp import MessageSegment
+from nonebot.adapters.onebot.v11 import Message, MessageSegment
 
-from qq_bot_core import admin_group_control
+from awesome.adminControl import group_control
 
 HHSHMEANING = 'meaning'
 FURIGANAFUNCTION = 'furigana'
@@ -16,17 +16,17 @@ WIKIPEDIA = 'WIKIPEDIA'
 def set_group_permission(message: str, group_id: Union[str, int], tag: str) -> bool:
     group_id = str(group_id)
     if '开' in message:
-        admin_group_control.set_group_permission(group_id=group_id, tag=tag, stat=True)
+        group_control.set_group_permission(group_id=group_id, tag=tag, stat=True)
         return True
 
-    admin_group_control.set_group_permission(group_id=group_id, tag=tag, stat=False)
+    group_control.set_group_permission(group_id=group_id, tag=tag, stat=False)
     return False
 
 
-def get_downloaded_image_qr_code(response: str, path: str):
+def get_downloaded_quote_image_path(response: str, path: str) -> str:
     path = _download_image_to_path(response, path)
-    resp = str(MessageSegment.image(f'file:///{path}'))
-    return resp
+    return path
+
 
 def _download_image_to_path(response, path):
     image_response = requests.get(
@@ -46,8 +46,6 @@ def _download_image_to_path(response, path):
     return path
 
 
-
-
 def ark_helper(args: list) -> str:
     if len(args) < 2:
         return '用法有误\n' + '使用方法：！命令 干员名 星级（数字）'
@@ -56,6 +54,24 @@ def ark_helper(args: list) -> str:
         return '使用方法有误，第二参数应为数字'
 
     return ''
+
+
+def construct_message_chain(*args: [str, MessageSegment, Message, List[MessageSegment], None]) -> Message:
+    message_list: List[MessageSegment] = []
+    for arg in args:
+        if arg is None:
+            continue
+
+        if isinstance(arg, str):
+            message_list.append(MessageSegment.text(arg))
+        elif isinstance(arg, Message):
+            message_list += [x for x in arg]
+        elif isinstance(arg, list):
+            message_list += arg
+        else:
+            message_list.append(arg)
+
+    return Message(message_list)
 
 
 @DeprecationWarning

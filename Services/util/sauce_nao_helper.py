@@ -1,8 +1,8 @@
 from os import getcwd
 
 import aiohttp
-from aiocqhttp import MessageSegment
 from loguru import logger
+from nonebot.adapters.onebot.v11 import MessageSegment
 
 from Services.util.download_helper import download_image
 from config import SAUCE_API_KEY
@@ -47,7 +47,7 @@ async def _analyze_saucenao_response(json_data: dict):
         if not path:
             return {}
 
-        image_content = MessageSegment.image(f'file:///{path}')
+        image_content = MessageSegment.image(path)
 
         json_data = json_data['data']
         if 'ext_urls' not in json_data:
@@ -65,7 +65,7 @@ async def _analyze_saucenao_response(json_data: dict):
         return analyzed_data
 
 
-async def _analyze_sauce_nao_content(json_data, image_content):
+async def _analyze_sauce_nao_content(json_data: dict, image_content: MessageSegment) -> dict:
     pixiv_id = 'Undefined'
     title = 'Undefined'
     author = 'Undefined'

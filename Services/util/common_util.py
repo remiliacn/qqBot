@@ -5,20 +5,21 @@ from functools import lru_cache
 from math import ceil
 from os import remove, getcwd
 from os.path import exists
-from typing import Union
+from ssl import SSLContext
+from typing import List
 
 import markdown2
 from httpx import AsyncClient
-from loguru import logger
 from lxml import html
 from lxml.html.clean import Cleaner
-from nonebot import CommandSession
+from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageSegment, Message
+from nonebot.log import logger
 from selenium import webdriver
 from selenium.common import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support import expected_conditions as exp_con
 from selenium.webdriver.support.wait import WebDriverWait
 from tqdm import tqdm
 from webdriver_manager.chrome import ChromeDriverManager
@@ -44,6 +45,7 @@ class TwitchDownloadStatus(Status):
 
 @dataclasses.dataclass
 class DiscordMessageStatus(Status):
+    message: List[MessageSegment] = dataclasses.field(default_factory=lambda: [])
     group_to_notify: str = ''
     has_update: bool = False
     is_edit: bool = False
@@ -51,6 +53,7 @@ class DiscordMessageStatus(Status):
 
 @dataclasses.dataclass
 class DiscordGroupNotification(Status):
+    message: Message
     has_update: bool
     group_to_notify: str
     channel_name: str
@@ -62,18 +65,11 @@ def chunk_string(string, length):
     return (string[0 + i:length + i] for i in range(0, len(string), length))
 
 
-def _compile_forward_node(self_id: str, data: str):
-    return {
-        'type': 'node',
-        'data': {
-            'name': '月朗风清',
-            'uin': self_id,
-            'content': data
-        }
-    }
+def _compile_forward_node(self_id: int, data: Message) -> MessageSegment:
+    return MessageSegment.node_custom(user_id=self_id, nickname='月朗风清', content=data)
 
 
-async def get_general_ctx_info(ctx: dict) -> (int, int, int):
+async def get_general_ctx_info(ctx: GroupMessageEvent) -> (int, int, int):
     message_id = ctx['message_id']
     return message_id, get_user_id(ctx), get_group_id(ctx)
 
@@ -131,13 +127,17 @@ def find_repeated_substring(input_str: str) -> str:
     return input_str
 
 
-def compile_forward_message(self_id: Union[int, str], *args: str) -> list:
-    self_id = str(self_id)
-    data_list = []
-    for arg in args:
-        data_list.append(_compile_forward_node(self_id, arg.strip()))
+def get_if_has_at_and_qq(event: GroupMessageEvent) -> (bool, str):
+    at_qq_list = event.original_message.get('at')
+    return len(at_qq_list) > 0, at_qq_list[0].data.get('qq', '0') if at_qq_list else '0'
 
-    return data_list
+
+def compile_forward_message(self_id: int, *args: List[MessageSegment]) -> Message:
+    data_list: List[MessageSegment] = []
+    for arg in args:
+        data_list.append(_compile_forward_node(self_id, Message(arg)))
+
+    return Message(data_list)
 
 
 def is_float(content: str) -> bool:
@@ -149,7 +149,7 @@ def is_float(content: str) -> bool:
         return False
 
 
-async def check_if_number_user_id(session: CommandSession, arg: str):
+async def check_if_number_user_id(session: GroupMessageEvent, arg: str):
     if not arg.isdigit():
         session.finish('输入非法')
 
@@ -191,12 +191,12 @@ ul { font-size: 25px }
 ol { font-size: 25px }
 pre { font-size: 20px !important }
 </style>
-<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+<script type="text/javascript" awesome="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css"
  integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+<script awesome="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
 
 """ + f'<body><div class="container bg-dark text-white">{html_string}</div></body>')
 
@@ -218,7 +218,8 @@ def html_to_image(file_name):
     try:
         WebDriverWait(driver, 15, poll_frequency=0.5) \
             .until(
-            EC.presence_of_element_located((By.XPATH, "//*[@id='MathJax_Message'][contains(@style, 'display: none')]")))
+            exp_con.presence_of_element_located(
+                (By.XPATH, "//*[@id='MathJax_Message'][contains(@style, 'display: none')]")))
     except TimeoutException:
         logger.warning('Render markdown exceeded time limit.')
     finally:
@@ -273,6 +274,13 @@ class HttpxHelperClient:
         else:
             self.headers = headers
 
+        self.context = SSLContext()
+        ciphers = ":".join([
+            "@SECLEVEL=1",  # python 3.10 default is SECLEVEL=2 which rejects less secure ciphers
+            "ALL",
+        ])
+        self.context.set_ciphers(ciphers)
+
     async def get(self, url: str, timeout=5.0, headers=None, cookies=None, redirect=False):
         headers = headers if headers is not None else self.headers
 
@@ -294,7 +302,7 @@ class HttpxHelperClient:
         logger.info(f'Downloading file name: {file_name.split("/")[-1]}')
         try:
             if not exists(file_name):
-                async with AsyncClient(timeout=timeout, headers=headers) as client:
+                async with AsyncClient(timeout=timeout, headers=headers, verify=self.context) as client:
                     # noinspection PyArgumentList
                     async with client.stream('GET', url=url, follow_redirects=True) as response:
                         if response.status_code == 403:

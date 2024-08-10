@@ -3,7 +3,7 @@ import re
 import time
 from typing import Union
 
-import requests
+import httpx
 
 from config import CANGKU_USERNAME, CANGKU_PASSWORD
 
@@ -47,7 +47,7 @@ class CangkuApi:
         }
         self.temp_info = {}
 
-        self.session = requests.Session()
+        self.session = httpx.Client()
         self.last_auth_time = time.time()
 
     def auth(self):
@@ -85,7 +85,7 @@ class CangkuApi:
         if is_r18:
             page = self.session.get(search_url, headers=self.headers)
         else:
-            page = requests.get(search_url)
+            page = httpx.get(search_url)
 
         if page.status_code != 200:
             return CangkuResponse(FAILED, {}, error=NO_SEARCH_RESULT_ERROR)

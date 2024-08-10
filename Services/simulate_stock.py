@@ -9,9 +9,10 @@ from random import randint
 from typing import Union, Dict
 
 from loguru import logger
+from nonebot.adapters.onebot.v11 import GroupMessageEvent
 
 from Services.fake_stock_money import FakeStock
-from Services.stock import Stock, Crypto
+from Services.stock import Stock
 
 fake_stock = FakeStock()
 
@@ -558,11 +559,11 @@ class SimulateStock:
                     price_now = await self._get_stock_price_from_cache_by_identifier(stock)
                     is_digital_coin = self.stock_price_cache[stock].is_digital
                     stock_name = self.stock_price_cache[stock].stock_name
-                    stock_api = Stock(stock) if not is_digital_coin else Crypto(stock)
+                    stock_api = Stock(stock)
                     if not is_digital_coin:
                         stock_api.set_type(self.stock_price_cache[stock].stock_type)
 
-                stock_type = stock_api.type if isinstance(stock_api, Stock) else 'Crypto'
+                stock_type = stock_api.type
                 self.set_stock_cache(stock, stock_name, stock_type, price_now, is_digital_coin)
             user_stock_data = await self._query_user_stock_by_quote(uid, stock)
             # e.g. purchase price 15, current 30. Put option: lose -15, Call option: gain 15.
@@ -647,7 +648,7 @@ class SimulateStock:
         self._commit_change()
 
     async def buy_stupid_stonk(self, uid: Union[int, str], stock_name: str, amount: Union[str, int], margin=1,
-                               ctx=None):
+                               ctx=GroupMessageEvent):
         stock_name = stock_name.lower()
         fake_stock.update_all_stocks()
         if isinstance(amount, str):
@@ -663,7 +664,7 @@ class SimulateStock:
         except TypeError:
             return self.STOCK_NOT_EXISTS_ALTER
 
-        nickname = ctx['sender']['nickname']
+        nickname = ctx.sender.nickname
 
         uid = str(uid)
         user_money = await self._get_user_money(uid)
@@ -788,7 +789,7 @@ class SimulateStock:
         money_spent += abs(need_money)
         purchase_price = money_spent / purchase_count
 
-        stock_type = stock_api.type if isinstance(stock_api, Stock) else 'Crypto'
+        stock_type = stock_api.type
         transaction = StockTransaction(
             stock_code, stock_name, uid, purchase_price,
             purchase_count, money_spent, margin, stock_type
@@ -925,7 +926,7 @@ class SimulateStock:
         return False, None
 
     async def _determine_stock_price_digital_name(self, stock_code, valid_time=None) \
-            -> (Union[float, int], bool, str, Union[Crypto, Stock, None, str], bool):
+            -> (Union[float, int], bool, str, Union[Stock, None, str], bool):
         is_digital_coin = False
         is_valid_store, get_stored_info = await self._determine_if_has_cache_or_expired(stock_code, valid_time)
 
@@ -938,18 +939,12 @@ class SimulateStock:
             is_digital_coin = get_stored_info.is_digital
             return get_stored_info.price_now, is_digital_coin, \
                 get_stored_info.stock_name, \
-                Stock(stock_code) if not is_digital_coin else Crypto(stock_code), stock_code, stock_rate
+                Stock(stock_code), stock_code, stock_rate
 
         if not stock_code.isdigit():
             # 虚拟币一般是全字母，然后有可能有“-USDT”的部分
-            if re.match(r'^[A-Z-]+$', stock_code.upper().strip()):
-                stock_api = Crypto(stock_code)
-                price_now = await stock_api.get_current_value() * self.USD_TO_CNY
-                stock_name = stock_api.crypto_usdt
-                is_digital_coin = True
-            else:
-                price_now = -1
-                stock_name = ''
+            price_now = -1
+            stock_name = ''
 
             # Price < 1 代表不是虚拟币，可能是美股？
             if price_now <= 0:

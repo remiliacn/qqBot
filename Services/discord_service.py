@@ -7,11 +7,13 @@ from time import time
 from typing import List
 
 from loguru import logger
+from nonebot.adapters.onebot.v11 import MessageSegment
 from youtube_dl.utils import sanitize_filename
 
 from Services.util.common_util import HttpxHelperClient, DiscordGroupNotification, DiscordMessageStatus, time_to_literal
 from awesome.Constants.vtuber_function_constants import GPT_4_MODEL_NAME
 from config import SUPER_USER, DISCORD_AUTH
+from util.helper_util import construct_message_chain
 
 
 class DiscordService:
@@ -123,7 +125,8 @@ class DiscordService:
                     if chatgpt_message.status_code == 500:
                         raise ConnectionError
                     chatgpt_message = chatgpt_message.text
-                    final_message = f'\n原文来自{discord_status.message}\n粗翻：\n{chatgpt_message}'
+                    final_message = construct_message_chain(
+                        f'\n原文来自', discord_status.message, '\n粗翻：\n', chatgpt_message)
                     statuses.append(DiscordGroupNotification(
                         is_success=discord_status.is_success,
                         message=final_message,
@@ -137,7 +140,7 @@ class DiscordService:
                     logger.error(f'Failed to machine translate. {err.__class__}')
                     statuses.append(DiscordGroupNotification(
                         is_success=discord_status.is_success,
-                        message=discord_status.message,
+                        message=construct_message_chain(discord_status.message),
                         has_update=discord_status.has_update,
                         group_to_notify=discord_status.group_to_notify,
                         channel_name=item[2],
@@ -173,7 +176,7 @@ class DiscordService:
 
     async def _retrieve_latest_discord_channel_message(self, channel_id: str) -> DiscordMessageStatus:
         if not channel_id.isdigit():
-            return DiscordMessageStatus(False, 'Channel ID should be digit.')
+            return DiscordMessageStatus(False, [MessageSegment.text('Channel ID should be digit.')])
 
         latest_timestamp = await self._get_the_latest_existing_discord_message(channel_id)
         if latest_timestamp is None:
@@ -190,31 +193,34 @@ class DiscordService:
         edited_msg_timestamp = 0 if edited_msg_timestamp is None else int(
             datetime.fromisoformat(edited_msg_timestamp).timestamp())
 
-        final_text = ''
+        final_message_segments: List[MessageSegment] = []
         is_edit = False
 
         author_object = discord_msg_result['author']
-        poster_name = author_object['username'] \
-            if 'username' in author_object else \
+        poster_name = author_object['username'] if 'username' in author_object else \
             (author_object['global_name'] if 'global_name' in author_object else '??')
 
         if latest_msg_timestamp > latest_timestamp:
             discord_msg_parsed_result = await self._analyze_discord_message(discord_msg_result['content'])
             attachment_msg_parsed_result = await self._analyze_discord_attachments(discord_msg_result['attachments'])
 
-            final_text = poster_name + ':\n' + discord_msg_parsed_result + '\n' + attachment_msg_parsed_result
+            final_message_segments = \
+                ([MessageSegment.text(poster_name + ':\n')] + discord_msg_parsed_result
+                 + MessageSegment.text('\n') + attachment_msg_parsed_result)
             await self._update_previous_timestamp(channel_id, latest_msg_timestamp)
 
         if edited_msg_timestamp > latest_timestamp and edited_msg_timestamp > latest_msg_timestamp:
             discord_msg_parsed_result = await self._analyze_discord_message(discord_msg_result['content'])
             attachment_msg_parsed_result = await self._analyze_discord_attachments(discord_msg_result['attachments'])
 
-            final_text = discord_msg_parsed_result + '\n' + attachment_msg_parsed_result
+            final_message_segments = \
+                discord_msg_parsed_result + MessageSegment.text('\n') + attachment_msg_parsed_result
             is_edit = True
             await self._update_previous_timestamp(channel_id, edited_msg_timestamp)
 
         group_to_notify = self.get_group_ids_for_notification(channel_id)
-        return DiscordMessageStatus(True, final_text, group_to_notify, True if final_text else False, is_edit=is_edit)
+        return DiscordMessageStatus(True, final_message_segments, group_to_notify,
+                                    True if final_message_segments else False, is_edit=is_edit)
 
     async def update_streamer_data(self, channel_name: str, channel_id: str, group_id: str, is_enabled=True):
         group_ids = self.get_group_ids_for_notification(channel_name)
@@ -235,7 +241,7 @@ class DiscordService:
         self.database.commit()
 
     @staticmethod
-    async def _analyze_discord_message(discord_msg_result: str):
+    async def _analyze_discord_message(discord_msg_result: str) -> List[MessageSegment]:
         discord_msg_result = (discord_msg_result.replace('[(', '')
                               .replace('])', '')
                               .replace('()', ''))
@@ -260,10 +266,10 @@ class DiscordService:
         for key, item in replacement_dict.items():
             discord_msg_result = discord_msg_result.replace(f'<{key}>', item)
 
-        return discord_msg_result.strip()
+        return [MessageSegment.text(discord_msg_result)]
 
-    async def _analyze_discord_attachments(self, attachments: List[dict]) -> str:
-        orig_text = ''
+    async def _analyze_discord_attachments(self, attachments: List[dict]) -> List[MessageSegment]:
+        orig_text = []
         for attachment in attachments:
             file_type, file_extension = attachment['content_type'].split('/')
             placeholder_name = sanitize_filename(attachment['placeholder'])
@@ -271,7 +277,7 @@ class DiscordService:
                 file_name = f"{getcwd()}/data/bilibiliPic/{placeholder_name}.{file_extension}"
 
                 await self.client.download(attachment['url'], file_name, headers=self.headers)
-                orig_text += f'\n[CQ:image,file=file:///{file_name}]'
+                orig_text += [MessageSegment.image(file_name)]
 
         return orig_text
 

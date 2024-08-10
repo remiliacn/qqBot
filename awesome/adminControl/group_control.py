@@ -129,7 +129,7 @@ class GroupControlModule:
 
         return query_result.fetchone()[0]
 
-    def set_group_permission(self, group_id: Union[int, str], tag, stat):
+    def set_group_permission(self, group_id: Union[int, str], tag: str, stat: bool):
         group_id = str(group_id)
 
         self.group_info_db.execute(

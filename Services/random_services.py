@@ -5,7 +5,7 @@ from datetime import datetime
 
 from nonebot.log import logger
 
-from Services.util.common_util import HttpxHelperClient
+from Services.util import global_httpx_client
 
 with open('config/downloader_data.json', 'r') as f:
     JSON_DATA = json.loads(f.read())
@@ -24,7 +24,7 @@ class YouTubeLiveTracker:
         self.json_data = {}
         self.live_data = {}
         self.new_video_id = ''
-        self.client = HttpxHelperClient()
+        self.client = global_httpx_client
 
     async def get_json_data(self):
         r = await self.client.get(self.base_url, headers=self.headers)

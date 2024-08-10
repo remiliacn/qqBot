@@ -5,67 +5,56 @@ from os import path, getcwd, mkdir, environ
 from time import sleep
 
 import nonebot
+from nonebot.adapters.onebot.v11 import Adapter as OneBotdapter
 from nonebot.log import logger
 
 # 如果下面这行报错，请暂时注释掉这行然后运行下面的main()
-import config
-from Services.cangku_api import CangkuApi
-from Services.rate_limiter import RateLimiter
 from Services.simulate_stock import SimulateStock
-from awesome.adminControl import user_control, setu, group_control
 
 config_file = \
     """
-    from nonebot.default_config import *
-    
-    NICKNAME = {}
-    CONSUMER_KEY = ''    # Twitter consumer key
-    CONSUMER_SECRET = '' # Twitter Secret Token
-    ACCESS_TOKEN = ''    # Twitter Access Token
-    ACCESS_SECRET = ''   # Twitter Access Secret Token
-    
-    PIXIV_REFRESH_TOKEN = '' # Pixiv refresh token (upbit/pixivpy的issue#158有获取方式)
-    DOWNLODER_FILE_NAME = 'for_download.py'
-    
-    ITPK_KEY = ''        # 茉莉机器人API KEY
-    ITPK_SECRET = ''     # 茉莉机器人API SECRET
-    
-    SAUCE_API_KEY = ''   # Sauce API key.
-    
-    HOST = '127.0.0.1'
-    PORT = 5700
-    SUPER_USER = 0       # 超级管理员qq号 (int)
-    
-    BUFF_SESSION_ID = ''
-    STEAM_UTIL_GROUP_NUM = []
-    
-    # 如果需要YouTube自动扒源功能可保留下面的参数，否则可以删除
-    # 删除后可移除forDownload.py文件以及do_youtube_update_fetch()方法
-    # 该方法存在于./awesome/plugins/vtuber_functions.py
-    
-    PATH_TO_ONEDRIVE = ''    # OneDrive盘路径，或服务器文件路径终点
-    PATH_TEMP_DOWNLOAD = ''  # 视频下载的缓存地址
-    FFMPEG_PATH = ''         # FFMPEG路径
-    SHARE_LINK = ''          # OneDrive分享地址，或服务器目录根地址。
-    
-    CANGKU_USERNAME = ''
-    CANGKU_PASSWORD = ''
-    
-    OKEX_API_KEY  = ""
-    OKEX_SECRET_KEY= ""
-    OKEX_PASSPHRASE = ""
-    
+NICKNAME = {}
+CONSUMER_KEY = ''    # Twitter consumer key
+CONSUMER_SECRET = '' # Twitter Secret Token
+ACCESS_TOKEN = ''    # Twitter Access Token
+ACCESS_SECRET = ''   # Twitter Access Secret Token
+
+PIXIV_REFRESH_TOKEN = '' # Pixiv refresh token (upbit/pixivpy的issue#158有获取方式)
+
+ITPK_KEY = ''        # 茉莉机器人API KEY
+ITPK_SECRET = ''     # 茉莉机器人API SECRET
+
+SAUCE_API_KEY = ''   # Sauce API key.
+
+SUPER_USER = 0       # 超级管理员qq号 (int)
+
+BUFF_SESSION_ID = ''
+STEAM_UTIL_GROUP_NUM = []
+
+# 如果需要YouTube自动扒源功能可保留下面的参数，否则可以删除
+# 删除后可移除forDownload.py文件以及do_youtube_update_fetch()方法
+# 该方法存在于./awesome/plugins/vtuber_functions.py
+
+PATH_TO_ONEDRIVE = ''    # OneDrive盘路径，或服务器文件路径终点
+PATH_TEMP_DOWNLOAD = ''  # 视频下载的缓存地址
+FFMPEG_PATH = ''         # FFMPEG路径
+SHARE_LINK = ''          # OneDrive分享地址，或服务器目录根地址。
+
+CANGKU_USERNAME = ''
+CANGKU_PASSWORD = ''
+
     """
 
-user_control_module = user_control.UserControl()
-setu_control = setu.SetuFunction()
-admin_group_control = group_control.GroupControlModule()
 temp_message_db = sqlite3.connect(f'{getcwd()}/data/db/temp_messages.db')
 
-global_rate_limiter = RateLimiter()
-
-cangku_api = CangkuApi()
 virtual_market = SimulateStock()
+
+nonebot.init()
+
+driver = nonebot.get_driver()
+driver.register_adapter(OneBotdapter)
+
+nonebot.load_plugins("awesome/plugins")
 
 
 def register_true():
@@ -87,19 +76,7 @@ def register_true():
         )
 
     create_file('data/started.json')
-    create_file('config/downloader_data.json')
-    create_file('config/YouTubeNotify.json')
     create_file('data/started.json', {'status': True})
-    create_file('config/downloader.json', {
-        '_comment': {
-            '_comment': '示例downloader配置请见downloader_sample.json', "channel": "UCyIcOCH-VWaRKH9IkR8hz7Q",
-            'qqGroup': 123456789,
-            'videoID': '',
-            'enabled': False,
-            'notify': False,
-            'upcomingID': '',
-            'liveID': ''}
-    })
 
     with open('data/started.json', 'w+') as f:
         dump({'status': True}, f, indent=4)
@@ -118,30 +95,7 @@ def create_file(path_to_check: str, dump_data=None):
             dump(dump_data, f, indent=4, ensure_ascii=False)
 
 
-def _create_temp_message_db():
-    temp_message_db.execute(
-        """
-create table if not exists temp_messages
-(
-    uid            text unique on conflict ignore,
-    message_content         text,
-    group_to_notify         text
-)
-        """
-    )
-
-
 def main():
-    _create_temp_message_db()
-    # 记着生成config文件后把本文件的import config去掉注释
-    nonebot.init(config)
-    nonebot.log.logger.setLevel('WARNING')
-
-    nonebot.load_plugins(
-        path.join(path.dirname(__file__), 'awesome', 'plugins'),
-        'awesome.plugins'
-    )
-
     logger.warning('Plugins successfully installed.')
     getLogger('asyncio').setLevel(ERROR)
     nonebot.run()

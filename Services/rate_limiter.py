@@ -193,7 +193,7 @@ class RateLimiter:
         query_user_prompt, wait_time = await self._query_user_permission(function_name, user_id, user_limit_modifier)
         return query_user_prompt, wait_time
 
-    async def _assemble_limit_prompt(self, prompt, wait_time):
+    async def _assemble_limit_prompt(self, prompt, wait_time) -> [None, str]:
         if prompt == self.LIMIT_BY_USER:
             return f'别玩啦，过{await time_to_literal(wait_time)}后再回来玩好不好？'
         elif prompt == self.LIMIT_BY_GROUP:

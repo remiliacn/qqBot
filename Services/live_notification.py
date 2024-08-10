@@ -11,12 +11,15 @@ from time import time, time_ns
 from typing import Union, List, Dict
 
 from aiohttp import ClientSession
-from loguru import logger
+from nonebot.adapters.onebot.v11 import MessageSegment, Message
+from nonebot.log import logger
 from wordcloud import WordCloud
 
 from Services.get_bvid import update_buvid_params
-from Services.util.common_util import HttpxHelperClient, OptionalDict
+from Services.util import global_httpx_client
+from Services.util.common_util import OptionalDict
 from config import DANMAKU_PROCESS
+from util.helper_util import construct_message_chain
 
 
 @dataclasses.dataclass
@@ -33,7 +36,7 @@ class LivestreamDanmakuData:
 
 
 class DynamicNotificationData:
-    def __init__(self, name: str, dynamic_content: str):
+    def __init__(self, name: str, dynamic_content: List[MessageSegment]):
         self.name = name
         self.dynamic_content = dynamic_content
 
@@ -183,13 +186,15 @@ class LiveNotification:
         self.live_database.commit()
 
     @staticmethod
-    async def convert_live_data_to_string(data: LiveNotificationData) -> str:
-        response = f'{data.streamer_name}{data.live_change_status}\n'
+    async def convert_live_data_to_string(data: LiveNotificationData) -> List[MessageSegment]:
+        response = [MessageSegment.text(f'{data.streamer_name}{data.live_change_status}\n')]
         if data.is_live:
-            response += f'直播标题：{data.stream_title}\n' \
-                        f'开播时间：{data.stream_live_time}\n'
-            response += f'[CQ:image,file=file:///{data.stream_thumbnail}]\n' if data.stream_thumbnail else ''
-            response += f'直播标签：{data.tags}'
+            response += MessageSegment.text(
+                f'直播标题：{data.stream_title}\n'
+                f'开播时间：{data.stream_live_time}\n')
+            if data.stream_thumbnail:
+                response += MessageSegment.image(data.stream_thumbnail)
+            response += MessageSegment.text(f'直播标签：{data.tags}')
 
         return response
 
@@ -212,7 +217,7 @@ class LiveNotification:
         return self._analyze_dumped_live_data(data)
 
     @staticmethod
-    def stringify_danmaku_data(data: LivestreamDanmakuData) -> str:
+    def stringify_danmaku_data(data: LivestreamDanmakuData) -> Message:
         word_cloud = WordCloud(font_path=f'{getcwd()}/Services/util/SourceHanSansSC-Bold.otf',
                                background_color='#fff',
                                max_words=90,
@@ -222,17 +227,19 @@ class LiveNotification:
         word_cloud.to_file(path)
 
         gift_price_string = f'（预估收入：￥{data.gift_total_price:.2f}）' if data.gift_total_price > 0 else ''
-        new_captains_prompt = f'新舰长{data.new_captains}个\n' if data.new_captains >= 3 else ''
-        hotspot_data_prompt = f'前五弹幕最多的精彩时间（BETA功能）：{", ".join(data.top_five_crazy_timestamps)}\n' \
+        new_captains_prompt = f'新舰长{data.new_captains}个' if data.new_captains >= 3 else ''
+        hotspot_data_prompt = f'前五弹幕最多的精彩时间（BETA功能）：{", ".join(data.top_five_crazy_timestamps)}' \
             if data.top_five_crazy_timestamps else ''
-        return '直播已结束！撒花~✿✿ヽ(°▽°)ノ✿\n\n' \
-               f'一共收到啦{data.danmaku_count}枚弹幕\n' \
-               f'{new_captains_prompt}' \
-               f'收到礼物（包括SC）{data.gift_received_count}个\n' \
-               f'{gift_price_string}\n' \
-               f'最高人气排名：{data.highest_rank}\n' \
-               f'{hotspot_data_prompt}\n\n' \
-               f'[CQ:image,file=file:///{path}]'
+        return construct_message_chain(
+            MessageSegment.text(
+                '\n'.join([x for x in [
+                    '直播已结束！撒花~✿✿ヽ(°▽°)ノ✿\n',
+                    f'一共收到啦{data.danmaku_count}枚弹幕',
+                    new_captains_prompt,
+                    f'收到礼物（包括SC）{data.gift_received_count}个\n'
+                    f'{gift_price_string}'
+                    f'最高人气排名：{data.highest_rank}\n',
+                    f'{hotspot_data_prompt}\n\n'] if x])), MessageSegment.image(path))
 
     def _delete_dumped_live_data(self, uid):
         self.live_database.execute(
@@ -281,8 +288,7 @@ class LiveNotification:
     async def check_if_live(self, room_id: str, streamer_name: str) -> LiveNotificationData:
         logger.info(f'Checking live stat for {streamer_name}, room id: {room_id}')
         url = self.bilibili_live_check_url + room_id
-        client = HttpxHelperClient()
-        data_response_client = await client.get(url, headers={
+        data_response_client = await global_httpx_client.get(url, headers={
             'User-Agent': 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                           'AppleWebKit/537.36 (KHTML, like Gecko) '
                           'Chrome/84.0.4147.125 Safari/537.36'
@@ -310,7 +316,7 @@ class LiveNotification:
         if thumbnail_url is not None:
             stream_thumbnail_filename = \
                 f'{getcwd()}/data/bilibiliPic/{thumbnail_url.split("/")[-1].replace("]", "").replace("[", "")}'
-            await client.download(thumbnail_url, file_name=stream_thumbnail_filename)
+            await global_httpx_client.download(thumbnail_url, file_name=stream_thumbnail_filename)
         else:
             stream_thumbnail_filename = ''
 
@@ -327,18 +333,14 @@ class LiveNotification:
     async def check_live_bilibili(self) -> List[LiveNotificationData]:
         user_needs_to_be_checked = self.live_database.execute(
             """
-            select * from live_notification_bilibili
+            select name, isEnabled, uid, last_record_live_status, group_to_notify from live_notification_bilibili
             """
         ).fetchall()
 
         live_data_list = []
 
         for live_data in user_needs_to_be_checked:
-            streamer_name = live_data[0]
-            is_enabled = live_data[1]
-            room_id = live_data[2]
-            last_record_state = live_data[4]
-            group_ids = live_data[5]
+            streamer_name, is_enabled, room_id, last_record_state, group_ids = live_data
 
             if not is_enabled:
                 logger.info(f'{streamer_name} is disable to send notification.')
@@ -503,7 +505,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
 
         return None
 
-    async def _analyze_dynamic(self, item: dict):
+    async def _analyze_dynamic(self, item: dict) -> List[MessageSegment]:
         dynamic_module = OptionalDict(item).map('modules').map('module_dynamic').or_else({})
         rich_text_node = OptionalDict(dynamic_module).map('desc').map('rich_text_nodes').or_else([])
         orig_text = await self._fetch_content_in_text_node(rich_text_node)
@@ -514,32 +516,31 @@ class BilibiliDynamicNotifcation(LiveNotification):
                 .map('archive')
                 .or_else({}))
 
+        orig_text = [MessageSegment.text(orig_text)]
         orig_data = OptionalDict(item).map('orig').map('modules').map('module_dynamic').or_else({})
         orig_data_draw = OptionalDict(dynamic_module).map('major').map('draw').or_else({})
         if orig_data_draw:
-            orig_text += '\n附图：' + await self._fetch_draw_from_dynamic(orig_data_draw)
+            orig_text += MessageSegment.text('\n附图：') + await self._fetch_draw_from_dynamic(orig_data_draw)
         if orig_data:
-            orig_text += '\n其他内容：\n' + await self._fetch_content_in_orig_node(orig_data)
+            orig_text += MessageSegment.text('\n其他内容：\n') + await self._fetch_content_in_orig_node(orig_data)
 
         return orig_text
 
     @staticmethod
-    async def construct_string_from_data(data: DynamicNotificationData):
-        return f'{data.name}发新动态啦~\n\n' \
-               f'{data.dynamic_content}'
+    async def construct_string_from_data(data: DynamicNotificationData) -> Message:
+        return construct_message_chain(f'{data.name}发新动态啦~\n\n', data.dynamic_content)
 
     @staticmethod
-    async def _fetch_draw_from_dynamic(orig_draw_node):
+    async def _fetch_draw_from_dynamic(orig_draw_node) -> List[MessageSegment]:
         draw_id = OptionalDict(orig_draw_node).map('id').or_else('')
         if not draw_id:
-            return ''
+            return [MessageSegment.text('')]
 
-        client = HttpxHelperClient()
-        orig_text = ''
+        orig_text = []
         for idx, item in enumerate(OptionalDict(orig_draw_node).map('items').or_else([])):
             file_name = f"{getcwd()}/data/bilibiliPic/{draw_id}_{idx}.jpg"
-            await client.download(item['src'], file_name)
-            orig_text += f'\n[CQ:image,file=file:///{file_name}]'
+            await global_httpx_client.download(item['awesome'], file_name)
+            orig_text += MessageSegment.image(file_name)
 
         return orig_text
 
@@ -559,18 +560,18 @@ class BilibiliDynamicNotifcation(LiveNotification):
                              .replace('[', '').replace(']', ''))
                 file_url = OptionalDict(text_node).map('emoji').map('icon_url').or_else('')
                 if file_url:
-                    client = HttpxHelperClient()
-                    await client.download(file_url, file_name)
+                    await global_httpx_client.download(file_url, file_name)
                 orig_text += f'[CQ:image,file=file:///{file_name}]\n'
 
         return orig_text
 
-    async def _fetch_content_in_orig_node(self, orig_data):
+    async def _fetch_content_in_orig_node(self, orig_data) -> List[MessageSegment]:
         rich_text_node = OptionalDict(orig_data) \
             .map('desc') \
             .map('rich_text_nodes') \
             .or_else([])
         orig_text = await self._fetch_content_in_text_node(rich_text_node)
+        orig_text = [MessageSegment.text(orig_text)]
         pic = OptionalDict(orig_data).map('major').map('draw').or_else({})
         archive = OptionalDict(orig_data).map('major').map('archive').or_else({})
         if pic:
@@ -578,19 +579,18 @@ class BilibiliDynamicNotifcation(LiveNotification):
             files = pic['items']
             for idx, file in enumerate(files):
                 file_name = f"{getcwd()}/data/bilibiliPic/{pic_id}_{idx}.jpg"
-                client = HttpxHelperClient()
-                await client.download(file['src'], file_name)
-                orig_text += f'\n[CQ:image,file=file:///{file_name}]'
+                await global_httpx_client.download(file['src'], file_name)
+                orig_text += MessageSegment.image(file_name)
 
         if archive:
             bvid = archive['bvid']
             forwarded_video_cover = f"{getcwd()}/data/bilibiliPic/{bvid}.jpg"
-            client = HttpxHelperClient()
-            await client.download(archive['cover'], forwarded_video_cover)
 
-            orig_text += f'\n转发视频标题：{archive["title"]}\n' \
-                         f'转发视频bvid：{bvid}\n' \
-                         f'[CQ:image,file=file:///{forwarded_video_cover}]'
+            await global_httpx_client.download(archive['cover'], forwarded_video_cover)
+
+            orig_text += MessageSegment.text(
+                f'\n转发视频标题：{archive["title"]}\n'
+                f'转发视频bvid：{bvid}\n') + MessageSegment.image(forwarded_video_cover)
 
         return orig_text
 
@@ -620,8 +620,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
         bvid = OptionalDict(archive_object).map('bvid').or_else(str(time()))
         file_name = f"{getcwd()}/data/bilibiliPic/{bvid}.jpg"
         if video_cover:
-            client = HttpxHelperClient()
-            await client.download(video_cover, file_name)
+            await global_httpx_client.download(video_cover, file_name)
 
         return f'发布了新视频：\n' \
                f'标题：{OptionalDict(archive_object).map("title").or_else("未知")}\n' \

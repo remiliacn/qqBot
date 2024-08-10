@@ -10,9 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 from loguru import logger
 from plotly.subplots import make_subplots
 
-import Services.okex.spot_api as spot
 from Services.util.common_util import HttpxHelperClient
-from config import OKEX_API_KEY, OKEX_PASSPHRASE, OKEX_SECRET_KEY
 
 MA_EFFECTIVE_POINT = -5
 
@@ -321,55 +319,6 @@ def do_plot(
 
     plot.update_layout(showlegend=False)
     return plot, market_will
-
-
-class Crypto:
-    def __init__(self, crypto: str):
-        self.crypto_name = crypto
-        self.crypto_usdt = f'{crypto.upper()}-USDT'
-        self.granularity = '1H'
-
-    async def get_current_value(self):
-        try:
-            spot_api = spot.SpotAPI(OKEX_API_KEY, OKEX_SECRET_KEY, OKEX_PASSPHRASE)
-            # get 1h k-line
-            json_data = await spot_api.get_kline(instrument_id=self.crypto_usdt, bar=self.granularity)
-            json_data = json_data[:90]
-            open_data = [float(x[1]) for x in json_data][-1]
-
-            return open_data
-        except Exception as err:
-            logger.warning(f'Seemly no crypto like this: {err}')
-            return -1
-
-    async def get_kline(self, analyze_type='MACD'):
-        spot_api = spot.SpotAPI(OKEX_API_KEY, OKEX_SECRET_KEY, OKEX_PASSPHRASE)
-
-        # get 1h k-line
-        json_data = await spot_api.get_kline(instrument_id=self.crypto_usdt, bar=self.granularity)
-        json_data = json_data[:90]
-
-        self.crypto_usdt += ' （1h）'
-        json_data = list(json_data)
-        json_data.reverse()
-
-        open_data = [float(x[1]) for x in json_data]
-        high_data = [x[2] for x in json_data]
-        low_data = [x[3] for x in json_data]
-        close_data = [float(x[4]) for x in json_data]
-
-        plot, market_will = do_plot(
-            open_data[20:] if len(close_data) > 20 else open_data,
-            close_data[20:] if len(close_data) > 20 else close_data,
-            close_data,
-            high_data[20:] if len(close_data) > 20 else high_data,
-            low_data[20:] if len(close_data) > 20 else low_data,
-            self.crypto_usdt,
-            analyze_type
-        )
-        file_name = f'{getcwd()}/data/bot/stock/{int(time_ns())}.png'
-        plot.write_image(file_name)
-        return file_name, market_will
 
 
 class Stock:

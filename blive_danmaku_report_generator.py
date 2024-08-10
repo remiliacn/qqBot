@@ -12,7 +12,7 @@ from os import getpid
 from typing import Optional, Set, List, Dict
 
 import aiohttp
-from loguru import logger
+from nonebot import logger
 
 import blivedm.models.web as web_models
 from Services.live_notification import LiveNotification, LivestreamDanmakuData
@@ -256,6 +256,7 @@ async def run_listening():
 
 if __name__ == '__main__':
     try:
+        logger.success('Successfully started danmaku monitoring.')
         asyncio.run(main())
     finally:
         print()
