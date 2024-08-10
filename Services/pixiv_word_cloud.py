@@ -1,7 +1,7 @@
 import random
+from asyncio import sleep
 from os import getcwd
 from re import match
-from asyncio import sleep
 
 from loguru import logger
 from wordcloud import WordCloud
@@ -29,6 +29,7 @@ REPLACE_DICT = {
 }
 
 MAX_ITERATION = 30
+
 
 async def get_word_cloud_img(api, user_id):
     xp_dict = {}

@@ -221,17 +221,17 @@ class LiveNotification:
         path = f'{getcwd()}/data/pixivPic/{int(time_ns())}.png'
         word_cloud.to_file(path)
 
-        gift_price_string = f'（礼物收入：￥{data.gift_total_price:.2f}）' if data.gift_total_price > 0 else ''
-        new_captains_prompt = f'新舰长{data.new_captains}个\n' if data.new_captains > 0 else ''
-        hotspot_data_prompt = f'前五弹幕最多的精彩时间（1分钟内，BETA功能）：{", ".join(data.top_five_crazy_timestamps)}\n' \
+        gift_price_string = f'（预估收入：￥{data.gift_total_price:.2f}）' if data.gift_total_price > 0 else ''
+        new_captains_prompt = f'新舰长{data.new_captains}个\n' if data.new_captains >= 3 else ''
+        hotspot_data_prompt = f'前五弹幕最多的精彩时间（BETA功能）：{", ".join(data.top_five_crazy_timestamps)}\n' \
             if data.top_five_crazy_timestamps else ''
-        return '直播已结束！撒花~✿✿ヽ(°▽°)ノ✿\n' \
+        return '直播已结束！撒花~✿✿ヽ(°▽°)ノ✿\n\n' \
                f'一共收到啦{data.danmaku_count}枚弹幕\n' \
-               f'被点赞共{data.like_received_count}次\n' \
                f'{new_captains_prompt}' \
-               f'收到礼物（包括SC）{data.gift_received_count}个 {gift_price_string}\n' \
+               f'收到礼物（包括SC）{data.gift_received_count}个\n' \
+               f'{gift_price_string}\n' \
                f'最高人气排名：{data.highest_rank}\n' \
-               f'{hotspot_data_prompt}' \
+               f'{hotspot_data_prompt}\n\n' \
                f'[CQ:image,file=file:///{path}]'
 
     def _delete_dumped_live_data(self, uid):

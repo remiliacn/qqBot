@@ -102,6 +102,9 @@ class MyDanmakuHandler(BaseHandler):
 
     # noinspection PyUnusedLocal
     def _user_toast_msg(self, client: BLiveClient, command: dict):
+        captain_price = 0
+        captain_count = 0
+
         if command['cmd'] == 'USER_TOAST_MSG_V2':
             if OptionalDict(command).map("guard_info").or_else(None) is not None:
                 captain_data = OptionalDict(command).map("data").map("pay_info").or_else({})
@@ -114,10 +117,10 @@ class MyDanmakuHandler(BaseHandler):
                 logger.info(f'有新舰长？：'
                             f'{OptionalDict(command).map("guard_info").map("role_name").or_else("未知数据")}'
                             f' x {captain_count} -> 价格：{captain_price}')
-                if captain_price > 0:
-                    self.gift_price += (captain_price // 1000) * captain_count
+        if captain_price > 0:
+            self.gift_price += (captain_price / 1000) * captain_count
 
-                self.new_captains += 1
+        self.new_captains += captain_count
 
     # noinspection PyTypeChecker
     _CMD_CALLBACK_DICT['LIKE_INFO_V3_CLICK'] = _like_info_v3_callback
