@@ -539,7 +539,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
         orig_text = []
         for idx, item in enumerate(OptionalDict(orig_draw_node).map('items').or_else([])):
             file_name = f"{getcwd()}/data/bilibiliPic/{draw_id}_{idx}.jpg"
-            await global_httpx_client.download(item['awesome'], file_name)
+            await global_httpx_client.download(item['src'], file_name)
             orig_text += MessageSegment.image(file_name)
 
         return orig_text

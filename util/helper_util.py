@@ -110,31 +110,31 @@ def send_message_with_mini_program(title: str, content: list, image=None, action
     return f'[CQ:json,data={result}]'
 
 
-def anime_reverse_search_response(response_data: dict) -> str:
+def anime_reverse_search_response(response_data: dict) -> Message:
+    confident_prompt = ''
+    if 'simlarity' in response_data and float(response_data["simlarity"].replace('%', '')) < 70:
+        confident_prompt = '\n\n不过我不是太有信心哦~'
     if 'est_time' in response_data:
-        response = f'{response_data["thumbnail"]}\n' \
-                   f'相似度：{response_data["simlarity"]}\n' \
-                   f'番名：{response_data["source"]}\n' \
-                   f'番剧年份：{response_data["year"]}\n' \
-                   f'集数：{response_data["part"]}\n' \
-                   f'大概出现时间：{response_data["est_time"]}'
+        response = construct_message_chain(MessageSegment.image(response_data["thumbnail"]),
+                                           f'相似度：{response_data["simlarity"]}\n'
+                                           f'番名：{response_data["source"]}\n'
+                                           f'番剧年份：{response_data["year"]}\n'
+                                           f'集数：{response_data["part"]}\n'
+                                           f'大概出现时间：{response_data["est_time"]}', confident_prompt)
     else:
         if response_data['ext_url'] == '[数据删除]':
-            response = f'{response_data["data"]}\n' \
-                       f'相似度：{response_data["simlarity"]}\n' \
-                       f'标题：{response_data["title"]}\n' \
-                       f'画师：{response_data["author"]}\n' \
-                       f'{str(response_data["ext_url"])}'
+            response = construct_message_chain(response_data['data'],
+                                               f'相似度：{response_data["simlarity"]}\n'
+                                               f'标题：{response_data["title"]}\n'
+                                               f'画师：{response_data["author"]}\n'
+                                               f'{str(response_data["ext_url"])}', confident_prompt)
         else:
-            response = f'{response_data["data"]}\n' \
-                       f'相似度：{response_data["simlarity"]}\n' \
-                       f'标题：{response_data["title"]}\n' \
-                       f'画师：{response_data["author"]}\n' \
-                       f'Pixiv：{response_data["pixiv_id"]}\n' \
-                       f'{str(response_data["ext_url"])}'
-
-    if 'simlarity' in response_data and float(response_data["simlarity"].replace('%', '')) < 70:
-        response += '\n\n不过我不是太有信心哦~'
+            response = construct_message_chain(response_data['data'],
+                                               f'相似度：{response_data["simlarity"]}\n'
+                                               f'标题：{response_data["title"]}\n'
+                                               f'画师：{response_data["author"]}\n'
+                                               f'Pixiv：{response_data["pixiv_id"]}\n'
+                                               f'{str(response_data["ext_url"])}', confident_prompt)
 
     return response
 

@@ -26,10 +26,10 @@ from ..little_helper import hhsh
 from ...Constants import group_permission
 from ...adminControl import group_control
 
-rule = is_type(GroupMessageEvent)
+nlp_rule = is_type(GroupMessageEvent)
 
-natural_language_group = MatcherGroup(rule=rule)
-natural_language = natural_language_group.on_message()
+nlp_match_group = MatcherGroup(rule=nlp_rule)
+natural_language = nlp_match_group.on_message(priority=4, block=True)
 
 
 @natural_language.handle()
@@ -65,22 +65,20 @@ async def natural_language_proc(bot: Bot, event: GroupMessageEvent, matcher: Mat
                 group_id=group_id,
                 messages=compile_forward_message(event.self_id, reply_response)
             )
+            await matcher.finish()
         except ActionFailed:
-            await matcher.send(reply_response)
-        return
+            await matcher.finish(reply_response)
 
     if group_control.get_group_permission(group_id, group_permission.NLP):
         if match(r'.*?哼{2,}啊+', plain_message):
-            await matcher.send('别臭了别臭了！孩子要臭傻了')
-            return
+            await matcher.finish('别臭了别臭了！孩子要臭傻了')
 
         if fullmatch(r'^(\S)\1need$', plain_message.strip()):
-            await matcher.send(f'不许{message[0]}')
-            return
+            await matcher.finish(f'不许{message[0]}')
 
         fetch_result = await _check_if_asking_definition(plain_message)
         if fetch_result:
-            await matcher.send(fetch_result)
+            await matcher.finish(fetch_result)
 
 
 async def _check_if_asking_definition(message: str) -> str:

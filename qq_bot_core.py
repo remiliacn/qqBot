@@ -5,8 +5,8 @@ from os import path, getcwd, mkdir, environ
 from time import sleep
 
 import nonebot
+from loguru import logger
 from nonebot.adapters.onebot.v11 import Adapter as OneBotdapter
-from nonebot.log import logger
 
 # 如果下面这行报错，请暂时注释掉这行然后运行下面的main()
 from Services.simulate_stock import SimulateStock
@@ -102,6 +102,7 @@ def main():
 
 
 if __name__ == '__main__':
+    logger.warning(f'Working directory: {getcwd()}')
     environ['PYTHONUTF8'] = '1'
     if not path.exists(f'{getcwd()}/config.py'):
         logger.warning('未检测到配置文件，尝试生成模板中……')
