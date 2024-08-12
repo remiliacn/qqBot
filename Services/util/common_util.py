@@ -12,7 +12,7 @@ import markdown2
 from httpx import AsyncClient
 from lxml import html
 from lxml.html.clean import Cleaner
-from nonebot.adapters.onebot.v11 import Bot
+from nonebot.adapters.onebot.v11 import Bot, PrivateMessageEvent
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageSegment, Message
 from nonebot.log import logger
 from selenium import webdriver
@@ -145,7 +145,10 @@ def find_repeated_substring(input_str: str) -> str:
     return input_str
 
 
-def get_if_has_at_and_qq(event: GroupMessageEvent) -> (bool, str):
+def get_if_has_at_and_qq(event: GroupMessageEvent | PrivateMessageEvent) -> (bool, str):
+    if isinstance(event, PrivateMessageEvent):
+        return False, '0'
+
     at_qq_list = event.original_message.get('at')
     return len(at_qq_list) > 0, at_qq_list[0].data.get('qq', '0') if at_qq_list else '0'
 

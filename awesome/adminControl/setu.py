@@ -258,18 +258,18 @@ class SetuFunctionControl:
 
         return result if isinstance(result, int) else result[0] if result is not None and result[0] is not None else 0
 
-    def get_user_xp(self, user_id) -> Union[List[Tuple[str, int]], str]:
+    def get_user_xp(self, user_id: int | str) -> List[str]:
         if isinstance(user_id, int):
             user_id = str(user_id)
 
         result = self.stat_db_connection.execute(
             f"""
-            select keyword from user_xp_count where user_id = ? 
+            select keyword, hit from user_xp_count where user_id = ? 
             and {self._keyword_filter_query()} order by hit desc limit 1;
             """, (user_id, *self.blacklist_freq_keyword)
         ).fetchone()
 
-        return result[0] if result is not None else '暂无数据'
+        return [result[0], result[1]] if result else []
 
     def get_user_data_by_tag(self, user_id, tag: str):
         if isinstance(user_id, int):

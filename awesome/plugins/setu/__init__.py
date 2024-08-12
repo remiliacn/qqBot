@@ -16,12 +16,12 @@ from pixivpy3 import PixivError
 from Services import global_rate_limiter, cangku_api
 from Services.pixiv_word_cloud import get_word_cloud_img
 from Services.rate_limiter import UserLimitModifier
-from Services.util.common_util import compile_forward_message, autorevoke_message
+from Services.util.common_util import compile_forward_message, autorevoke_message, get_if_has_at_and_qq
 from Services.util.ctx_utility import get_group_id, get_user_id, get_nickname
 from Services.util.download_helper import download_image
 from Services.util.sauce_nao_helper import sauce_helper
 from awesome.Constants import user_permission as perm, group_permission
-from awesome.Constants.function_key import SETU, AI_SETU, TRIGGER_BLACKLIST_WORD, HIT_XP
+from awesome.Constants.function_key import SETU, TRIGGER_BLACKLIST_WORD, HIT_XP
 from awesome.Constants.plugins_command_constants import PROMPT_FOR_KEYWORD
 from awesome.adminControl import setu_function_control, get_privilege, group_control, user_control
 from awesome.plugins.setu.setuconfig import SetuConfig
@@ -77,11 +77,9 @@ check_setu_stat_cmd = on_command('色图数据')
 @check_setu_stat_cmd.handle()
 async def get_setu_stat(_event: GroupMessageEvent, matcher: Matcher):
     setu_stat = setu_function_control.get_setu_usage()
-    ai_use_stat = setu_function_control.get_global_stat(AI_SETU)
     setu_high_freq_keyword = setu_function_control.get_high_freq_keyword()
     setu_high_freq_keyword_to_string = "\n".join(f"{x[0]}: {x[1]}次" for x in setu_high_freq_keyword)
-    await matcher.finish(f'色图功能共被使用了{setu_stat}次（其中{ai_use_stat}次为AI生成的，'
-                         f'占比{ai_use_stat / setu_stat * 100:.2f}%），'
+    await matcher.finish(f'色图功能共被使用了{setu_stat}次\n'
                          f'被查最多的关键词前10名为：\n{setu_high_freq_keyword_to_string}')
 
 
@@ -377,11 +375,12 @@ def _validate_user_pixiv_id_exists_and_return_id(
         event: GroupMessageEvent | PrivateMessageEvent,
         session: Message = CommandArg()):
     arg = session.extract_plain_text()
+    has_at_qq, at_qq = get_if_has_at_and_qq(event)
 
     if arg.isdigit():
         search_target_qq = arg
-    elif re.match(r'.*?\[CQ:at,qq=(\d+)]', arg):
-        search_target_qq = re.findall(r'.*?\[CQ:at,qq=(\d+)]', arg)[0]
+    elif has_at_qq:
+        search_target_qq = at_qq
     else:
         search_target_qq = get_user_id(event)
 
@@ -449,7 +448,7 @@ async def get_user_xp_data_with_at(
 
     has_id, search_target_qq, pixiv_id = _validate_user_pixiv_id_exists_and_return_id(event, args)
     xp_result = setu_function_control.get_user_xp(search_target_qq)
-    if not has_id and xp_result == '暂无数据':
+    if not has_id and not xp_result:
         await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), friendly_reminder))
 
     group_id = get_group_id(event)
@@ -466,13 +465,16 @@ async def get_user_xp_data_with_at(
 
 async def _get_xp_information(xp_information: SetuRequester) -> List[MessageSegment]:
     response: List[MessageSegment] = []
+    json_result = []
     if xp_information.has_id:
         json_result = _get_user_bookmark_data(int(xp_information.pixiv_id))
-    else:
+
+    if not json_result or not json_result.illusts:
         json_result = pixiv_api.search_illust(
             word=xp_information.xp_result[0],
             sort="popular_desc"
         )
+
     json_result = json_result.illusts
     if not json_result:
         return [MessageSegment.text('不是吧~你P站都不收藏图的么（')]
@@ -514,10 +516,10 @@ async def _get_xp_information(xp_information: SetuRequester) -> List[MessageSegm
         f'Pixiv ID： {illust.id}\n'
         f'画师：{illust["user"]["name"]}\n',
         MessageSegment.image(path),
-        f'Download Time: {(time.time() - start_time):.2f}s\n')
-
-    response += f'TA最喜欢的关键词是{xp_information.xp_result[0]}，' \
-                f'已经查询了{xp_information.xp_result[1]}次。' if not isinstance(xp_information.xp_result, str) else ''
+        f'Download Time: {(time.time() - start_time):.2f}s',
+        f'\nTA最喜欢的关键词是{xp_information.xp_result[0]}'
+        f'，已经查询了{xp_information.xp_result[1]}次。' if xp_information.xp_result else ''
+    )
 
     setu_function_control.set_user_data(xp_information.requester_qq, SETU, nickname)
     return response
