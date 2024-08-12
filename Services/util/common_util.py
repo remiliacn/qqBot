@@ -1,17 +1,18 @@
 import dataclasses
 import time
-from asyncio import sleep
+from asyncio import sleep, get_running_loop
 from functools import lru_cache
 from math import ceil
 from os import remove, getcwd
 from os.path import exists
 from ssl import SSLContext
-from typing import List
+from typing import List, Literal, Dict, Any
 
 import markdown2
 from httpx import AsyncClient
 from lxml import html
 from lxml.html.clean import Cleaner
+from nonebot.adapters.onebot.v11 import Bot
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageSegment, Message
 from nonebot.log import logger
 from selenium import webdriver
@@ -67,6 +68,23 @@ def chunk_string(string, length):
 
 def _compile_forward_node(self_id: int, data: Message) -> MessageSegment:
     return MessageSegment.node_custom(user_id=self_id, nickname='月朗风清', content=data)
+
+
+async def autorevoke_message(
+        bot: Bot, group_id: int,
+        message_type_to_send: Literal['forward', 'normal'], message: Message, revoke_interval=50):
+    if message_type_to_send == 'forward':
+        message_data: Dict[str, Any] = await bot.send_group_forward_msg(
+            group_id=group_id,
+            messages=message
+        )
+    else:
+        message_data: Dict[str, Any] = await bot.send_group_msg(group_id=group_id, message=message)
+
+    logger.info(f'Message data before revoking: {message_data}')
+    message_id: int = message_data['message_id']
+    loop = get_running_loop()
+    loop.call_later(revoke_interval, lambda: loop.create_task(bot.delete_msg(message_id=message_id)))
 
 
 async def get_general_ctx_info(ctx: GroupMessageEvent) -> (int, int, int):
@@ -191,19 +209,19 @@ ul { font-size: 25px }
 ol { font-size: 25px }
 pre { font-size: 20px !important }
 </style>
-<script type="text/javascript" awesome="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+<script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
 </script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css"
  integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
-<script awesome="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
 """ + f'<body><div class="container bg-dark text-white">{html_string}</div></body>')
 
     return file_name
 
 
-def html_to_image(file_name):
+def html_to_image(file_name) -> str:
     file_name_png = f'{getcwd()}/data/bot/response/{int(time.time())}.png'
     options = Options()
     options.add_argument('--headless')
@@ -309,7 +327,8 @@ class HttpxHelperClient:
                             logger.warning(f'Download retry: {retry + 1}, url: {url}')
                             await sleep(15 * (retry + 1))
                             return await self.download(url, file_name, timeout, headers, retry + 1)
-                        file_size = int(response.headers['Content-Length'])
+                        file_size = int(
+                            response.headers['Content-Length']) if 'Content-Length' in response.headers else 0
                         with tqdm(total=file_size, unit='B', unit_scale=True, unit_divisor=1024) as progress:
                             with open(file_name, 'wb') as file:
                                 async for chunk in response.aiter_bytes():

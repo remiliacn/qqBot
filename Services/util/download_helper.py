@@ -1,6 +1,5 @@
 from os import makedirs, path
 from os.path import exists
-from re import sub, match
 from time import time
 
 from nonebot import logger
@@ -18,13 +17,10 @@ async def download_image(url, saved_path: str, headers=None) -> str:
             return ''
 
     file_name = url.split('/')[-1]
-    file_name = sub(r'\?auth=.*?$', '', file_name)
     if len(file_name) > 10 or '.' not in file_name:
-        file_name = f'{int(time())}.jpg'
+        file_name = f'{int(time())}.{file_name.split(".")[-1]}'
 
     saved_path = path.join(saved_path, file_name)
-    if not match(r'.*?\.[jpgnif]{3,4}$', saved_path):
-        saved_path += '.jpg'
     if not exists(saved_path):
         try:
             return await global_httpx_client.download(url=url, file_name=saved_path, headers=headers)

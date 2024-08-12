@@ -1,10 +1,11 @@
 import random
 import re
 import time
-from os import getcwd
+from os import getcwd, remove
 from typing import Union, List
 
 import pixivpy3
+from PIL import Image, ImageDraw
 from nonebot import get_plugin_config, on_command
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message, PrivateMessageEvent, MessageSegment, Bot
 from nonebot.internal.matcher import Matcher
@@ -15,7 +16,7 @@ from pixivpy3 import PixivError
 from Services import global_rate_limiter, cangku_api
 from Services.pixiv_word_cloud import get_word_cloud_img
 from Services.rate_limiter import UserLimitModifier
-from Services.util.common_util import compile_forward_message
+from Services.util.common_util import compile_forward_message, autorevoke_message
 from Services.util.ctx_utility import get_group_id, get_user_id, get_nickname
 from Services.util.download_helper import download_image
 from Services.util.sauce_nao_helper import sauce_helper
@@ -138,7 +139,7 @@ async def set_black_list_group(
     await matcher.finish(f'Done! {setting}')
 
 
-pixiv_send_cmd = on_command('色图', aliases={'来张色图'})
+pixiv_send_cmd = on_command('色图', aliases={'来张色图', '涩图'})
 
 
 @pixiv_send_cmd.handle()
@@ -285,13 +286,13 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
     start_time = time.time()
     path = await _download_pixiv_image_helper(illust)
 
+    if not path:
+        await matcher.finish('开摆！')
+
     if not is_work_r18:
         message = construct_message_chain(
             MessageSegment.reply(message_id),
-            f'Pixiv ID: {illust.id}\n'
-            f'标题：{illust.title}\n'
-            f'查询关键词：{key_word}\n'
-            f'画师：{illust["user"]["name"]}\n',
+            f'Pixiv ID: {illust.id}\n',
             MessageSegment.image(path),
             f'Download Time: {(time.time() - start_time):.2f}s')
 
@@ -303,18 +304,22 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
             f'标题：{illust.title}\n'
             f'Pixiv ID: {illust.id}\n'
             f'关键词：{key_word}\n'
-            f'画师：{illust["user"]["name"]}\n'
-            f'[CQ:image,file=file:///{path}]\n'
+            f'画师：{illust["user"]["name"]}\n',
+            MessageSegment.image(path),
             f'Download Time: {(time.time() - start_time):.2f}s')
-
 
     else:
         message = construct_message_chain('图片发送失败！')
 
-    await bot.send_group_forward_msg(
-        group_id=group_id,
-        messages=compile_forward_message(event.self_id, message)
-    )
+    if is_work_r18:
+        await autorevoke_message(
+            bot, event.group_id, 'forward',
+            compile_forward_message(event.self_id, message), 30)
+    else:
+        await bot.send_group_forward_msg(
+            group_id=group_id,
+            messages=compile_forward_message(event.self_id, message)
+        )
 
     logger.info("sent image on path: " + path)
     await _setu_data_collection(event, key_word, monitored, path, illust, bot=bot)
@@ -445,9 +450,7 @@ async def get_user_xp_data_with_at(
     has_id, search_target_qq, pixiv_id = _validate_user_pixiv_id_exists_and_return_id(event, args)
     xp_result = setu_function_control.get_user_xp(search_target_qq)
     if not has_id and xp_result == '暂无数据':
-        await matcher.finish(
-            f'[CQ:reply,id={message_id}]' + friendly_reminder
-        )
+        await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), friendly_reminder))
 
     group_id = get_group_id(event)
 
@@ -456,9 +459,9 @@ async def get_user_xp_data_with_at(
     setu_function_control.drain_sanity(group_id)
     final_message = ([MessageSegment.reply(message_id)]
                      + result + MessageSegment.text(f'\n{friendly_reminder if not has_id else ""}'))
-    messages = compile_forward_message(event.self_id, final_message)
 
-    await bot.send_group_forward_msg(group_id=group_id, messages=messages)
+    messages = compile_forward_message(event.self_id, final_message)
+    await autorevoke_message(bot, group_id, 'forward', messages, 30)
 
 
 async def _get_xp_information(xp_information: SetuRequester) -> List[MessageSegment]:
@@ -477,8 +480,8 @@ async def _get_xp_information(xp_information: SetuRequester) -> List[MessageSegm
     illust = random.choice(json_result)
     start_time = time.time()
     path = await _download_pixiv_image_helper(illust)
-    allow_r18 = xp_information.group_id != -1 \
-                and group_control.get_group_permission(xp_information.group_id, group_permission.ALLOW_R18)
+    allow_r18 = xp_information.group_id != -1 and group_control.get_group_permission(
+        xp_information.group_id, group_permission.ALLOW_R18)
     is_r18 = illust.sanity_level == 6
     iteration = 0
 
@@ -569,7 +572,7 @@ def _get_image_data_from_username(key_word: str) -> (str, str):
         return f"{key_word}无搜索结果或图片过少……", ''
 
 
-async def _download_pixiv_image_helper(illust):
+async def _download_pixiv_image_helper(illust) -> str:
     if illust['meta_single_page']:
         if 'original_image_url' in illust['meta_single_page']:
             image_url = illust.meta_single_page['original_image_url']
@@ -587,15 +590,30 @@ async def _download_pixiv_image_helper(illust):
                     image_urls['square_medium']
 
     logger.info(f"{illust.title}: {image_url}, {illust.id}")
-    path = f'{getcwd()}/data/pixivPic/'
+    path = original_path = f'{getcwd()}/data/pixivPic/'
 
     try:
         path = await download_image(image_url, path, headers={'Referer': 'https://app-api.pixiv.net/'})
     except Exception as err:
         logger.info(f'Download image error: {err}')
+        return ''
 
-    logger.info("PATH = " + path)
-    return path
+    edited_path = original_path + f'{int(time.time())}.{path.split(".")[-1]}'
+    try:
+        image = Image.open(path)
+        draw = ImageDraw.Draw(image)
+        x, y = random.randint(0, image.width - 5), random.randint(0, image.height - 5)
+        draw.ellipse((x - 3, y - 3, x + 3, y + 3), fill='white', outline='black')
+
+        image.save(edited_path)
+    except Exception as err:
+        logger.error(f'Failed to micro modify a pixiv pic. {err.__class__}')
+        return path
+
+    remove(path)
+
+    logger.info("PATH = " + edited_path)
+    return edited_path
 
 
 reverse_search_manual_cmd = on_command('搜图')
@@ -603,9 +621,11 @@ reverse_search_manual_cmd = on_command('搜图')
 
 @reverse_search_manual_cmd.handle()
 async def reverse_image_search(_event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
+    args = args.get('image')
     if args:
-        url = args[0]
-        logger.info(f'URL extracted: {url}')
+        url: MessageSegment = args[0]
+        logger.info(f'URL extracted: {url.data["url"]}')
+        url = url.data["url"]
         try:
             response_data = await sauce_helper(url)
             if not response_data:
