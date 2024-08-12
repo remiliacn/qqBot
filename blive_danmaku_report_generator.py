@@ -12,7 +12,7 @@ from os import getpid
 from typing import Optional, Set, List, Dict
 
 import aiohttp
-from nonebot import logger
+from nonebot.log import logger
 
 import blivedm.models.web as web_models
 from Services.live_notification import LiveNotification, LivestreamDanmakuData
@@ -54,7 +54,7 @@ class MyDanmakuHandler(BaseHandler):
         self.group_ids = group_ids_dumped
 
     def add_danmaku_into_frequency_dict(self, message):
-        msg = message.msg
+        msg = message.msg.lower()
         msg = msg.replace('（', '').replace('）', '').replace('(', '').replace(')', '')
 
         if self._is_blacklist_word(msg):
@@ -68,7 +68,7 @@ class MyDanmakuHandler(BaseHandler):
             self.stream_hotspot_timestamp_list.append(time_elapsed_time)
 
         if not re.fullmatch(r'[\s+,，。、?？！!]+', msg):
-            message_list = re.split(r'[\s+,，。、?？！!]', msg)
+            message_list = list(set(re.split(r'[\s+,，。、?？！!]', msg)))
         else:
             message_list = [msg]
         for message in message_list:
@@ -95,6 +95,8 @@ class MyDanmakuHandler(BaseHandler):
 
     # noinspection PyUnusedLocal
     def _popularity_change(self, client: BLiveClient, command: dict):
+        logger.info(f'Command: {command}')
+
         rank = OptionalDict(command).map("data").map("rank").or_else(999)
         logger.info(f'人气榜变动，目前人气档位：{rank}')
         if rank > 0:

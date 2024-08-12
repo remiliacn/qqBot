@@ -1,7 +1,7 @@
 import re
 from os import getcwd
 from random import seed, randint
-from re import fullmatch, findall, match, sub
+from re import fullmatch, match, sub
 from time import time_ns
 from typing import List
 
@@ -11,25 +11,24 @@ from aiocache import cached
 from aiocache.serializers import PickleSerializer
 from loguru import logger
 from nonebot import MatcherGroup
-from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageSegment, ActionFailed, Bot
+from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageSegment, ActionFailed, Bot, Message
 # noinspection PyProtectedMember
 from nonebot.adapters.onebot.v11.event import Reply
 from nonebot.adapters.onebot.v11.helpers import extract_image_urls
 from nonebot.internal.matcher import Matcher
-from nonebot.rule import is_type
+from nonebot.rule import is_type, keyword
 
 from Services.util.common_util import compile_forward_message, markdown_to_image
 from Services.util.ctx_utility import get_group_id
 from Services.util.sauce_nao_helper import sauce_helper
-from util.helper_util import anime_reverse_search_response, get_downloaded_quote_image_path
+from util.helper_util import anime_reverse_search_response, get_downloaded_quote_image_path, construct_message_chain
 from ..little_helper import hhsh
 from ...Constants import group_permission
 from ...adminControl import group_control
 
-nlp_rule = is_type(GroupMessageEvent)
-
-nlp_match_group = MatcherGroup(rule=nlp_rule)
-natural_language = nlp_match_group.on_message(priority=4, block=True)
+nlp_matcher_group = MatcherGroup(
+    rule=is_type(GroupMessageEvent) & keyword('添加语录', 'md', '搜图', '撤回', 'need'))
+natural_language = nlp_matcher_group.on_message(priority=4, block=False)
 
 
 @natural_language.handle()
@@ -58,6 +57,10 @@ async def natural_language_proc(bot: Bot, event: GroupMessageEvent, matcher: Mat
             if success:
                 await matcher.finish(MessageSegment.image(result))
 
+    if plain_message.startswith('搜图') and event.get_message().get('image'):
+        response = await _do_soutu_operation(event.get_message())
+        await matcher.finish(construct_message_chain(response))
+
     reply_response = await _check_reply_keywords(event, event.reply, event.self_id, bot)
     if reply_response:
         try:
@@ -79,6 +82,8 @@ async def natural_language_proc(bot: Bot, event: GroupMessageEvent, matcher: Mat
         fetch_result = await _check_if_asking_definition(plain_message)
         if fetch_result:
             await matcher.finish(fetch_result)
+
+    matcher.skip()
 
 
 async def _check_if_asking_definition(message: str) -> str:
@@ -132,25 +137,6 @@ def _extract_keyword_from_sentence(key_word: str) -> str:
     return key_word
 
 
-def _repeat_and_palindrome_fetch(message: str) -> str:
-    repeat_syntax = r'^(.*?)\1+$'
-    rand_chance = randint(0, 10)
-    if rand_chance > 3:
-        return ''
-
-    if fullmatch(repeat_syntax, message):
-        word_repeat = findall(repeat_syntax, message)[0]
-        count = message.count(word_repeat)
-        if count >= 3:
-            return f'{count}个{word_repeat}'
-        return ''
-
-    if len(message) > 5 and message == message[::-1]:
-        return '好一个回文句！'
-
-    return ''
-
-
 async def _check_reply_keywords(
         message: GroupMessageEvent, reply: Reply, self_id: int, bot: Bot) -> [str, List[MessageSegment]]:
     if reply:
@@ -185,9 +171,9 @@ async def _do_delete_msg(bot: Bot, reply: Reply, self_id: int):
 
 
 @cached(ttl=86400, serializer=PickleSerializer())
-async def _do_soutu_operation(reply: Reply) -> List[MessageSegment]:
+async def _do_soutu_operation(reply: Reply | Message) -> List[MessageSegment]:
     response = []
-    possible_image_content = extract_image_urls(reply.message)
+    possible_image_content = extract_image_urls(reply.message if isinstance(reply, Reply) else reply)
     if possible_image_content:
         for idx, url in enumerate(possible_image_content):
             logger.info(f'URL extracted: {url}')
