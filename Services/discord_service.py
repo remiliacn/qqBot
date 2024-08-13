@@ -150,7 +150,7 @@ class DiscordService:
 
         return statuses
 
-    async def _get_machine_translation_result(self, discord_status):
+    async def _get_machine_translation_result(self, discord_status: DiscordMessageStatus):
         url = 'http://localhost:5001/chat'
         logger.info('Requesting machine translation for discord update.')
         chatgpt_message = await self.client.post(
@@ -160,7 +160,7 @@ class DiscordService:
                            'please ignore and remove messges that in this pattern: `[CQ:.*?]` '
                            'in your response and only response with the result of the translation. '
                            "Do not translate name, and translate \"stream\" to 直播: \n\n"
-                           + discord_status.message,
+                           + '\n'.join([x.__str__() for x in discord_status.message]),
                 'is_chat': False,
                 'user_id': SUPER_USER,
                 'model_name': GPT_4_MODEL_NAME

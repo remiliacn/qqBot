@@ -376,8 +376,10 @@ class TwitchClippingService:
                 if not exists(creator_folder):
                     mkdir(creator_folder)
                 move(f'{getcwd()}/{file}', file_path_to_return)
-            return TwitchDownloadStatus(True, f'下载好了哦~文件名:\n {files[0]}\n'
-                                              f'{SHARE_LINK}', file_path_to_return)
+            return TwitchDownloadStatus(
+                True,
+                message=f'下载好了哦~文件名:\n {files[0]}\n{SHARE_LINK}',
+                file_path=file_path_to_return)
         except Exception as err:
             return TwitchDownloadStatus(False, f'Someone tell [CQ:at,qq={SUPER_USER}] '
                                                f'there is some problem with my clip. {err.__class__}')

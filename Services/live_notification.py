@@ -32,7 +32,7 @@ class LivestreamDanmakuData:
     highest_rank: int = 999
     gift_total_price: float = 0
     new_captains: int = 0
-    top_five_crazy_timestamps: List[str] = dataclasses.field(default_factory=list)
+    top_crazy_timestamps: List[str] = dataclasses.field(default_factory=list)
 
 
 class DynamicNotificationData:
@@ -228,8 +228,9 @@ class LiveNotification:
 
         new_captains_prompt = f'新舰长{data.new_captains}个\n' if data.new_captains >= 3 else ''
         gift_price_string = f'（预估收入：￥{data.gift_total_price:.2f}）\n' if data.gift_total_price > 0 else ''
-        hotspot_data_prompt = f'前五弹幕最多的精彩时间（BETA功能）- {", ".join(data.top_five_crazy_timestamps)}' \
-            if data.top_five_crazy_timestamps else ''
+        hotspot_data_prompt = (f'前{len(data.top_crazy_timestamps)}弹幕最多的精彩时间：'
+                               f'\n{", ".join(data.top_crazy_timestamps)}') \
+            if data.top_crazy_timestamps else ''
         return construct_message_chain(
             '直播已结束！撒花~✿✿ヽ(°▽°)ノ✿\n',
             f'一共收到啦{data.danmaku_count}枚弹幕\n',

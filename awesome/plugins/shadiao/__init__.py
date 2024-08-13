@@ -44,9 +44,7 @@ tranfer_quote = on_command('转移语录')
 your_group_quote = on_command('你群语录', aliases={'你组语录', '语录'})
 add_quote_cmd = on_command('添加语录')
 ocr = on_command('图片识别')
-say_cmd = on_command('说')
 how_lewd_cmd = on_command('你群有多色')
-happy_hour_cmd = on_command('happy', aliases={'快乐时光'})
 set_r18_cmd = on_command('设置R18')
 ten_roll_cmd_arknights = on_command('方舟十连')
 arknights_up = on_command('方舟up', aliases={'方舟UP'})
@@ -156,20 +154,6 @@ async def ocr_image_test(session: GroupMessageEvent, matcher: Matcher):
     await matcher.finish(response)
 
 
-@say_cmd.handle()
-async def send_voice_message(bot: Bot, session: GroupMessageEvent):
-    msg: str = session.raw_message
-    args = msg.split()
-    if len(args) < 2:
-        return
-    else:
-        message = ''.join(args[1:])
-
-    text = re.sub(r'\[CQ:.*?]', '', message)
-    text = re.sub('祈.*?雨', f'{get_nickname(session)}', text)
-    await bot.send_group_msg(group_id=session.group_id, message=f'[CQ:tts,text={text}]')
-
-
 @event_preprocessor
 async def message_preprocessing(event: Event):
     if not isinstance(event, GroupMessageEvent):
@@ -215,21 +199,6 @@ async def get_setu_stat(bot: Bot, session: GroupMessageEvent):
     await bot.send_group_msg(group_id=session.group_id, message=setu_notice + yanche_notice + ark_data)
 
 
-@happy_hour_cmd.handle()
-async def start_happy_hours(session: GroupMessageEvent, matcher: Matcher):
-    id_num = str(get_user_id(session))
-    if get_privilege(id_num, perm.OWNER):
-        if setu_function_control.happy_hours:
-            setu_function_control.happy_hours = False
-            await matcher.finish('已设置关闭快乐时光')
-
-        setu_function_control.happy_hours = not setu_function_control.happy_hours
-        await matcher.finish('已设置打开快乐时光')
-
-    else:
-        await matcher.finish('您无权使用本指令')
-
-
 @set_r18_cmd.handle()
 async def set_r18(session: GroupMessageEvent, matcher: Matcher, stats: Annotated[str, ArgStr()]):
     if not get_privilege(get_user_id(session), perm.WHITELIST):
@@ -271,7 +240,9 @@ async def ten_polls(bot: Bot, session: GroupMessageEvent):
         setu_function_control.set_user_data(get_user_id(session), ARKNIGHTS_SIX_STAR_PULL, six_star_count)
 
     qq_num = get_user_id(session)
-    await bot.send_group_msg(group_id=session.group_id, message=f'[CQ:at,qq={qq_num}]\n{arknights_api.__str__()}')
+    await bot.send_group_msg(
+        group_id=session.group_id,
+        message=construct_message_chain(MessageSegment.at(qq_num), arknights_api.__str__()))
 
 
 @arknights_up.got(
@@ -356,7 +327,9 @@ async def stat_player(bot: Bot, session: GroupMessageEvent):
     user_id = get_user_id(session)
     stat_dict = setu_function_control.get_user_data(user_id)
     if not stat_dict:
-        await bot.send_group_msg(group_id=session.group_id, message=f'[CQ:at,qq={user_id}]还没有数据哦~')
+        await bot.send_group_msg(
+            group_id=session.group_id,
+            message=construct_message_chain(MessageSegment.at(user_id), '还没有数据哦~'))
     else:
         poker_win, poker_rank = get_stat(POKER_GAME, stat_dict)
         six_star_pull, six_star_rank = get_stat(ARKNIGHTS_SIX_STAR_PULL, stat_dict)
@@ -370,26 +343,17 @@ async def stat_player(bot: Bot, session: GroupMessageEvent):
 
         await bot.send_group_msg(
             group_id=session.group_id,
-            message=f'用户[CQ:at,qq={user_id}]：\n' +
-                    (
-                        f'比大小赢得{poker_win}次（排名第{poker_rank}）\n' if poker_win != 0 else '') +
-                    (
-                        f'方舟抽卡共抽到{six_star_pull}个六星干员（排名第{six_star_rank}）\n ' if six_star_pull != 0 else '') +
-                    (
-                        f'紫气东来{unlucky}次（排名第{unlucky}）\n' if unlucky != 0 else '') +
-                    (
-                        f'查了{setu_stat}次的色图！（排名第{setu_rank}）\n' if setu_stat != 0 else '') +
-                    (
-                        f'问了{question}次问题（排名第{question_rank}）\n' if question != 0 else '') +
-                    (
-                        f'和bot主人 臭 味 相 投{same}次（排名第{same_rank}）\n' if same != 0 else '') +
-                    (
-                        f'轮盘赌被处死{roulette}次（排名第{roulette_rank}）\n' if roulette != 0 else '') +
-                    (
-                        f'赛马获胜{horse_race}次（排名第{horse_rank}）\n' if horse_race != 0 else '') +
-                    (
-                        f'查询语录{yulu}次（排名第{yulu_rank}）\n' if yulu != 0 else '')
-        )
+            message=construct_message_chain(
+                f'用户', MessageSegment.at(user_id), '：\n',
+                f'比大小赢得{poker_win}次（排名第{poker_rank}）\n' if poker_win != 0 else '',
+                f'方舟抽卡共抽到{six_star_pull}个六星干员（排名第{six_star_rank}）\n ' if six_star_pull != 0 else '',
+                f'紫气东来{unlucky}次（排名第{unlucky}）\n' if unlucky != 0 else '',
+                f'查了{setu_stat}次的色图！（排名第{setu_rank}）\n' if setu_stat != 0 else '',
+                f'问了{question}次问题（排名第{question_rank}）\n' if question != 0 else '',
+                f'和bot主人 臭 味 相 投{same}次（排名第{same_rank}）\n' if same != 0 else '',
+                f'轮盘赌被处死{roulette}次（排名第{roulette_rank}）\n' if roulette != 0 else '',
+                f'赛马获胜{horse_race}次（排名第{horse_rank}）\n' if horse_race != 0 else '',
+                f'查询语录{yulu}次（排名第{yulu_rank}）\n' if yulu != 0 else ''))
 
 
 xp_stat_cmd = on_command('统计xp')

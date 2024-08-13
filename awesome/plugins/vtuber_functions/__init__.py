@@ -77,12 +77,7 @@ twitch_clip_cmd = on_command('切片')
 
 
 @twitch_clip_cmd.handle()
-async def twitch_live_tracking(
-        bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, matcher: Matcher, args: Message = CommandArg()):
-    group_id = get_group_id(event)
-    if group_id == -1:
-        return
-
+async def twitch_live_tracking(bot: Bot, event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
     args = args.extract_plain_text().strip()
     verification_status = await twitch_clipping.analyze_clip_comment(args, matcher)
     if not verification_status.is_success:
@@ -90,15 +85,22 @@ async def twitch_live_tracking(
 
     twitch_clip_instruction: TwitchClipInstruction = verification_status.message
     download_status = await twitch_clipping.download_twitch_videos(twitch_clip_instruction)
+    logger.info(f'Received download status: {download_status}')
 
     await matcher.send(download_status.message)
     try:
         temp_group_filename = f'{str(int(time()))}.mp4'
+        temp_group_filename = twitch_clip_instruction.file_name if twitch_clip_instruction.file_name else temp_group_filename
         if download_status.is_success and download_status.file_path:
-            await bot.upload_group_file(
-                group_id=group_id,
-                file=download_status.file_path,
-                name=twitch_clip_instruction.file_name if twitch_clip_instruction.file_name else temp_group_filename)
+            logger.info(f'Trying to upload the group file. {download_status.file_path}')
+            await bot.call_api(
+                'upload_group_file',
+                group_id=event.group_id,
+                file=f'{download_status.file_path}',
+                name=temp_group_filename,
+                folder='/'
+            )
+            logger.success(f'Group file transfer completed. {temp_group_filename}')
     except Exception as err:
         logger.error(f'Failed to upload to group file. skipping that. {err.__class__}')
 

@@ -21,7 +21,9 @@ from blivedm import BaseHandler, BLiveClient
 from blivedm.clients import ws_base
 from config import BILI_SESS_DATA
 
-FIVE_MINUTES = 300
+FIVE_MINUTES = 60 * 5
+TWENTY_FIVE_MINUTES = 60 * 25
+TOP_TIMESTAMP_LIMIT = 7
 
 
 def _get_log_filename() -> str:
@@ -116,8 +118,7 @@ class MyDanmakuHandler(BaseHandler):
             if OptionalDict(command).map("data").or_else(None) is not None:
                 captain_price = OptionalDict(command).map("data").map("price").or_else(0)
                 captain_count = OptionalDict(command).map("data").map("num").or_else(0)
-                logger.info(f'有新舰长？：'
-                            f'{OptionalDict(command).map("guard_info").map("role_name").or_else("未知数据")}'
+                logger.info(f'有新舰长？：{OptionalDict(command).map("guard_info").map("role_name").or_else("未知数据")}'
                             f' x {captain_count} -> 价格：{captain_price}')
         if captain_price > 0:
             self.gift_price += (captain_price / 1000) * captain_count
@@ -139,7 +140,8 @@ class MyDanmakuHandler(BaseHandler):
                            f' dumping the data. Total gift value: {self.gift_price}')
 
             try:
-                hotspot_timestamp_data = get_sorted_timestamp_hotspot(self.stream_hotspot_timestamp_list, FIVE_MINUTES)
+                hotspot_timestamp_data = get_sorted_timestamp_hotspot(
+                    self.stream_hotspot_timestamp_list, TWENTY_FIVE_MINUTES)
             except Exception as err:
                 logger.error(f'Failed to get hotspot data: {err.__class__}')
                 hotspot_timestamp_data = []
@@ -153,7 +155,7 @@ class MyDanmakuHandler(BaseHandler):
                 highest_rank=self.highest_rank if self.highest_rank <= 100 else '未知',
                 gift_total_price=self.gift_price if live_notification.is_fetch_gift_price(self.room_id) else 0,
                 new_captains=self.new_captains,
-                top_five_crazy_timestamps=hotspot_timestamp_data,
+                top_crazy_timestamps=hotspot_timestamp_data,
             )), 'base64').decode()
             live_notification.dump_live_data(pickled_data)
 
@@ -164,9 +166,8 @@ class MyDanmakuHandler(BaseHandler):
         self.gift_received_count += message.num
         if message.coin_type.lower() == 'gold':
             self.gift_price += message.total_coin / 1000
-
-        logger.info(f'[{client.room_id}] {message.uname} 赠送{message.gift_name}x{message.num}'
-                    f' （{message.coin_type}瓜子x{message.total_coin}）')
+        # logger.info(f'[{client.room_id}] {message.uname} 赠送{message.gift_name}x{message.num}'
+        #             f' （{message.coin_type}瓜子x{message.total_coin}）')
 
     def _on_danmaku(self, client: BLiveClient, message: web_models.DanmakuMessage):
         self.add_danmaku_into_frequency_dict(message)
@@ -232,7 +233,10 @@ def hotspot_analyzation(timestamps: List[float], intervals=60) -> Dict[float, fl
 
 def get_sorted_timestamp_hotspot(stream_time_frequency_list: List[float], intervals=60) -> List[str]:
     hotspot_analyzation_result = hotspot_analyzation(stream_time_frequency_list, intervals)
-    sorted_result = sorted(hotspot_analyzation_result.items(), key=lambda x: x[1], reverse=True)[:5]
+    sorted_result = sorted(hotspot_analyzation_result.items(), key=lambda x: x[1], reverse=True)
+    if len(sorted_result) > TOP_TIMESTAMP_LIMIT:
+        sorted_result = sorted_result[:TOP_TIMESTAMP_LIMIT]
+
     hotspot_timestamp_data = [x[0] for x in sorted_result]
     return [construct_timestamp_string(x) for x in hotspot_timestamp_data]
 

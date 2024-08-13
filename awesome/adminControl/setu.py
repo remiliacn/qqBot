@@ -1,5 +1,4 @@
 import sqlite3
-from sqlite3 import Cursor
 from typing import Union, List, Tuple
 
 from awesome.Constants.function_key import USER_XP
@@ -7,10 +6,7 @@ from awesome.Constants.function_key import USER_XP
 
 class SetuFunctionControl:
     def __init__(self):
-        self.max_sanity = 100
         self.blacklist_freq_keyword = ('R-18', 'オリジナル', '女の子')
-        self.sanity_dict = {}
-        self.happy_hours = False
         self.ordered_stat = {}
 
         self.setu_db_path = 'data/db/setu.db'
@@ -102,7 +98,7 @@ class SetuFunctionControl:
         result = ['keyword != ?' for _ in self.blacklist_freq_keyword]
         return ' and '.join(result)
 
-    def get_high_freq_keyword(self) -> Cursor:
+    def get_high_freq_keyword(self) -> List[Tuple[str]] | None:
         result = self.setu_db_connection.execute(
             f"""
             select keyword, hit from setu_keyword
@@ -113,9 +109,6 @@ class SetuFunctionControl:
 
         return result
 
-    def get_max_sanity(self) -> int:
-        return self.max_sanity
-
     def get_bad_word_penalty(self, keyword: str) -> int:
         result = self.setu_db_connection.execute(
             """
@@ -123,7 +116,7 @@ class SetuFunctionControl:
             """, (keyword,)
         ).fetchone()
 
-        return result[0] if result is not None else 1
+        return result[0] if result is not None else -1
 
     def add_bad_word_dict(self, key_word, multiplier):
         if multiplier == 1:
@@ -323,10 +316,7 @@ class SetuFunctionControl:
 
         return stat_dict
 
-    def get_sanity_dict(self):
-        return self.sanity_dict
-
-    def get_group_xp(self, group_id: Union[int, str]) -> Cursor:
+    def get_group_xp(self, group_id: Union[int, str]) -> List[Tuple[str]] | None:
         group_id = str(group_id)
         result = self.setu_db_connection.execute(
             f"""
@@ -334,6 +324,7 @@ class SetuFunctionControl:
                 order by hit desc limit 5;
             """, (group_id, *self.blacklist_freq_keyword)
         ).fetchall()
+
         return result
 
     def _update_group_xp(self, group_id: Union[str, int], keyword):
@@ -468,27 +459,6 @@ class SetuFunctionControl:
             'pulls': pulls_dict,
             'group_xp': freq_xp_keyword
         }
-
-    def set_sanity(self, group_id, sanity=2000):
-        self.sanity_dict[group_id] = sanity
-
-    def drain_sanity(self, group_id, sanity=1):
-        self.sanity_dict[group_id] -= sanity
-
-    def get_sanity(self, group_id):
-        return self.sanity_dict[group_id]
-
-    def fill_sanity(self, group_id=None, sanity=1):
-        if group_id is None:
-            for elements in self.sanity_dict:
-                if self.happy_hours:
-                    if not self.sanity_dict[elements] >= self.max_sanity * 2:
-                        self.sanity_dict[elements] += sanity
-                else:
-                    if not self.sanity_dict[elements] >= self.max_sanity:
-                        self.sanity_dict[elements] += sanity
-        else:
-            self.sanity_dict[group_id] += sanity
 
     def commit_change(self):
         self.stat_db_connection.commit()

@@ -5,7 +5,7 @@ def get_user_id(event: GroupMessageEvent) -> str:
     return event.get_user_id()
 
 
-def get_group_id(event: [GroupMessageEvent, PrivateMessageEvent]) -> int:
+def get_group_id(event: GroupMessageEvent | PrivateMessageEvent) -> int:
     if isinstance(event, GroupMessageEvent):
         return event.group_id
 

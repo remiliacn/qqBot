@@ -1,5 +1,6 @@
 from os import makedirs, path
 from os.path import exists
+from re import sub
 from time import time
 
 from nonebot import logger
@@ -17,6 +18,7 @@ async def download_image(url, saved_path: str, headers=None) -> str:
             return ''
 
     file_name = url.split('/')[-1]
+    file_name = sub(r'\?auth=.*?$', '', file_name)
     if len(file_name) > 10 or '.' not in file_name:
         file_name = f'{int(time())}.{file_name.split(".")[-1]}'
 

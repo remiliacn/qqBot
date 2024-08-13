@@ -2,14 +2,14 @@ import time
 
 from aiocache import cached
 from aiocache.serializers import PickleSerializer
-from nonebot import on_command, get_bot
+from nonebot import on_command
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message, MessageSegment
 from nonebot.internal.matcher import Matcher
 from nonebot.log import logger
 from nonebot.params import CommandArg
 
 from Services.util.common_util import HttpxHelperClient, markdown_to_image
-from Services.util.ctx_utility import get_nickname, get_group_id
+from Services.util.ctx_utility import get_nickname
 from awesome.Constants.function_key import HHSH_FUNCTION
 from awesome.Constants.plugins_command_constants import PROMPT_FOR_KEYWORD
 from awesome.adminControl import setu_function_control
@@ -48,30 +48,6 @@ async def send_help(_event: GroupMessageEvent, matcher: Matcher):
         'https://github.com/remiliacn/Lingye-Bot/blob/master/README.md\n'
         '如果有新功能想要添加，请提交issue!'
     )
-
-
-reverse_cq_cmd = on_command('反码')
-
-
-@reverse_cq_cmd.handle()
-async def reverse_code(event: GroupMessageEvent, matcher: Matcher):
-    key_word = event.raw_text.strip()
-    message_list = key_word.split()
-    if len(message_list) == 1:
-        await matcher.send('没有可反码内容！')
-        return
-
-    key_word = message_list[1]
-    if_group = False
-
-    id_num = get_group_id(event)
-
-    bot = get_bot()
-
-    if if_group:
-        await bot.send_msg(message_type='group', group_id=id_num, message=key_word, auto_escape=True)
-    else:
-        await bot.send_msg(message_type='private', user_id=id_num, message=key_word, auto_escape=True)
 
 
 hhsh_cmd = on_command('好好说话')

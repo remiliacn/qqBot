@@ -1,7 +1,7 @@
 import re
 from os import getcwd
 from random import seed, randint
-from re import fullmatch, match, sub
+from re import fullmatch, match
 from time import time_ns
 from typing import List
 
@@ -143,8 +143,6 @@ async def _check_reply_keywords(
         message_str = message.get_plaintext()
         if '搜图' in message_str:
             response = await _do_soutu_operation(reply)
-        elif '复述' in message_str:
-            response = await _do_tts_send(reply)
         elif '撤' in message_str:
             await _do_delete_msg(bot, reply, self_id)
             response = ''
@@ -154,13 +152,6 @@ async def _check_reply_keywords(
         response = ''
 
     return response.strip() if isinstance(response, str) else response
-
-
-async def _do_tts_send(message: Reply) -> str:
-    message = message.message.extract_plain_text()
-    message = sub(r'\[CQ.*?]', '', message)
-
-    return f'[CQ:tts,text={message}]'
 
 
 async def _do_delete_msg(bot: Bot, reply: Reply, self_id: int):
