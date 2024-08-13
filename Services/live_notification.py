@@ -346,7 +346,12 @@ class LiveNotification:
                 logger.info(f'{streamer_name} is disable to send notification.')
                 continue
 
-            notify_data = await self.check_if_live(room_id, streamer_name)
+            try:
+                notify_data = await self.check_if_live(room_id, streamer_name)
+            except Exception as err:
+                logger.error(f'Failed to get live information for {streamer_name} :: {err.__class__}')
+                continue
+
             if last_record_state != notify_data.is_live:
                 if notify_data.is_live:
                     notify_data.set_live_change_status('开播啦！')
@@ -516,7 +521,6 @@ class BilibiliDynamicNotifcation(LiveNotification):
                 .map('archive')
                 .or_else({}))
 
-        orig_text = [MessageSegment.text(orig_text)]
         orig_data = OptionalDict(item).map('orig').map('modules').map('module_dynamic').or_else({})
         orig_data_draw = OptionalDict(dynamic_module).map('major').map('draw').or_else({})
         if orig_data_draw:
@@ -544,16 +548,18 @@ class BilibiliDynamicNotifcation(LiveNotification):
 
         return orig_text
 
-    async def _fetch_content_in_text_node(self, rich_text_node):
-        orig_text = ''
+    async def _fetch_content_in_text_node(self, rich_text_node) -> List[MessageSegment]:
+        orig_text: List[MessageSegment] = []
         for text_node in rich_text_node:
             node_type = OptionalDict(text_node).map('type').or_else('')
             if node_type != self.EMOJI_DYNAMIC_TYPE:
-                orig_text += OptionalDict(text_node).map('orig_text').or_else('')
+                orig_text.append(MessageSegment.text(OptionalDict(text_node).map('orig_text').or_else('')))
             if node_type == self.AT_DYNAMIC_TYPE:
                 at_text = OptionalDict(text_node).map('orig_text').or_else('')
-                orig_text += '@' if '@' not in at_text else '' \
-                                                            + OptionalDict(text_node).map('orig_text').or_else('') + ' '
+                orig_text.append(
+                    MessageSegment.text(
+                        '@' if '@' not in at_text else '' + OptionalDict(text_node).map(
+                            'orig_text').or_else('') + ' '))
             elif node_type == self.EMOJI_DYNAMIC_TYPE:
                 file_name = (f"{getcwd()}/data/bilibiliPic/"
                              f"{OptionalDict(text_node).map('emoji').map('text').or_else(str(time()))}.jpg"
@@ -561,7 +567,8 @@ class BilibiliDynamicNotifcation(LiveNotification):
                 file_url = OptionalDict(text_node).map('emoji').map('icon_url').or_else('')
                 if file_url:
                     await global_httpx_client.download(file_url, file_name)
-                orig_text += f'[CQ:image,file=file:///{file_name}]\n'
+                orig_text.append(MessageSegment.image(file_url))
+                orig_text.append(MessageSegment.text('\n'))
 
         return orig_text
 
@@ -571,7 +578,6 @@ class BilibiliDynamicNotifcation(LiveNotification):
             .map('rich_text_nodes') \
             .or_else([])
         orig_text = await self._fetch_content_in_text_node(rich_text_node)
-        orig_text = [MessageSegment.text(orig_text)]
         pic = OptionalDict(orig_data).map('major').map('draw').or_else({})
         archive = OptionalDict(orig_data).map('major').map('archive').or_else({})
         if pic:

@@ -285,10 +285,8 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
         message = construct_message_chain(
             MessageSegment.reply(message_id),
             f'芜湖~好图来了ww\n'
-            f'标题：{illust.title}\n'
             f'Pixiv ID: {illust.id}\n'
-            f'关键词：{key_word}\n'
-            f'画师：{illust["user"]["name"]}\n',
+            f'关键词：{key_word}\n',
             MessageSegment.image(path),
             f'Download Time: {(time() - start_time):.2f}s')
 
@@ -338,8 +336,8 @@ async def _setu_data_collection(
             message=construct_message_chain(
                 f'图片来自：{nickname}\n'
                 f'查询关键词:{key_word}\n'
-                f'Pixiv ID: {illust.id}\n'
-                '关键字在监控中', MessageSegment.image(path))
+                f'Pixiv ID: {illust.id}\n',
+                MessageSegment.image(path))
         )
 
 

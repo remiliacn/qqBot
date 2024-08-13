@@ -20,8 +20,9 @@ from nonebot.rule import is_type, keyword
 
 from Services.util.common_util import compile_forward_message, markdown_to_image
 from Services.util.ctx_utility import get_group_id
+from Services.util.download_helper import download_image
 from Services.util.sauce_nao_helper import sauce_helper
-from util.helper_util import anime_reverse_search_response, get_downloaded_quote_image_path, construct_message_chain
+from util.helper_util import anime_reverse_search_response, construct_message_chain
 from ..little_helper import hhsh
 from ...Constants import group_permission
 from ...adminControl import group_control
@@ -39,15 +40,14 @@ async def natural_language_proc(bot: Bot, event: GroupMessageEvent, matcher: Mat
     message = event.get_message()
     plain_message = message.extract_plain_text()
 
-    if '添加语录' in message:
-        if replied_message := event.reply:
-            extracted_images = extract_image_urls(replied_message.message)
-            if extracted_images:
-                path = get_downloaded_quote_image_path(extracted_images[0], f'{getcwd()}/data/lol')
+    if '添加语录' in plain_message:
+        extracted_images = extract_image_urls(event.message)
+        if extracted_images:
+            path = await download_image(extracted_images[0], f'{getcwd()}/data/lol')
 
-                if path:
-                    group_control.add_quote(group_id, path)
-                    await matcher.finish(f'已添加！（当前总语录条数：{group_control.get_group_quote_count(group_id)})')
+            if path:
+                group_control.add_quote(group_id, path)
+                await matcher.finish(f'已添加！（当前总语录条数：{group_control.get_group_quote_count(group_id)})')
 
     if 'md' in plain_message[:4]:
         message_list = plain_message.split('\n')

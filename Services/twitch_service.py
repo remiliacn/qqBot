@@ -239,6 +239,9 @@ class TwitchClippingService:
                           '指令错误，应该为！切片 视频id 开始时间戳 停切时间戳\n例子：！切片 2206229026 00:00:00 00:05:00')
 
         video_id = message_arg[0]
+        if len(message_arg) == 1:
+            return Status(True, TwitchClipInstruction(video_id))
+
         if not video_id.isnumeric():
             video_list = await self._get_twitch_archive_list(video_id)
             if not video_list['videos']:

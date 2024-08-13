@@ -9,6 +9,7 @@ import sys
 import time
 from functools import lru_cache
 from os import getpid
+from random import randint
 from typing import Optional, Set, List, Dict
 
 import aiohttp
@@ -23,7 +24,8 @@ from config import BILI_SESS_DATA
 
 FIVE_MINUTES = 60 * 5
 TWENTY_FIVE_MINUTES = 60 * 25
-TOP_TIMESTAMP_LIMIT = 7
+# Make it random because it is funny lol
+TOP_TIMESTAMP_LIMIT = randint(5, 7)
 
 
 def _get_log_filename() -> str:
@@ -37,9 +39,9 @@ logger.add(f'./logs/{_get_log_filename()}', level='INFO', colorize=False, backtr
 
 class MyDanmakuHandler(BaseHandler):
     def __init__(self):
-        self.danmaku_frequency_dict = {}
+        self.danmaku_frequency_dict: Dict[str, int] = {}
         # TODO: make this store in a file or a db.
-        self.blacklist_word: Set[str] = {'老板大气', 'B站无互动', '请移步T台', '中奖喷雾', '点点红包', '转人工'}
+        self.blacklist_word: Set[str] = {'老板大气', 'B站无互动', '请移步T台', '中奖喷雾', '红包', '今日好运', '转人工'}
 
         self.highest_rank = 99999
         self.like_received_count = self.danmaku_count = 0
@@ -93,14 +95,13 @@ class MyDanmakuHandler(BaseHandler):
 
     def _like_info_v3_callback(self, client: BLiveClient, command: dict):
         self.like_received_count += 1
-        logger.info(f'收到点赞， {client.room_id}, 点赞人：{OptionalDict(command).map("data").map("uname").or_else("?")}')
+        logger.debug(
+            f'收到点赞， {client.room_id}, 点赞人：{OptionalDict(command).map("data").map("uname").or_else("?")}')
 
     # noinspection PyUnusedLocal
     def _popularity_change(self, client: BLiveClient, command: dict):
-        logger.info(f'Command: {command}')
-
         rank = OptionalDict(command).map("data").map("rank").or_else(999)
-        logger.info(f'人气榜变动，目前人气档位：{rank}')
+        logger.debug(f'人气榜变动，目前人气档位：{rank}')
         if rank > 0:
             self.highest_rank = min(self.highest_rank, rank)
 
@@ -166,8 +167,6 @@ class MyDanmakuHandler(BaseHandler):
         self.gift_received_count += message.num
         if message.coin_type.lower() == 'gold':
             self.gift_price += message.total_coin / 1000
-        # logger.info(f'[{client.room_id}] {message.uname} 赠送{message.gift_name}x{message.num}'
-        #             f' （{message.coin_type}瓜子x{message.total_coin}）')
 
     def _on_danmaku(self, client: BLiveClient, message: web_models.DanmakuMessage):
         self.add_danmaku_into_frequency_dict(message)

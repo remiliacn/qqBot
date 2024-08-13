@@ -87,10 +87,6 @@ async def transfer_group_quotes(session: GroupMessageEvent, matcher: Matcher, ar
 @your_group_quote.handle()
 async def get_group_quotes(session: GroupMessageEvent, matcher: Matcher):
     group_id = session.group_id
-    permission_check_succeed = group_control.get_group_permission(group_id, group_permission.NLP)
-    if not permission_check_succeed:
-        await matcher.finish('本群的语录功能已被关闭，请联系群管理。')
-
     user_id = session.get_user_id()
     message_id = session.message_id
 
