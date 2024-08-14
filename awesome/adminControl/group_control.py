@@ -1,7 +1,11 @@
 import sqlite3
+from os import listdir, getcwd, path, remove
+from os.path import exists
 from typing import Union
 
-from loguru import logger
+from nonebot import logger
+
+from Services.util.common_util import Status, calculate_sha1
 
 GROUP_PERMISSION_DEFAULT = {
     'IS_BANNED': False,
@@ -38,42 +42,88 @@ class GroupControlModule:
             )
             """
         )
-
-        columns_added_after_implementation = ['rate_limited']
-
-        for col in columns_added_after_implementation:
-            try:
-                self.group_info_db.execute(
-                    f"""
-                    alter table group_settings add column {col} boolean default false
-                    """
-                )
-            except Exception as err:
-                logger.info(f'Adding column failed, which is okay since it is likely already existed. {err}')
-
-        self.group_info_db.commit()
-
-    def _get_group_quotes(self):
         self.group_info_db.execute(
             """
             create table if not exists quotes (
                 "cq_image" text unique on conflict ignore, 
-                "qq_group" text
+                "qq_group" text,
+                "file_hash" text
             )
             """
         )
         self.group_info_db.commit()
+        try:
+            self.group_info_db.execute(
+                """
+                ALTER TABLE quotes ADD COLUMN file_hash text;
+                """
+            )
+            self.group_info_db.commit()
+        except Exception as err:
+            logger.warning(
+                f'Failed to add column, but it is probably fine because it is already existed. {err.__class__}')
 
-    def add_quote(self, group_id: Union[int, str], quote: str):
+    def _check_if_file_exists_in_db(self, file_name: str) -> bool:
+        result = self.group_info_db.execute(
+            """
+            select * from quotes where cq_image = ?
+            """, (file_name,)
+        ).fetchone()
+
+        return result is not None and result
+
+    def _check_if_hash_collided(self, file_hash: str) -> bool:
+        result = self.group_info_db.execute(
+            """
+            select * from quotes where file_hash = ?
+            """, (file_hash,)
+        ).fetchone()
+
+        return result is not None and result
+
+    def group_quote_startup_sanity_check(self):
+        for file in listdir(f'{getcwd()}/data/lol'):
+            quote_file_abs_path = path.join(getcwd(), 'data', 'lol', file).replace('\\', '/')
+            if not self._check_if_file_exists_in_db(quote_file_abs_path):
+                remove(quote_file_abs_path)
+                logger.info(f'Deleting file {quote_file_abs_path} because it does not exist in db.')
+
+        all_results = self.group_info_db.execute(
+            """
+            select * from quotes
+            """
+        ).fetchall()
+
+        for entry in all_results:
+            cq_image, qq_group, file_hash = entry
+            self._backfill_file_sha1_hash(cq_image, file_hash)
+
+    def _backfill_file_sha1_hash(self, cq_image, file_hash):
+        if not file_hash and exists(cq_image):
+            logger.debug(f'Backfilling quote file hash: {cq_image}')
+            file_hash = calculate_sha1(cq_image)
+            self.group_info_db.execute(
+                """
+                update quotes set file_hash = ? where cq_image = ?
+                """, (file_hash, cq_image)
+            )
+            self.group_info_db.commit()
+
+    def add_quote(self, group_id: Union[int, str], quote: str) -> Status:
         if isinstance(group_id, int):
             group_id = str(group_id)
 
+        if self._check_if_hash_collided(calculate_sha1(quote)):
+            remove(quote)
+            return Status(False, '语录已被添加')
+
         self.group_info_db.execute(
             f"""
-            insert into quotes (cq_image, qq_group) values ('{quote}', '{group_id}')
-            """
+            insert into quotes (cq_image, qq_group, file_hash) values (?, ?, ?)
+            """, (quote, group_id, calculate_sha1(quote))
         )
         self.group_info_db.commit()
+        return Status(True, '整好了~')
 
     def transfer_group_quote(self, target_group_id: Union[int, str], original_group_id: Union[int, str]):
         if isinstance(target_group_id, int):
@@ -87,10 +137,9 @@ class GroupControlModule:
             update quotes set qq_group = ? where qq_group = ?
             """, (target_group_id.strip(), original_group_id.strip())
         )
-
         self.group_info_db.commit()
 
-    def get_group_quote(self, group_id: Union[int, str]):
+    def get_group_quote(self, group_id: Union[int, str]) -> Status:
         if isinstance(group_id, int):
             group_id = str(group_id)
 
@@ -101,9 +150,9 @@ class GroupControlModule:
         ).fetchone()
 
         if query is None or query[0] is None:
-            return '本群还没有语录哦~'
+            return Status(False, '本群还没有语录哦~')
 
-        return query[0]
+        return Status(True, query[0])
 
     def clear_group_quote(self, group_id: Union[int, str]):
         if isinstance(group_id, int):
@@ -140,8 +189,7 @@ class GroupControlModule:
             )
             """, (group_id, stat)
         )
-
-        self._commit_change()
+        self.group_info_db.commit()
 
     def get_group_permission(self, group_id: Union[int, str], tag: str) -> bool:
         if isinstance(group_id, int):
@@ -169,6 +217,3 @@ class GroupControlModule:
 
     def set_if_authed(self, stats):
         self.auth_stat = stats
-
-    def _commit_change(self):
-        self.group_info_db.commit()

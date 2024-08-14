@@ -17,6 +17,7 @@ async def download_image(url: str, saved_path: str, headers=None) -> str:
         except OSError:
             return ''
 
+    logger.debug(f'Downloading file from URL: {url}')
     file_name = url.split('/')[-1]
     file_name = sub(r'\?auth=.*?$', '', file_name)
     if len(file_name) > 10 or '.' not in file_name:

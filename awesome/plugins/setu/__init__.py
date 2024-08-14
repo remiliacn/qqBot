@@ -426,14 +426,18 @@ async def get_user_xp_data_with_at(
 async def _get_xp_information(xp_information: SetuRequester) -> List[MessageSegment]:
     response: List[MessageSegment] = []
     json_result = []
-    if xp_information.has_id:
-        json_result = _get_user_bookmark_data(int(xp_information.pixiv_id))
+    try:
+        if xp_information.has_id:
+            json_result = _get_user_bookmark_data(int(xp_information.pixiv_id))
 
-    if not json_result or not json_result.illusts:
-        json_result = pixiv_api.search_illust(
-            word=xp_information.xp_result[0],
-            sort="popular_desc"
-        )
+        if not json_result or not json_result.illusts:
+            json_result = pixiv_api.search_illust(
+                word=xp_information.xp_result[0],
+                sort="popular_desc"
+            )
+    except PixivError:
+        _pixiv_api_do_auth()
+        return [MessageSegment.text('P站抽风了，请重试。')]
 
     json_result = json_result.illusts
     if not json_result:
@@ -485,12 +489,17 @@ async def _get_xp_information(xp_information: SetuRequester) -> List[MessageSegm
     return response
 
 
+def _pixiv_api_do_auth():
+    logger.info('Doing auth.')
+    pixiv_api.set_auth(
+        access_token=group_control.get_access_token(),
+        refresh_token=PIXIV_REFRESH_TOKEN
+    )
+
+
 def _get_user_bookmark_data(pixiv_id: int):
     if not group_control.get_if_authed():
-        pixiv_api.set_auth(
-            access_token=group_control.get_access_token(),
-            refresh_token=PIXIV_REFRESH_TOKEN
-        )
+        _pixiv_api_do_auth()
         group_control.set_if_authed(True)
 
     json_result_list = []

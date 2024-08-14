@@ -2,6 +2,7 @@ import dataclasses
 import time
 from asyncio import sleep, get_running_loop
 from functools import lru_cache
+from hashlib import sha1
 from math import ceil
 from os import remove, getcwd
 from os.path import exists
@@ -68,6 +69,16 @@ def chunk_string(string, length):
 
 def _compile_forward_node(self_id: int, data: Message) -> MessageSegment:
     return MessageSegment.node_custom(user_id=self_id, nickname='月朗风清', content=data)
+
+
+def calculate_sha1(file_path) -> str:
+    sha1_hash = sha1()
+
+    with open(file_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha1_hash.update(byte_block)
+
+    return sha1_hash.hexdigest()
 
 
 async def autorevoke_message(

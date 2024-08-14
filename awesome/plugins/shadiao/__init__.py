@@ -101,7 +101,11 @@ async def get_group_quotes(session: GroupMessageEvent, matcher: Matcher):
     nickname = session.sender.nickname
 
     setu_function_control.set_user_data(user_id, YULU_CHECK, nickname)
-    await matcher.finish(MessageSegment.image(group_control.get_group_quote(group_id)))
+    result = group_control.get_group_quote(group_id)
+    if not result.is_success:
+        await matcher.finish(result.message)
+
+    await matcher.finish(MessageSegment.image(result.message))
 
 
 @add_quote_cmd.handle()
@@ -114,9 +118,12 @@ async def add_group_quotes(session: GroupMessageEvent, matcher: Matcher):
         key_word = get_downloaded_quote_image_path(session.current_arg_images[0], f'{os.getcwd()}/data/lol')
 
         if key_word:
-            group_control.add_quote(get_group_id(session), key_word)
+            result = group_control.add_quote(get_group_id(session), key_word)
+            if not result.is_success:
+                await matcher.finish(result.message)
+
             await matcher.finish(
-                f'已添加！（当前总语录条数：{group_control.get_group_quote_count(get_group_id(session))})')
+                f'{result.message}（当前总语录条数：{group_control.get_group_quote_count(get_group_id(session))})')
 
 
 @ocr.handle()

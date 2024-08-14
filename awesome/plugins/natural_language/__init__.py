@@ -46,8 +46,13 @@ async def natural_language_proc(bot: Bot, event: GroupMessageEvent, matcher: Mat
             path = await download_image(extracted_images[0], f'{getcwd()}/data/lol')
 
             if path:
-                group_control.add_quote(group_id, path)
-                await matcher.finish(f'已添加！（当前总语录条数：{group_control.get_group_quote_count(group_id)})')
+                result = group_control.add_quote(group_id, path)
+                if not result.is_success:
+                    await matcher.finish(result.message)
+
+                await matcher.finish(
+                    f'{result.message}'
+                    f' （当前总语录条数：{group_control.get_group_quote_count(get_group_id(event))})')
 
     if 'md' in plain_message[:4]:
         message_list = plain_message.split('\n')
