@@ -540,11 +540,11 @@ class BilibiliDynamicNotifcation(LiveNotification):
         if not draw_id:
             return [MessageSegment.text('')]
 
-        orig_text = []
+        orig_text: List[MessageSegment] = []
         for idx, item in enumerate(OptionalDict(orig_draw_node).map('items').or_else([])):
             file_name = f"{getcwd()}/data/bilibiliPic/{draw_id}_{idx}.jpg"
             await global_httpx_client.download(item['src'], file_name)
-            orig_text += MessageSegment.image(file_name)
+            orig_text.append(MessageSegment.image(file_name))
 
         return orig_text
 
@@ -586,7 +586,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
             for idx, file in enumerate(files):
                 file_name = f"{getcwd()}/data/bilibiliPic/{pic_id}_{idx}.jpg"
                 await global_httpx_client.download(file['src'], file_name)
-                orig_text += MessageSegment.image(file_name)
+                orig_text.append(MessageSegment.image(file_name))
 
         if archive:
             bvid = archive['bvid']
@@ -594,9 +594,10 @@ class BilibiliDynamicNotifcation(LiveNotification):
 
             await global_httpx_client.download(archive['cover'], forwarded_video_cover)
 
-            orig_text += MessageSegment.text(
+            orig_text.append(MessageSegment.text(
                 f'\n转发视频标题：{archive["title"]}\n'
-                f'转发视频bvid：{bvid}\n') + MessageSegment.image(forwarded_video_cover)
+                f'转发视频bvid：{bvid}\n'))
+            orig_text.append(MessageSegment.image(forwarded_video_cover))
 
         return orig_text
 
@@ -618,9 +619,9 @@ class BilibiliDynamicNotifcation(LiveNotification):
         return notify_list
 
     @staticmethod
-    async def _analyze_video_dynamic_content(archive_object):
+    async def _analyze_video_dynamic_content(archive_object) -> List[MessageSegment]:
         if not archive_object:
-            return
+            return []
 
         video_cover = OptionalDict(archive_object).map('cover').or_else('')
         bvid = OptionalDict(archive_object).map('bvid').or_else(str(time()))
@@ -628,10 +629,10 @@ class BilibiliDynamicNotifcation(LiveNotification):
         if video_cover:
             await global_httpx_client.download(video_cover, file_name)
 
-        return f'发布了新视频：\n' \
-               f'标题：{OptionalDict(archive_object).map("title").or_else("未知")}\n' \
-               f'bvid：{bvid}\n' \
-               f'[CQ:image,file=file:///{file_name}]\n'
+        return [MessageSegment.text('发布了新视频：\n'
+                                    f'标题：{OptionalDict(archive_object).map("title").or_else("未知")}\n'
+                                    f'bvid：{bvid}\n'),
+                MessageSegment.image(file_name)]
 
 
 async def main():

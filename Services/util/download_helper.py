@@ -22,7 +22,7 @@ async def download_image(url: str, saved_path: str, headers=None) -> str:
     file_name = sub(r'\?auth=.*?$', '', file_name)
     if len(file_name) > 10 or '.' not in file_name:
         if 'nt.qq.com' not in url:
-            file_name = f'{int(time())}.{file_name.split(".")[-1]}'
+            file_name = f'{int(time())}.{file_name.split(".")[-1].split("?")[0]}'
         else:
             file_name = f'{int(time()) + 1}.png'
 

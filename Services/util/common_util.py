@@ -10,7 +10,7 @@ from ssl import SSLContext
 from typing import List, Literal, Dict, Any
 
 import markdown2
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from lxml import html
 from lxml.html.clean import Cleaner
 from nonebot.adapters.onebot.v11 import Bot, PrivateMessageEvent
@@ -313,27 +313,27 @@ class HttpxHelperClient:
         ])
         self.context.set_ciphers(ciphers)
 
-    async def get(self, url: str, timeout=5.0, headers=None, cookies=None, redirect=False):
+    async def get(self, url: str, timeout=5.0, headers=None, cookies=None, redirect=False) -> Response:
         headers = headers if headers is not None else self.headers
 
         async with AsyncClient(timeout=timeout, headers=headers, cookies=cookies) as client:
             return await client.get(url, follow_redirects=redirect)
 
-    async def post(self, url: str, json: dict, headers=None, timeout=10.0):
+    async def post(self, url: str, json: dict, headers=None, timeout=10.0) -> Response:
         headers = headers if headers is not None else self.headers
         async with AsyncClient(headers=headers, timeout=timeout, default_encoding='utf-8') as client:
             return await client.post(url, json=json)
 
-    async def download(self, url: str, file_name: str, timeout=20.0, headers=None, retry=0):
+    async def download(self, url: str, file_name: str, timeout=20.0, headers=None, retry=0) -> str:
         file_name = file_name.replace('\\', '/')
         headers = headers if headers is not None else self.headers
         if retry > 5:
             logger.error('Retry exceeds the limit')
             return '?'
 
-        logger.info(f'Downloading file name: {file_name.split("/")[-1]}')
         try:
             if not exists(file_name):
+                logger.info(f'Downloading file name: {file_name.split("/")[-1]}')
                 async with AsyncClient(timeout=timeout, headers=headers, verify=self.context) as client:
                     # noinspection PyArgumentList
                     async with client.stream('GET', url=url, follow_redirects=True) as response:

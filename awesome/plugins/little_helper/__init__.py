@@ -61,8 +61,12 @@ async def can_you_be_fucking_normal(event: GroupMessageEvent, matcher: Matcher, 
     start_time = time.time()
     nickname = get_nickname(event)
     try:
-        await matcher.send(await hhsh(key_word) + '\n本次查询耗时： %.2fs' % (time.time() - start_time))
-        setu_function_control.set_user_data(event.get_user_id(), HHSH_FUNCTION, nickname)
+        search_result = await hhsh(key_word)
+        if search_result:
+            await matcher.send(search_result + '\n本次查询耗时： %.2fs' % (time.time() - start_time))
+            setu_function_control.set_user_data(event.get_user_id(), HHSH_FUNCTION, nickname)
+        else:
+            await matcher.finish('¿')
 
     except Exception as e:
         logger.debug('Something went wrong %s' % e)

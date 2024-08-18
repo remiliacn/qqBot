@@ -2,12 +2,12 @@ import dataclasses
 import re
 import sqlite3
 from asyncio import create_subprocess_shell
-from asyncio.subprocess import PIPE
 from json import loads, JSONDecodeError, dumps
 from os import getcwd, walk, path, listdir, mkdir
 from os.path import exists
 from re import findall
 from shutil import move
+from subprocess import PIPE
 from time import time
 from typing import Union, List
 
@@ -136,7 +136,8 @@ create table if not exists live_notification_twitch
         self.live_database.execute(
             """
             insert or replace into live_notification_twitch
-                (channel_name, isEnabled, last_checked_date, last_record_live_status, group_to_notify, last_video_vault_time)
+                (channel_name, isEnabled, last_checked_date, 
+                    last_record_live_status, group_to_notify, last_video_vault_time)
                 values (?, ?, ?, ?, ?, ?)
             """, (name, True, time(), False, dumps(streamer_group_list), 0)
         )
@@ -239,6 +240,7 @@ class TwitchClippingService:
                           '指令错误，应该为！切片 视频id 开始时间戳 停切时间戳\n例子：！切片 2206229026 00:00:00 00:05:00')
 
         video_id = message_arg[0]
+        await session.send('我去去就回~')
         if len(message_arg) == 1:
             return Status(True, TwitchClipInstruction(video_id))
 
@@ -284,7 +286,6 @@ class TwitchClippingService:
 
         start_time = validate_start_time.validated_timestamp
         end_time = validate_end_time.validated_timestamp
-        await session.send('我去去就回~')
         return Status(True, TwitchClipInstruction(video_id, start_time, end_time, file_name))
 
     @staticmethod

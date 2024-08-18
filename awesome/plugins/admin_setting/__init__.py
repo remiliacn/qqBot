@@ -445,9 +445,9 @@ unban_cmd = on_command('unban')
 
 
 @unban_cmd.handle()
-async def unban_someone(event: GroupMessageEvent, matcher: Matcher):
+async def unban_someone(event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
     if get_privilege(get_user_id(event), perm.ADMIN):
-        user_id = await check_if_number_user_id(event, event.get('user_id', prompt='请输入要解封的qq'))
+        user_id = await check_if_number_user_id(event, args.extract_plain_text())
 
         user_control.set_user_privilege(str(user_id), perm.BANNED, False)
         await matcher.send('Done!!')
