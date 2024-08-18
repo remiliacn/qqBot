@@ -109,7 +109,11 @@ class DiscordService:
             """, (channel_id,)
         ).fetchone()
 
-        return data if not isinstance(data, tuple) else data[0]
+        data = data if not isinstance(data, tuple) else data[0]
+        if data is None:
+            return 0
+
+        return data
 
     async def check_discord_updates(self) -> List[DiscordGroupNotification]:
         notification_list = self._retrieve_all_record_in_db()
@@ -126,7 +130,7 @@ class DiscordService:
                         raise ConnectionError
                     chatgpt_message = chatgpt_message.text
                     final_message = construct_message_chain(
-                        f'\n原文来自', discord_status.message, '\n粗翻：\n', chatgpt_message)
+                        f'\n', discord_status.message, '\n粗翻：\n', chatgpt_message)
                     statuses.append(DiscordGroupNotification(
                         is_success=discord_status.is_success,
                         message=final_message,
@@ -178,49 +182,55 @@ class DiscordService:
         if not channel_id.isdigit():
             return DiscordMessageStatus(False, [MessageSegment.text('Channel ID should be digit.')])
 
-        latest_timestamp = await self._get_the_latest_existing_discord_message(channel_id)
-        if latest_timestamp is None:
-            latest_timestamp = 0
-
         result = await self.client.get(
             f'https://discord.com/api/v9/channels/{channel_id}/messages?limit=5',
             headers=self.headers)
-        discord_msg_result = result.json()[0]
-        latest_msg_timestamp = discord_msg_result['timestamp']
-        latest_msg_timestamp = int(datetime.fromisoformat(latest_msg_timestamp).timestamp())
-
-        edited_msg_timestamp = discord_msg_result['edited_timestamp']
-        edited_msg_timestamp = 0 if edited_msg_timestamp is None else int(
-            datetime.fromisoformat(edited_msg_timestamp).timestamp())
 
         final_message_segments: List[MessageSegment] = []
+
+        discord_msg_result_all = result.json()[::-1]
         is_edit = False
 
-        author_object = discord_msg_result['author']
-        poster_name = author_object['username'] if 'username' in author_object else \
-            (author_object['global_name'] if 'global_name' in author_object else '??')
+        latest_timestamp = await self._get_the_latest_existing_discord_message(channel_id)
+        for discord_msg_result in discord_msg_result_all:
+            latest_msg_timestamp = discord_msg_result['timestamp']
+            latest_msg_timestamp = int(datetime.fromisoformat(latest_msg_timestamp).timestamp())
 
-        if latest_msg_timestamp > latest_timestamp:
-            discord_msg_parsed_result = await self._analyze_discord_message(discord_msg_result['content'])
-            attachment_msg_parsed_result = await self._analyze_discord_attachments(discord_msg_result['attachments'])
+            edited_msg_timestamp = discord_msg_result['edited_timestamp']
+            edited_msg_timestamp = 0 if edited_msg_timestamp is None else int(
+                datetime.fromisoformat(edited_msg_timestamp).timestamp())
 
-            final_message_segments = \
-                ([MessageSegment.text(poster_name + ':\n')] + discord_msg_parsed_result
-                 + MessageSegment.text('\n') + attachment_msg_parsed_result)
-            await self._update_previous_timestamp(channel_id, latest_msg_timestamp)
+            author_object = discord_msg_result['author']
+            poster_name = author_object['username'] if 'username' in author_object else \
+                (author_object['global_name'] if 'global_name' in author_object else '??')
 
-        if edited_msg_timestamp > latest_timestamp and edited_msg_timestamp > latest_msg_timestamp:
-            discord_msg_parsed_result = await self._analyze_discord_message(discord_msg_result['content'])
-            attachment_msg_parsed_result = await self._analyze_discord_attachments(discord_msg_result['attachments'])
+            if edited_msg_timestamp > latest_timestamp and edited_msg_timestamp > latest_msg_timestamp:
+                discord_msg_parsed_result = await self._analyze_discord_message(discord_msg_result['content'])
+                attachment_msg_parsed_result = await self._analyze_discord_attachments(
+                    discord_msg_result['attachments'])
 
-            final_message_segments = \
-                discord_msg_parsed_result + MessageSegment.text('\n') + attachment_msg_parsed_result
-            is_edit = True
-            await self._update_previous_timestamp(channel_id, edited_msg_timestamp)
+                final_message_segments.append(MessageSegment.text(poster_name + ':\n'))
+                final_message_segments += discord_msg_parsed_result
+                final_message_segments.append(MessageSegment.text('\n'))
+                final_message_segments += attachment_msg_parsed_result
+                is_edit = True
+                await self._update_previous_timestamp(channel_id, edited_msg_timestamp)
+
+            elif latest_msg_timestamp > latest_timestamp:
+                discord_msg_parsed_result = await self._analyze_discord_message(discord_msg_result['content'])
+                attachment_msg_parsed_result = await self._analyze_discord_attachments(
+                    discord_msg_result['attachments'])
+
+                final_message_segments.append(MessageSegment.text(poster_name + ':\n'))
+                final_message_segments += discord_msg_parsed_result
+                final_message_segments.append(MessageSegment.text('\n'))
+                final_message_segments += attachment_msg_parsed_result
+                await self._update_previous_timestamp(channel_id, latest_msg_timestamp)
 
         group_to_notify = self.get_group_ids_for_notification(channel_id)
-        return DiscordMessageStatus(True, final_message_segments, group_to_notify,
-                                    True if final_message_segments else False, is_edit=is_edit)
+        return DiscordMessageStatus(
+            True, final_message_segments, group_to_notify,
+            True if final_message_segments else False, is_edit=is_edit)
 
     async def update_streamer_data(self, channel_name: str, channel_id: str, group_id: str, is_enabled=True):
         group_ids = self.get_group_ids_for_notification(channel_name)
