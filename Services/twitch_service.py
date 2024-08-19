@@ -12,6 +12,7 @@ from time import time
 from typing import Union, List
 
 from loguru import logger
+from nonebot.adapters.onebot.v11 import MessageSegment
 from nonebot.internal.matcher import Matcher
 from twitchdl import twitch
 from youtube_dl.utils import sanitize_filename
@@ -20,6 +21,7 @@ from Services.live_notification import LiveNotificationData
 from Services.util.common_util import OptionalDict, HttpxHelperClient, Status, TwitchDownloadStatus, \
     ValidatedTimestampStatus
 from config import SUPER_USER, PATH_TO_ONEDRIVE, SHARE_LINK, CLOUD_STORAGE_SIZE_LIMIT_GB
+from util.helper_util import construct_message_chain
 
 
 class TwitchLiveData:
@@ -328,8 +330,8 @@ class TwitchClippingService:
                 try:
                     file_size = path.getsize(file_path)
                     if file_size > size_limit_bytes:
-                        return Status(False, f'Someone tell [CQ:at,qq={SUPER_USER}]'
-                                             f' there is not enough space in the disk.')
+                        return Status(False, construct_message_chain(f'Someone tell ', MessageSegment.at(SUPER_USER),
+                                                                     f' there is not enough space in the disk.'))
                 except OSError as err:
                     return Status(False,
                                   f'Someone tell [CQ:at,qq={SUPER_USER}] '

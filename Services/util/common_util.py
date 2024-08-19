@@ -124,7 +124,7 @@ async def time_to_literal(time_string: int) -> str:
     return result
 
 
-def construct_timestamp_string(seconds: float) -> str:
+def construct_timestamp_string(seconds: float, _pos=None) -> str:
     seconds = ceil(seconds)
 
     hours = seconds // 3600

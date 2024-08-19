@@ -8,11 +8,12 @@ import re
 import sys
 import time
 from functools import lru_cache
-from os import getpid
+from os import getpid, getcwd
 from random import randint
-from typing import Optional, Set, List, Dict
+from typing import Optional, Set, List, Dict, Tuple
 
 import aiohttp
+from matplotlib import font_manager, rc, rcParams, ticker
 from nonebot.log import logger
 
 import blivedm.models.web as web_models
@@ -26,6 +27,16 @@ FIVE_MINUTES = 60 * 5
 TWENTY_FIVE_MINUTES = 60 * 25
 # Make it random because it is funny lol
 TOP_TIMESTAMP_LIMIT = randint(5, 7)
+
+font_path = f'{getcwd()}/Services/util/SourceHanSansSC-Bold.otf'
+font_manager.fontManager.addfont(font_path)
+prop = font_manager.FontProperties(fname=font_path)
+
+rc('font', family='sans-serif')
+rcParams.update({
+    'font.size': 12,
+    'font.sans-serif': prop.get_name()
+})
 
 
 def _get_log_filename() -> str:
@@ -147,6 +158,14 @@ class MyDanmakuHandler(BaseHandler):
                 logger.error(f'Failed to get hotspot data: {err.__class__}')
                 hotspot_timestamp_data = []
 
+            try:
+                danmaku_graph_hotspot = _get_sorted_hotspot_time_to_frequency(self.stream_hotspot_timestamp_list)
+                logger.info(f'Danmaku graph hotspot list: {danmaku_graph_hotspot}')
+                file_name = _draw_danmaku_frequency_graph(danmaku_graph_hotspot)
+            except Exception as err:
+                logger.error(f'Failed to get danmaku graph data: {err.__class__}')
+                file_name = ''
+
             pickled_data = codecs.encode(pickle.dumps(LivestreamDanmakuData(
                 danmaku_count=self.danmaku_count,
                 danmaku_frequency_dict=self.danmaku_frequency_dict,
@@ -157,6 +176,7 @@ class MyDanmakuHandler(BaseHandler):
                 gift_total_price=self.gift_price if live_notification.is_fetch_gift_price(self.room_id) else 0,
                 new_captains=self.new_captains,
                 top_crazy_timestamps=hotspot_timestamp_data,
+                danmaku_analyze_graph=file_name
             )), 'base64').decode()
             live_notification.dump_live_data(pickled_data)
 
@@ -228,6 +248,55 @@ def hotspot_analyzation(timestamps: List[float], intervals=60) -> Dict[float, fl
             result_dict[interval_key] += 1
 
     return result_dict
+
+
+def seconds_to_hms(x, pos):
+    hours, remainder = divmod(x, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f'{int(hours):02}:{int(minutes):02}:{int(seconds):02}'
+
+
+def _get_sorted_hotspot_time_to_frequency(stream_time_frequency_list: List[float]) -> Tuple[List[float], List[float]]:
+    hotspot_analyzation_result = hotspot_analyzation(stream_time_frequency_list, 60)
+    sorted_result = sorted(hotspot_analyzation_result.items(), key=lambda x: x[0])
+
+    x_axis_data = [x[0] for x in sorted_result]
+    y_axis_data = [x[1] for x in sorted_result]
+
+    return x_axis_data, y_axis_data
+
+
+def _draw_danmaku_frequency_graph(data_tuple: Tuple[List[float], List[float]]) -> str:
+    import matplotlib.pyplot as plt
+    from scipy.ndimage import gaussian_filter1d
+
+    plt.rcParams['axes.unicode_minus'] = False
+
+    x_axis_data, y_axis_data = data_tuple
+
+    smoothed_y_axis_data = gaussian_filter1d(y_axis_data, sigma=2)
+
+    logger.info(f'X axis data: {x_axis_data}')
+    logger.info(f'Y axis data: {y_axis_data}')
+
+    plt.margins(x=0, y=0)
+    # noinspection PyTypeChecker
+    plt.plot(x_axis_data, smoothed_y_axis_data)
+
+    plt.gca().xaxis.set_major_formatter(ticker.FuncFormatter(seconds_to_hms))
+    plt.gcf().autofmt_xdate()
+
+    plt.xlabel('直播时间（误差+-1分钟）')
+    plt.ylabel('弹幕量')
+    plt.title('弹幕活跃趋势')
+
+    # noinspection PyTypeChecker
+    plt.fill_between(x_axis_data, 0, smoothed_y_axis_data, alpha=0.5, color='green')
+
+    file_name = f'{getcwd()}/data/live/{int(time.time())}_danmaku.png'
+    plt.savefig(file_name)
+
+    return file_name
 
 
 def get_sorted_timestamp_hotspot(stream_time_frequency_list: List[float], intervals=60) -> List[str]:

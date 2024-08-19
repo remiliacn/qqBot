@@ -33,6 +33,7 @@ class LivestreamDanmakuData:
     gift_total_price: float = 0
     new_captains: int = 0
     top_crazy_timestamps: List[str] = dataclasses.field(default_factory=list)
+    danmaku_analyze_graph: str = ''
 
 
 class DynamicNotificationData:
@@ -228,9 +229,10 @@ class LiveNotification:
 
         new_captains_prompt = f'新舰长{data.new_captains}个\n' if data.new_captains >= 3 else ''
         gift_price_string = f'（预估收入：￥{data.gift_total_price:.2f}）\n' if data.gift_total_price > 0 else ''
-        hotspot_data_prompt = (f'前{len(data.top_crazy_timestamps)}弹幕最多的精彩时间：'
-                               f'\n{", ".join(data.top_crazy_timestamps)}') \
-            if data.top_crazy_timestamps else ''
+        # hotspot_data_prompt = (f'前{len(data.top_crazy_timestamps)}弹幕最多的精彩时间：'
+        #                        f'\n{", ".join(data.top_crazy_timestamps)}') \
+        #     if data.top_crazy_timestamps else ''
+        danmaku_graph_data = MessageSegment.image(data.danmaku_analyze_graph) if data.danmaku_analyze_graph else ''
         return construct_message_chain(
             '直播已结束！撒花~✿✿ヽ(°▽°)ノ✿\n',
             f'一共收到啦{data.danmaku_count}枚弹幕\n',
@@ -238,8 +240,9 @@ class LiveNotification:
             f'收到礼物（包括SC）{data.gift_received_count}个\n',
             f'{gift_price_string}',
             f'最高人气排名：{data.highest_rank}\n',
-            f'{hotspot_data_prompt}\n\n',
-            MessageSegment.image(path))
+            # f'{hotspot_data_prompt}\n\n',
+            MessageSegment.image(path),
+            danmaku_graph_data)
 
     def _delete_dumped_live_data(self, uid):
         self.live_database.execute(

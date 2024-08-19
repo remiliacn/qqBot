@@ -63,7 +63,8 @@ def construct_message_chain(*args: [str, MessageSegment, Message, List[MessageSe
             continue
 
         if isinstance(arg, str):
-            message_list.append(MessageSegment.text(arg))
+            if arg:
+                message_list.append(MessageSegment.text(arg))
         elif isinstance(arg, Message):
             message_list += [x for x in arg]
         elif isinstance(arg, list):
