@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-# !/usr/bin/env python3.10
 import asyncio
 import codecs
 import http.cookies
@@ -8,17 +6,19 @@ import re
 import sys
 import time
 from functools import lru_cache
-from os import getpid, getcwd
+from os import getpid, getcwd, stat
 from random import randint
-from typing import Optional, Set, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple
 
 import aiohttp
+import numpy as np
+from dateutil import parser
 from matplotlib import font_manager, rc, rcParams, ticker
 from nonebot.log import logger
 
 import blivedm.models.web as web_models
 from Services.live_notification import LiveNotification, LivestreamDanmakuData
-from Services.util.common_util import OptionalDict, find_repeated_substring, construct_timestamp_string
+from Services.util.common_util import OptionalDict, find_repeated_substring, construct_timestamp_string, gradient_fill
 from blivedm import BaseHandler, BLiveClient
 from blivedm.clients import ws_base
 from config import BILI_SESS_DATA
@@ -50,9 +50,8 @@ logger.add(f'./logs/{_get_log_filename()}', level='INFO', colorize=False, backtr
 
 class MyDanmakuHandler(BaseHandler):
     def __init__(self):
+        self.BLACKLIST_DANMAKU_FILE = f'{getcwd()}/data/live/utils/danmaku_blacklist.txt'
         self.danmaku_frequency_dict: Dict[str, int] = {}
-        # TODO: make this store in a file or a db.
-        self.blacklist_word: Set[str] = {'老板大气', 'B站无互动', '请移步T台', '中奖喷雾', '红包', '今日好运', '转人工'}
 
         self.highest_rank = 99999
         self.like_received_count = self.danmaku_count = 0
@@ -62,11 +61,19 @@ class MyDanmakuHandler(BaseHandler):
         self.stream_start_time = time.time()
         self.stream_hotspot_timestamp_list: List[float] = []
 
+    @lru_cache(maxsize=None)
+    def _get_blacklist_danmaku(self, _cache_time=None) -> List[str]:
+        with open(self.BLACKLIST_DANMAKU_FILE, 'r+', encoding='utf-8-sig') as f:
+            return [x.strip() for x in f.readlines() if x]
+
     def set_room_id(self, parsed_in_room_id: str):
         self.room_id = parsed_in_room_id
 
     def set_group_ids(self, group_ids_dumped: str):
         self.group_ids = group_ids_dumped
+
+    def set_start_time(self, start_time: int):
+        self.stream_start_time = start_time
 
     def add_danmaku_into_frequency_dict(self, message):
         msg = message.msg.lower()
@@ -98,8 +105,9 @@ class MyDanmakuHandler(BaseHandler):
 
     @lru_cache(maxsize=800)
     def _is_blacklist_word(self, message: str) -> bool:
-        for blacklist in self.blacklist_word:
+        for blacklist in self._get_blacklist_danmaku(stat(self.BLACKLIST_DANMAKU_FILE).st_mtime):
             if blacklist in message:
+                logger.success(f'{blacklist} in {message}')
                 return True
 
         return False
@@ -210,13 +218,19 @@ handler = MyDanmakuHandler()
 async def main():
     global TEST_ROOM_IDS
     argv = sys.argv
-    if not sys.argv or len(argv) != 3:
+    if not sys.argv or len(argv) != 4:
         raise RuntimeError('No argv, should includes at least one room id.')
     else:
         room_id = argv[1]
         group_ids = argv[2]
+        start_time = argv[3]
+
+        start_time = int(parser.parse(start_time).timestamp())
+
+        handler.set_start_time(start_time)
         handler.set_room_id(room_id)
         handler.set_group_ids(group_ids)
+
         TEST_ROOM_IDS.append(room_id)
     init_session()
     try:
@@ -274,13 +288,12 @@ def _draw_danmaku_frequency_graph(data_tuple: Tuple[List[float], List[float]]) -
 
     x_axis_data, y_axis_data = data_tuple
 
-    smoothed_y_axis_data = gaussian_filter1d(y_axis_data, sigma=2)
+    smoothed_y_axis_data: np.ndarray = gaussian_filter1d(y_axis_data, sigma=1.5)
 
     logger.info(f'X axis data: {x_axis_data}')
     logger.info(f'Y axis data: {y_axis_data}')
 
     plt.margins(x=0, y=0)
-    # noinspection PyTypeChecker
     plt.plot(x_axis_data, smoothed_y_axis_data)
 
     plt.gca().xaxis.set_major_formatter(ticker.FuncFormatter(seconds_to_hms))
@@ -290,8 +303,7 @@ def _draw_danmaku_frequency_graph(data_tuple: Tuple[List[float], List[float]]) -
     plt.ylabel('弹幕量')
     plt.title('弹幕活跃趋势')
 
-    # noinspection PyTypeChecker
-    plt.fill_between(x_axis_data, 0, smoothed_y_axis_data, alpha=0.5, color='green')
+    gradient_fill(x_axis_data, smoothed_y_axis_data, alpha=0.5, color='green')
 
     file_name = f'{getcwd()}/data/live/{int(time.time())}_danmaku.png'
     plt.savefig(file_name)

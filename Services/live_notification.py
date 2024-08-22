@@ -359,7 +359,7 @@ class LiveNotification:
                 if notify_data.is_live:
                     notify_data.set_live_change_status('开播啦！')
                     live_data_list.append(notify_data)
-                    subprocess.Popen(f'{DANMAKU_PROCESS} {room_id} {group_ids}')
+                    subprocess.Popen(f'{DANMAKU_PROCESS} {room_id} {group_ids} "{notify_data.stream_live_time}"')
                 else:
                     notify_data = LiveNotificationData(streamer_name, False)
                     notify_data.set_live_change_status('下播啦！')

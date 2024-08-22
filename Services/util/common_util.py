@@ -10,9 +10,12 @@ from ssl import SSLContext
 from typing import List, Literal, Dict, Any
 
 import markdown2
+import numpy as np
 from httpx import AsyncClient, Response
 from lxml import html
 from lxml.html.clean import Cleaner
+from matplotlib import pyplot as plt, patches
+from matplotlib.colors import colorConverter
 from nonebot.adapters.onebot.v11 import Bot, PrivateMessageEvent
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageSegment, Message
 from nonebot.log import logger
@@ -276,6 +279,39 @@ def markdown_to_image(text: str) -> (str, bool):
     except Exception as err:
         logger.error(f'Markdown render failed {err.__class__}')
         return '渲染出错力', False
+
+
+def gradient_fill(x: List[float], y: List[float] | np.ndarray, fill_color=None, ax=None, zfunc=None, **kwargs):
+    if ax is None:
+        ax = plt.gca()
+
+    line, = ax.plot(x, y, **kwargs)
+    if fill_color is None:
+        fill_color = line.get_color()
+
+    zorder = line.get_zorder()
+    alpha = line.get_alpha()
+    alpha = 1.0 if alpha is None else alpha
+
+    if zfunc is None:
+        h, w = 100, 1
+        z = np.empty((h, w, 4), dtype=float)
+        rgb = colorConverter.to_rgb(fill_color)
+        z[:, :, :3] = rgb
+        z[:, :, -1] = np.linspace(0, alpha, h)[:, None]
+    else:
+        z = zfunc(x, y, fill_color=fill_color, alpha=alpha)
+    xmin, xmax, ymin, ymax = min(x), max(x), min(y), max(y)
+    im = ax.imshow(z, aspect='auto', extent=[xmin, xmax, ymin, ymax],
+                   origin='lower', zorder=zorder)
+
+    xy = np.column_stack([x, y])
+    xy = np.vstack([[xmin, ymin], xy, [xmax, ymin], [xmin, ymin]])
+    clip_path = patches.Polygon(xy, facecolor='none', edgecolor='none', closed=True)
+    ax.add_patch(clip_path)
+    im.set_clip_path(clip_path)
+    ax.autoscale(True)
+    return line, im
 
 
 class OptionalDict:

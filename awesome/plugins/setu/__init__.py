@@ -169,8 +169,9 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
     if not group_control.get_if_authed():
         pixiv_api.set_auth(
             access_token=group_control.get_access_token(),
-            refresh_token='iL51azZw7BWWJmGysAurE3qfOsOhGW-xOZP41FPhG-s'
+            refresh_token=PIXIV_REFRESH_TOKEN
         )
+        pixiv_api.auth(refresh_token=PIXIV_REFRESH_TOKEN)
         group_control.set_if_authed(True)
 
     if not (key_word := args.extract_plain_text()):

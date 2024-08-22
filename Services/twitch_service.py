@@ -2,12 +2,12 @@ import dataclasses
 import re
 import sqlite3
 from asyncio import create_subprocess_shell
+from asyncio.subprocess import PIPE
 from json import loads, JSONDecodeError, dumps
 from os import getcwd, walk, path, listdir, mkdir
 from os.path import exists
 from re import findall
 from shutil import move
-from subprocess import PIPE
 from time import time
 from typing import Union, List
 
@@ -358,17 +358,6 @@ class TwitchClippingService:
                 stderr=PIPE
             )
 
-            # Read stdout and stderr line by line
-            while True:
-                line_out = await process.stdout.readline()
-                line_err = await process.stderr.readline()
-                if line_out:
-                    print(f'Stdout: {line_out.decode().strip()}')  # Print each line of stdout
-                if line_err:
-                    print(f'stderr: {line_err.decode().strip()}')  # Print each line of stdout
-                else:
-                    break
-
             await process.wait()
             logger.success(f'Download completed with instruction {instruction}')
             files = [f for f in listdir(getcwd()) if f.endswith('.mp4')]
@@ -387,5 +376,7 @@ class TwitchClippingService:
                 message=f'下载好了哦~文件名:\n {files[0]}\n{SHARE_LINK}',
                 file_path=file_path_to_return)
         except Exception as err:
-            return TwitchDownloadStatus(False, f'Someone tell [CQ:at,qq={SUPER_USER}] '
-                                               f'there is some problem with my clip. {err.__class__}')
+            logger.exception('An error occurred')
+            return TwitchDownloadStatus(
+                False, construct_message_chain(f'Someone tell ', MessageSegment.at(SUPER_USER),
+                                               f'there is some problem with my clip. {err.__class__}'))
