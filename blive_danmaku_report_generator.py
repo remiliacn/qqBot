@@ -288,7 +288,7 @@ def _draw_danmaku_frequency_graph(data_tuple: Tuple[List[float], List[float]]) -
 
     x_axis_data, y_axis_data = data_tuple
 
-    smoothed_y_axis_data: np.ndarray = gaussian_filter1d(y_axis_data, sigma=1.5)
+    smoothed_y_axis_data: np.ndarray = gaussian_filter1d(y_axis_data, sigma=2)
 
     logger.info(f'X axis data: {x_axis_data}')
     logger.info(f'Y axis data: {y_axis_data}')

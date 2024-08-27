@@ -269,7 +269,7 @@ class DiscordService:
                 timestamp = message.replace('t:', '').replace(':R', '')
                 if timestamp.isdigit():
                     time_until_that_timestamp = int(timestamp) - int(time())
-                    replacement_dict[message] = f'{await time_to_literal(time_until_that_timestamp)}后'
+                    replacement_dict[message] = f'{await time_to_literal(time_until_that_timestamp)}'
             else:
                 replacement_dict[message] = ''
 

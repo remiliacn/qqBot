@@ -195,11 +195,11 @@ class RateLimiter:
 
     async def _assemble_limit_prompt(self, prompt, wait_time) -> [None, str]:
         if prompt == self.LIMIT_BY_USER:
-            return f'别玩啦，过{await time_to_literal(wait_time)}后再回来玩好不好？'
+            return f'别玩啦，过{await time_to_literal(wait_time)}再回来玩好不好？'
         elif prompt == self.LIMIT_BY_GROUP:
-            return f'群使用已到达允许上限，请稍等{await time_to_literal(wait_time)}后重试'
+            return f'群使用已到达允许上限，请稍等{await time_to_literal(wait_time)}重试'
         elif prompt == self.TEMPRORARY_DISABLED:
-            return f'该功能全局禁用中，请稍等{await time_to_literal(wait_time)}后再试。'
+            return f'该功能全局禁用中，请稍等{await time_to_literal(wait_time)}再试。'
 
         return None
 

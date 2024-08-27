@@ -107,14 +107,20 @@ async def get_general_ctx_info(ctx: GroupMessageEvent) -> (int, int, int):
 
 
 async def time_to_literal(time_string: int) -> str:
+    if time_string < 0:
+        suffix = '前'
+    else:
+        suffix = '后'
+
+    time_string = abs(time_string)
     hour = time_string // 3600
     time_string %= 3600
 
     minute = time_string // 60
     second = time_string % 60
-    day = 0
 
     result = ''
+    day = 0
     if hour >= 24:
         day = hour // 24
         hour -= day * 24
@@ -124,7 +130,7 @@ async def time_to_literal(time_string: int) -> str:
     result += f'{minute}分' if minute > 0 else ''
     result += f'{second}秒'
 
-    return result
+    return result + suffix
 
 
 def construct_timestamp_string(seconds: float, _pos=None) -> str:

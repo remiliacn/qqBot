@@ -1,7 +1,7 @@
 import dataclasses
 import re
 import sqlite3
-from asyncio import create_subprocess_shell
+from asyncio import create_subprocess_shell, sleep
 from asyncio.subprocess import PIPE
 from json import loads, JSONDecodeError, dumps
 from os import getcwd, walk, path, listdir, mkdir
@@ -358,7 +358,22 @@ class TwitchClippingService:
                 stderr=PIPE
             )
 
-            await process.wait()
+            while True:
+                if process.stdout.at_eof() or process.stderr.at_eof():
+                    break
+
+                stdout = (await process.stdout.readline()).decode('utf-8')
+                if stdout:
+                    logger.info(f'[twitch downloader] {stdout}')
+
+                stderr = (await process.stderr.readline()).decode('utf-8')
+                if stderr:
+                    logger.info(f'[twitch downloader] {stderr}')
+
+                await sleep(.5)
+
+            await process.communicate()
+
             logger.success(f'Download completed with instruction {instruction}')
             files = [f for f in listdir(getcwd()) if f.endswith('.mp4')]
             if not files:
