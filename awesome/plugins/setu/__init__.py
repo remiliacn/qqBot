@@ -1,11 +1,10 @@
-from os import getcwd, remove
+from os import getcwd
+from os.path import join
 from random import choice, randint
 from re import split, findall
 from time import time
 from typing import Union, List
-from uuid import uuid4
 
-from PIL import Image, ImageDraw
 from nonebot import get_plugin_config, on_command
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message, PrivateMessageEvent, MessageSegment, Bot
 from nonebot.internal.matcher import Matcher
@@ -16,7 +15,8 @@ from pixivpy3 import PixivError, AppPixivAPI
 from Services import global_rate_limiter, cangku_api
 from Services.pixiv_word_cloud import get_word_cloud_img
 from Services.rate_limiter import UserLimitModifier
-from Services.util.common_util import compile_forward_message, autorevoke_message, get_if_has_at_and_qq
+from Services.util.common_util import compile_forward_message, autorevoke_message, get_if_has_at_and_qq, \
+    slight_adjust_pic_and_get_path
 from Services.util.ctx_utility import get_group_id, get_user_id, get_nickname
 from Services.util.download_helper import download_image
 from Services.util.sauce_nao_helper import sauce_helper
@@ -562,7 +562,7 @@ async def _download_pixiv_image_helper(illust) -> str:
                     image_urls['square_medium']
 
     logger.info(f"{illust.title}: {image_url}, {illust.id}")
-    path = original_path = f'{getcwd()}/data/pixivPic/'
+    path = join(getcwd(), 'data', 'pixivPic')
 
     try:
         path = await download_image(image_url, path, headers={'Referer': 'https://app-api.pixiv.net/'})
@@ -570,19 +570,7 @@ async def _download_pixiv_image_helper(illust) -> str:
         logger.info(f'Download image error: {err}')
         return ''
 
-    edited_path = original_path + f'{uuid4().hex}.{path.split(".")[-1]}'
-    try:
-        image = Image.open(path)
-        draw = ImageDraw.Draw(image)
-        x, y = randint(0, image.width - 5), randint(0, image.height - 5)
-        draw.ellipse((x - 3, y - 3, x + 3, y + 3), fill='white', outline='black')
-
-        image.save(edited_path)
-    except Exception as err:
-        logger.error(f'Failed to micro modify a pixiv pic. {err.__class__}')
-        return path
-
-    remove(path)
+    edited_path = await slight_adjust_pic_and_get_path(path)
 
     logger.info("PATH = " + edited_path)
     return edited_path

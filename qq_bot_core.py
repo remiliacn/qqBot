@@ -82,6 +82,7 @@ def _create_necessary_folders():
     _create_dir(f'{getcwd()}/config/')
     _create_dir(f'{getcwd()}/data/')
     _create_dir(f'{getcwd()}/data/bot')
+    _create_dir(f'{getcwd()}/data/temp')
     _create_dir(f'{getcwd()}/data/bot/stock')
 
 

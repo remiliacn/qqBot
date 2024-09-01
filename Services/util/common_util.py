@@ -4,13 +4,16 @@ from asyncio import sleep, get_running_loop
 from functools import lru_cache
 from hashlib import sha1
 from math import ceil
-from os import remove, getcwd
+from os import remove, getcwd, path
 from os.path import exists
+from random import randint
 from ssl import SSLContext
 from typing import List, Literal, Dict, Any
+from uuid import uuid4
 
 import markdown2
 import numpy as np
+from PIL import Image, ImageDraw
 from httpx import AsyncClient, Response
 from lxml import html
 from lxml.html.clean import Cleaner
@@ -30,6 +33,8 @@ from tqdm import tqdm
 from webdriver_manager.chrome import ChromeDriverManager
 
 from Services.util.ctx_utility import get_user_id, get_group_id
+
+TEMP_FILE_DIRECTORY = path.join(getcwd(), 'data', 'temp')
 
 
 @dataclasses.dataclass
@@ -82,6 +87,25 @@ def calculate_sha1(file_path) -> str:
             sha1_hash.update(byte_block)
 
     return sha1_hash.hexdigest()
+
+
+async def slight_adjust_pic_and_get_path(input_path: str):
+    edited_path = path.join(TEMP_FILE_DIRECTORY, f'{uuid4().hex}.{input_path.split(".")[-1]}')
+    try:
+        image = Image.open(input_path)
+        draw = ImageDraw.Draw(image)
+        x, y = randint(0, image.width - 3), randint(0, image.height - 3)
+        draw.ellipse((x - 2, y - 2, x + 2, y + 2), fill='white', outline='black')
+
+        image.save(edited_path)
+
+        loop = get_running_loop()
+        loop.call_later(120, lambda: remove(edited_path))
+    except Exception as err:
+        logger.error(f'Failed to micro modify a pixiv pic. {err.__class__}')
+        return path
+
+    return edited_path
 
 
 async def autorevoke_message(
@@ -308,6 +332,7 @@ def gradient_fill(x: List[float], y: List[float] | np.ndarray, fill_color=None, 
     else:
         z = zfunc(x, y, fill_color=fill_color, alpha=alpha)
     xmin, xmax, ymin, ymax = min(x), max(x), min(y), max(y)
+    # noinspection PyTypeChecker
     im = ax.imshow(z, aspect='auto', extent=[xmin, xmax, ymin, ymax],
                    origin='lower', zorder=zorder)
 

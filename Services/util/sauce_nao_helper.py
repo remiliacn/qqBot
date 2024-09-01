@@ -132,4 +132,4 @@ async def _analyze_sauce_nao_content(json_data: dict, image_content: MessageSegm
 
 
 async def _download_saunce_nao_thumbnail(thumbnail) -> str:
-    return await download_image(thumbnail, f'{getcwd()}/data/pixivPic/')
+    return await download_image(thumbnail, f'{getcwd()}/data/pixivPic/', needs_postprocess=True)
