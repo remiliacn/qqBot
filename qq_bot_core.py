@@ -1,4 +1,3 @@
-import sqlite3
 from json import dump
 from logging import getLogger, ERROR
 from os import path, getcwd, mkdir, environ
@@ -9,7 +8,6 @@ from loguru import logger
 from nonebot.adapters.onebot.v11 import Adapter as OneBotdapter
 
 # 如果下面这行报错，请暂时注释掉这行然后运行下面的main()
-from Services.simulate_stock import SimulateStock
 from awesome.adminControl import group_control
 
 config_file = \
@@ -45,11 +43,6 @@ CANGKU_USERNAME = ''
 CANGKU_PASSWORD = ''
 
     """
-
-temp_message_db = sqlite3.connect(f'{getcwd()}/data/db/temp_messages.db')
-
-virtual_market = SimulateStock()
-
 nonebot.init()
 
 driver = nonebot.get_driver()

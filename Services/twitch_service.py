@@ -355,24 +355,28 @@ class TwitchClippingService:
                 f'-o {file_name} -q source {f"-s {instruction.start_time}" if instruction.start_time else ""} '
                 f'{f"-e {instruction.end_time}" if instruction.end_time else ""} -f mp4 {instruction.video_id}',
                 stdout=PIPE,
-                stderr=PIPE
+                stderr=PIPE,
+                limit=1024 * 1024 * 100  # 100 MB
             )
 
-            while True:
-                if process.stdout.at_eof() or process.stderr.at_eof():
-                    break
+            try:
+                while True:
+                    if process.stdout.at_eof() or process.stderr.at_eof():
+                        break
 
-                stdout = (await process.stdout.readline()).decode('utf-8')
-                if stdout:
-                    logger.info(f'[twitch downloader] {stdout}')
+                    stdout = (await process.stdout.readline()).decode('utf-8')
+                    if stdout:
+                        logger.info(f'[twitch downloader] {stdout}')
 
-                stderr = (await process.stderr.readline()).decode('utf-8')
-                if stderr:
-                    logger.info(f'[twitch downloader] {stderr}')
+                    stderr = (await process.stderr.readline()).decode('utf-8')
+                    if stderr:
+                        logger.info(f'[twitch downloader] {stderr}')
 
-                await sleep(.5)
+                    await sleep(.5)
 
-            await process.communicate()
+                await process.communicate()
+            except ValueError:
+                logger.error('Something wrong with stderr stdout operation, but it is very likely is download ready.')
 
             logger.success(f'Download completed with instruction {instruction}')
             files = [f for f in listdir(getcwd()) if f.endswith('.mp4')]
