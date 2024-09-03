@@ -12,35 +12,31 @@ from awesome.adminControl import group_control
 
 config_file = \
     """
+from os import getcwd
+
 NICKNAME = {}
-CONSUMER_KEY = ''    # Twitter consumer key
-CONSUMER_SECRET = '' # Twitter Secret Token
-ACCESS_TOKEN = ''    # Twitter Access Token
-ACCESS_SECRET = ''   # Twitter Access Secret Token
 
-PIXIV_REFRESH_TOKEN = '' # Pixiv refresh token (upbit/pixivpy的issue#158有获取方式)
+PIXIV_REFRESH_TOKEN = '' # 选填，用于搜图功能
 
-ITPK_KEY = ''        # 茉莉机器人API KEY
-ITPK_SECRET = ''     # 茉莉机器人API SECRET
+DANMAKU_PROCESS = f'' # 选填，如果需要b站开播追踪功能
 
-SAUCE_API_KEY = ''   # Sauce API key.
+PATH_TO_ONEDRIVE = '' # 选填，如果需要twitch下载功能
+PATH_TEMP_DOWNLOAD = '' # 选填，如果需要YouTube下载功能
+FFMPEG_PATH = '' # 选填，如果需要twitch或YouTube下载功能
+SHARE_LINK = '' # 选填，如果需要twitch或YouTube下载功能
 
-SUPER_USER = 0       # 超级管理员qq号 (int)
+SAUCE_API_KEY = '' # 选填，如果需要sauceNAO逆向图片搜索
+DISCORD_AUTH = '' # 选填，如果需要discord跟踪功能
 
-BUFF_SESSION_ID = ''
-STEAM_UTIL_GROUP_NUM = []
+COMMAND_START = {'/', '!', '／', '！', '#'}
 
-# 如果需要YouTube自动扒源功能可保留下面的参数，否则可以删除
-# 删除后可移除forDownload.py文件以及do_youtube_update_fetch()方法
-# 该方法存在于./awesome/plugins/vtuber_functions.py
+HOST = '127.0.0.1' # 必填
+PORT = 5700 # 必填
+SUPER_USER = 0 # 必填
 
-PATH_TO_ONEDRIVE = ''    # OneDrive盘路径，或服务器文件路径终点
-PATH_TEMP_DOWNLOAD = ''  # 视频下载的缓存地址
-FFMPEG_PATH = ''         # FFMPEG路径
-SHARE_LINK = ''          # OneDrive分享地址，或服务器目录根地址。
+CLOUD_STORAGE_SIZE_LIMIT_GB = 90
 
-CANGKU_USERNAME = ''
-CANGKU_PASSWORD = ''
+BILI_SESS_DATA = "" # 选填，如果需要b站开播追踪功能
 
     """
 nonebot.init()
