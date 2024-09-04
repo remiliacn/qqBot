@@ -9,7 +9,7 @@ from os import remove, getcwd, path
 from os.path import exists
 from random import randint
 from ssl import SSLContext
-from typing import List, Literal, Dict, Any, LiteralString, Union
+from typing import List, Literal, Dict, Any, Union
 from uuid import uuid4
 
 import markdown2
@@ -98,6 +98,7 @@ def calculate_sha1(file_path: str) -> str:
 
 
 async def slight_adjust_pic_and_get_path(input_path: str):
+    logger.info(f'Starting to sightly adjust the image: {input_path}')
     edited_path = path.join(TEMP_FILE_DIRECTORY, f'{uuid4().hex}.{input_path.split(".")[-1]}')
     try:
         image = Image.open(input_path)
@@ -113,6 +114,7 @@ async def slight_adjust_pic_and_get_path(input_path: str):
         logger.error(f'Failed to micro modify a pixiv pic. {err.__class__}')
         return path
 
+    logger.success(f'Adjusting image successfully completed for: {input_path}')
     return edited_path
 
 
@@ -399,7 +401,7 @@ class HttpxHelperClient:
         async with AsyncClient(headers=headers, timeout=timeout, default_encoding='utf-8') as client:
             return await client.post(url, json=json)
 
-    async def download(self, url: str, file_name: Union[str, LiteralString, bytes],
+    async def download(self, url: str, file_name: Union[str, bytes],
                        timeout=20.0, headers=None, retry=0) -> str:
         file_name = file_name.replace('\\', '/')
         headers = headers if headers is not None else self.headers
@@ -409,12 +411,13 @@ class HttpxHelperClient:
 
         try:
             if not exists(file_name):
-                logger.info(f'Downloading file name: {file_name.split("/")[-1]}')
                 async with AsyncClient(timeout=timeout, headers=headers, verify=self.context) as client:
                     async with client.stream('GET', url=url, follow_redirects=True) as response:
-                        ext = guess_extension(response.headers['Content-Type'].partition(';').strip())
+                        ext = guess_extension(response.headers['Content-Type'].strip())
+                        if ext:
+                            file_name = f'{file_name}{ext}'
 
-                        file_name = f'{file_name}.{ext}'
+                        logger.info(f'Downloading file name: {file_name.split("/")[-1]}')
                         if response.status_code == 403:
                             logger.warning(f'Download retry: {retry + 1}, url: {url}')
                             await sleep(15 * (retry + 1))

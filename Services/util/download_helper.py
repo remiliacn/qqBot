@@ -1,6 +1,5 @@
 from os import makedirs, path
 from os.path import exists
-from re import sub
 
 from nonebot import logger
 
@@ -19,15 +18,7 @@ async def download_image(url: str, saved_path: str, headers=None, needs_postproc
         except OSError:
             return ''
 
-    logger.debug(f'Downloading file from URL: {url}')
-    file_name = url.split('/')[-1]
-    file_name = sub(r'\?auth=.*?$', '', file_name)
-    if len(file_name) > 25 or '.' not in file_name:
-        if 'nt.qq.com' not in url:
-            file_name = f'{calculate_sha1_string(url)}'
-        else:
-            file_name = f'{calculate_sha1_string(url)}'
-
+    file_name = calculate_sha1_string(url)
     saved_path = path.join(saved_path, file_name)
     if not exists(saved_path):
         try:

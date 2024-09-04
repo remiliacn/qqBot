@@ -122,14 +122,14 @@ async def add_group_quotes(session: GroupMessageEvent, matcher: Matcher):
 
         if key_word:
             result = group_control.add_quote(get_group_id(session), key_word)
-            message = f'{message}（当前总语录条数：{group_control.get_group_quote_count(get_group_id(session))})'
+            message = f'{result.message}（当前总语录条数：{group_control.get_group_quote_count(get_group_id(session))})'
             if not result.is_success:
                 if message:
                     await matcher.finish(message)
                 else:
                     await matcher.finish(result.message)
 
-    await matcher.finish()
+    await matcher.finish(message)
 
 
 @ocr.handle()

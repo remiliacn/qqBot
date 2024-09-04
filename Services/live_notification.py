@@ -6,7 +6,7 @@ import sqlite3
 import subprocess
 import uuid
 from json import dumps, loads
-from os import getcwd
+from os import getcwd, path
 from time import time, time_ns
 from typing import Union, List, Dict
 
@@ -18,6 +18,7 @@ from wordcloud import WordCloud
 from Services.get_bvid import update_buvid_params
 from Services.util import global_httpx_client
 from Services.util.common_util import OptionalDict
+from awesome.Constants.path_constants import BILIBILI_PIC_PATH
 from config import DANMAKU_PROCESS
 from util.helper_util import construct_message_chain
 
@@ -317,8 +318,8 @@ class LiveNotification:
             .map('user_cover') \
             .or_else(None)
         if thumbnail_url is not None:
-            stream_thumbnail_filename = \
-                f'{getcwd()}/data/bilibiliPic/{thumbnail_url.split("/")[-1].replace("]", "").replace("[", "")}'
+            stream_thumbnail_filename = (
+                path.join(BILIBILI_PIC_PATH, thumbnail_url.split("/")[-1].replace("]", "").replace("[", ""))).__str__()
             await global_httpx_client.download(thumbnail_url, file_name=stream_thumbnail_filename)
         else:
             stream_thumbnail_filename = ''
@@ -545,7 +546,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
 
         orig_text: List[MessageSegment] = []
         for idx, item in enumerate(OptionalDict(orig_draw_node).map('items').or_else([])):
-            file_name = f"{getcwd()}/data/bilibiliPic/{draw_id}_{idx}.jpg"
+            file_name = path.join(BILIBILI_PIC_PATH, f'{draw_id}_{idx}')
             await global_httpx_client.download(item['src'], file_name)
             orig_text.append(MessageSegment.image(file_name))
 

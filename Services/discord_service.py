@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime
 from json import dumps, loads
-from os import getcwd
+from os import getcwd, path
 from re import findall
 from time import time
 from typing import List
@@ -11,6 +11,7 @@ from nonebot.adapters.onebot.v11 import MessageSegment
 from youtube_dl.utils import sanitize_filename
 
 from Services.util.common_util import HttpxHelperClient, DiscordGroupNotification, DiscordMessageStatus, time_to_literal
+from awesome.Constants.path_constants import BILIBILI_PIC_PATH
 from awesome.Constants.vtuber_function_constants import GPT_4_MODEL_NAME
 from config import SUPER_USER, DISCORD_AUTH
 from util.helper_util import construct_message_chain
@@ -284,7 +285,7 @@ class DiscordService:
             file_type, file_extension = attachment['content_type'].split('/')
             placeholder_name = sanitize_filename(attachment['placeholder'])
             if file_type == 'image':
-                file_name = f"{getcwd()}/data/bilibiliPic/{placeholder_name}.{file_extension}"
+                file_name = path.join(BILIBILI_PIC_PATH, placeholder_name)
 
                 await self.client.download(attachment['url'], file_name, headers=self.headers)
                 orig_text += [MessageSegment.image(file_name)]
