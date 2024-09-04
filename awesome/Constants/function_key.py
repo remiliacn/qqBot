@@ -1,4 +1,3 @@
-AI_SETU = 'ai_setu'
 SETU = 'setu'
 USER_XP = 'user_xp'
 ARKNIGHTS_PULLS = 'pulls'

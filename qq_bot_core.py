@@ -63,14 +63,15 @@ def _init_bot_resources():
 
 def _create_necessary_folders():
     _create_dir(f'{getcwd()}/logs/')
-    _create_dir(f'{getcwd()}/data/biaoqing')
-    _create_dir(f'{getcwd()}/data/bilibiliPic')
-    _create_dir(f'{getcwd()}/data/pixivPic/')
-    _create_dir(f'{getcwd()}/data/lol/')
-    _create_dir(f'{getcwd()}/data/live/')
     _create_dir(f'{getcwd()}/config/')
     _create_dir(f'{getcwd()}/data/')
+    _create_dir(f'{getcwd()}/data/biaoqing')
+    _create_dir(f'{getcwd()}/data/bilibiliPic')
     _create_dir(f'{getcwd()}/data/bot')
+    _create_dir(f'{getcwd()}/data/db')
+    _create_dir(f'{getcwd()}/data/live')
+    _create_dir(f'{getcwd()}/data/pixivPic')
+    _create_dir(f'{getcwd()}/data/lol')
     _create_dir(f'{getcwd()}/data/temp')
     _create_dir(f'{getcwd()}/data/bot/stock')
 

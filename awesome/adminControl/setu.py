@@ -14,6 +14,108 @@ class SetuFunctionControl:
         self.setu_db_connection = sqlite3.connect(self.setu_db_path)
         self.stat_db_connection = sqlite3.connect(self.stat_db_path)
 
+        self._init_stat_db()
+        self._init_setu_db()
+
+    def _init_stat_db(self):
+        self.stat_db_connection.execute(
+            """
+create table if not exists user_activity_count
+(
+    user_id  varchar(20) not null,
+    tag      varchar(20) not null,
+    hit      integer     not null default 0,
+    nickname varchar(200),
+    unique (user_id, tag) on conflict ignore
+);
+            """
+        )
+        self.stat_db_connection.execute(
+            """
+create table if not exists group_activity_count
+(
+    group_id varchar(20) not null,
+    tag      varchar(20) not null,
+    hit      integer     not null default 0,
+    unique (group_id, tag) on conflict ignore
+);
+            """
+        )
+        self.stat_db_connection.execute(
+            """
+create table if not exists global_stat
+(
+    keyword varchar(150) unique on conflict ignore,
+    hit     integer not null
+);
+            """
+        )
+        self.stat_db_connection.execute(
+            """
+create table if not exists monitor_xp_data
+(
+    keyword varchar(150) unique on conflict ignore,
+    hit     integer not null default 0
+);
+            """
+        )
+        self.stat_db_connection.execute(
+            """
+create table if not exists user_xp_count
+(
+    user_id  varchar(20)  not null,
+    keyword  varchar(150) not null,
+    hit      integer      not null default 0,
+    nickname varchar(255),
+    unique (user_id, keyword) on conflict ignore
+);
+            """
+        )
+        self.stat_db_connection.commit()
+
+    def _init_setu_db(self):
+        self.setu_db_connection.execute(
+            """
+create table if not exists bad_words
+(
+    keyword text unique on conflict ignore,
+    penalty integer not null default 0
+);
+            """
+        )
+        self.setu_db_connection.execute(
+            """
+create table if not exists setu_group_keyword
+(
+    keyword  text unique on conflict ignore ,
+    hit      integer not null default 0,
+    group_id varchar(20)
+);
+            """
+        )
+        self.setu_db_connection.execute(
+            """
+create table if not exists setu_keyword
+(
+    keyword text unique on conflict ignore,
+    hit     integer not null default 0
+);
+            """
+        )
+        self.setu_db_connection.executescript(
+            """
+create table if not exists setu_keyword_replacer
+(
+    original_keyword varchar(255) not null constraint setu_keyword_replacer_pk primary key,
+    replaced_keyword varchar(255) not null
+);
+
+create unique index if not exists setu_keyword_replacer_original_keyword_uindex
+    on setu_keyword_replacer (original_keyword);
+            """
+        )
+        self.setu_db_connection.commit()
+
     def get_setu_usage(self) -> int:
         result = self.stat_db_connection.execute(
             """

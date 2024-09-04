@@ -12,6 +12,12 @@
 * 安装requirements.txt中的所有依赖 `pip install -r requirements.txt`
 * 运行Go-CQHTTP[具体文档清参考这里](https://github.com/Mrs4s/go-cqhttp)
 * 参考[nonebot2](https://nonebot.dev/docs/quick-start)的***运行项目***部分在本项目的根目录用`nb run`即可运行机器人。
+* 重要 - 破坏性改动：如果你使用过nonebot版本的本机器人，请务必在使用最新commit的时候运行以下代码
+
+```bash
+pip uninstall nonebot;
+pip install nonebot2~=2.3.2;
+```
 
 ## 主要功能
 
