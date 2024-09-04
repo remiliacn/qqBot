@@ -287,7 +287,7 @@ class DiscordService:
             if file_type == 'image':
                 file_name = path.join(BILIBILI_PIC_PATH, placeholder_name)
 
-                await self.client.download(attachment['url'], file_name, headers=self.headers)
+                file_name = await self.client.download(attachment['url'], file_name, headers=self.headers)
                 orig_text += [MessageSegment.image(file_name)]
 
         return orig_text

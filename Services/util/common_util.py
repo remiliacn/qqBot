@@ -407,7 +407,7 @@ class HttpxHelperClient:
         headers = headers if headers is not None else self.headers
         if retry > 5:
             logger.error('Retry exceeds the limit')
-            return '?'
+            return ''
 
         try:
             if not exists(file_name):

@@ -180,7 +180,7 @@ create table if not exists live_notification_twitch
         if thumbnail_url:
             stream_thumbnail_filename = \
                 f'{getcwd()}/data/bilibiliPic/{thumbnail_url.split("/")[-1].replace("]", "").replace("[", "")}'
-            await self.client.download(thumbnail_url, file_name=stream_thumbnail_filename)
+            stream_thumbnail_filename = await self.client.download(thumbnail_url, file_name=stream_thumbnail_filename)
         else:
             stream_thumbnail_filename = ''
 

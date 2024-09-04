@@ -304,7 +304,7 @@ def get_payload() -> str:
     )
 
 
-async def update_buvid_params() -> dict:
+async def update_buvid_params() -> (dict, dict):
     """为接口激活 buvid"""
     _spi_url: str = 'https://api.bilibili.com/x/frontend/finger/spi'
     _exclimbwuzhi_url = 'https://api.bilibili.com/x/internal/gaia-gateway/ExClimbWuzhi'
@@ -312,8 +312,8 @@ async def update_buvid_params() -> dict:
     headers = {
         "user-agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-            " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88"
-            " Safari/537.36 Edg/87.0.664.60"
+            " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0"
+            " Safari/537.36"
         ),
     }
 
@@ -341,7 +341,7 @@ async def update_buvid_params() -> dict:
     async with ClientSession() as s:
         async with s.post(url=_exclimbwuzhi_url, headers=headers, data=payload, cookies=cookies) as resp:
             cookies.update(resp.cookies)
-    return cookies
+    return cookies, headers
 
 
 async def main():

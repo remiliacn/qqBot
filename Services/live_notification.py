@@ -320,7 +320,8 @@ class LiveNotification:
         if thumbnail_url is not None:
             stream_thumbnail_filename = (
                 path.join(BILIBILI_PIC_PATH, thumbnail_url.split("/")[-1].replace("]", "").replace("[", ""))).__str__()
-            await global_httpx_client.download(thumbnail_url, file_name=stream_thumbnail_filename)
+            stream_thumbnail_filename = await global_httpx_client.download(thumbnail_url,
+                                                                           file_name=stream_thumbnail_filename)
         else:
             stream_thumbnail_filename = ''
 
@@ -474,8 +475,8 @@ class BilibiliDynamicNotifcation(LiveNotification):
             last_dynamic_id = user_needs_to_be_checked[3]
             last_check_dynamic_time = int(user_needs_to_be_checked[4])
 
-            if self.cookies is None:
-                self.cookies = await update_buvid_params()
+            if not self.cookies:
+                self.cookies, self.headers = await update_buvid_params()
             async with ClientSession() as client:
                 async with client.get(
                         self.dynamic_url + mid + f'&_={int(time())}',
@@ -486,7 +487,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
             logger.info(f'Dynamic json for {name}: {OptionalDict(dynamic_json).map("code").or_else("?")}')
 
             if code != 0:
-                self.cookies = await update_buvid_params()
+                self.cookies, self.headers = await update_buvid_params()
             for item in OptionalDict(dynamic_json).map('data').map('items').or_else([]):
                 modules = OptionalDict(item).map('modules').or_else({})
                 module_tag = OptionalDict(modules).map('module_tag').map('text').or_else('')
@@ -547,7 +548,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
         orig_text: List[MessageSegment] = []
         for idx, item in enumerate(OptionalDict(orig_draw_node).map('items').or_else([])):
             file_name = path.join(BILIBILI_PIC_PATH, f'{draw_id}_{idx}')
-            await global_httpx_client.download(item['src'], file_name)
+            file_name = await global_httpx_client.download(item['src'], file_name)
             orig_text.append(MessageSegment.image(file_name))
 
         return orig_text
@@ -570,7 +571,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
                              .replace('[', '').replace(']', ''))
                 file_url = OptionalDict(text_node).map('emoji').map('icon_url').or_else('')
                 if file_url:
-                    await global_httpx_client.download(file_url, file_name)
+                    file_url = await global_httpx_client.download(file_url, file_name)
                 orig_text.append(MessageSegment.image(file_url))
                 orig_text.append(MessageSegment.text('\n'))
 
@@ -589,14 +590,14 @@ class BilibiliDynamicNotifcation(LiveNotification):
             files = pic['items']
             for idx, file in enumerate(files):
                 file_name = f"{getcwd()}/data/bilibiliPic/{pic_id}_{idx}.jpg"
-                await global_httpx_client.download(file['src'], file_name)
+                file_name = await global_httpx_client.download(file['src'], file_name)
                 orig_text.append(MessageSegment.image(file_name))
 
         if archive:
             bvid = archive['bvid']
             forwarded_video_cover = f"{getcwd()}/data/bilibiliPic/{bvid}.jpg"
 
-            await global_httpx_client.download(archive['cover'], forwarded_video_cover)
+            forwarded_video_cover = await global_httpx_client.download(archive['cover'], forwarded_video_cover)
 
             orig_text.append(MessageSegment.text(
                 f'\n转发视频标题：{archive["title"]}\n'
@@ -631,7 +632,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
         bvid = OptionalDict(archive_object).map('bvid').or_else(str(time()))
         file_name = f"{getcwd()}/data/bilibiliPic/{bvid}.jpg"
         if video_cover:
-            await global_httpx_client.download(video_cover, file_name)
+            file_name = await global_httpx_client.download(video_cover, file_name)
 
         return [MessageSegment.text('发布了新视频：\n'
                                     f'标题：{OptionalDict(archive_object).map("title").or_else("未知")}\n'
