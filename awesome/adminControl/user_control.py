@@ -2,7 +2,10 @@ import json
 from os.path import exists
 from typing import Union
 
+from nonebot import logger
+
 from awesome.Constants.user_permission import *
+from config import SUPER_USER
 
 USER_T = Union[OWNER, ADMIN, WHITELIST, BANNED]
 
@@ -14,7 +17,21 @@ def _init_data(path: str) -> dict:
             return json.loads(str(fl))
 
     else:
-        empty_dict = {}
+        if SUPER_USER == 0:
+            logger.error('请配置config的SUPER_USER参数')
+
+            from time import sleep
+            sleep(8)
+            exit(-1)
+
+        empty_dict = {
+            str(SUPER_USER): {
+                "OWNER": True,
+                "ADMIN": True,
+                "WHITELIST": True,
+                "BANNED": False
+            }
+        }
         with open(path, 'w+') as fl:
             json.dump(empty_dict, fl, indent=4)
 
