@@ -7,6 +7,7 @@ import aiohttp
 import nonebot
 from nonebot import on_command
 from nonebot.adapters.onebot.v11 import Event, Bot, GroupMessageEvent, Message, MessageSegment
+from nonebot.adapters.onebot.v11.helpers import extract_image_urls
 from nonebot.exception import FinishedException
 from nonebot.internal.matcher import Matcher
 from nonebot.internal.params import ArgStr
@@ -16,12 +17,13 @@ from nonebot.params import CommandArg
 from Services import ark_nights, shadiao, global_rate_limiter
 from Services.util.common_util import HttpxHelperClient
 from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
+from Services.util.download_helper import download_image
 from awesome.Constants import user_permission as perm, group_permission
 from awesome.Constants.function_key import ARKNIGHTS_PULLS, ARKNIGHTS_SINGLE_PULL, ARKNIGHTS_SIX_STAR_PULL, \
     YULU_CHECK, ARKNIGHTS_BAD_LUCK_PULL, POKER_GAME, SETU, QUESTION, HIT_XP, ROULETTE_GAME, HORSE_RACE
 from awesome.adminControl import get_privilege, group_control, setu_function_control
 from config import SUPER_USER
-from util.helper_util import get_downloaded_quote_image_path, ark_helper, set_group_permission, construct_message_chain
+from util.helper_util import ark_helper, set_group_permission, construct_message_chain
 
 arknights_api = ark_nights.ArkHeadhunt(times=10)
 ark_pool_pity = ark_nights.ArknightsPity()
@@ -42,7 +44,7 @@ flatter = on_command('吹我')
 clear_group = on_command('清空语录')
 tranfer_quote = on_command('转移语录')
 your_group_quote = on_command('你群语录', aliases={'你组语录', '语录'})
-add_quote_cmd = on_command('添加语录')
+add_quote_cmd = on_command('添加语录', block=True, priority=2)
 ocr = on_command('图片识别')
 how_lewd_cmd = on_command('你群有多色')
 set_r18_cmd = on_command('设置R18')
@@ -110,20 +112,24 @@ async def get_group_quotes(session: GroupMessageEvent, matcher: Matcher):
 
 @add_quote_cmd.handle()
 async def add_group_quotes(session: GroupMessageEvent, matcher: Matcher):
-    key_word = re.sub(r'.*?添加语录[\s\r\n]*', '', session.raw_message).strip()
-    if '屑bot' in key_word.lower():
-        await matcher.finish('爬')
+    if not extract_image_urls(session.get_message()):
+        await matcher.finish('图呢？')
 
-    if session.current_arg_images:
-        key_word = get_downloaded_quote_image_path(session.current_arg_images[0], f'{os.getcwd()}/data/lol')
+    image_urls = extract_image_urls(session.get_message())
+    message = ''
+    for url in image_urls:
+        key_word = await download_image(url, f'{os.getcwd()}/data/lol')
 
         if key_word:
             result = group_control.add_quote(get_group_id(session), key_word)
+            message = f'{message}（当前总语录条数：{group_control.get_group_quote_count(get_group_id(session))})'
             if not result.is_success:
-                await matcher.finish(result.message)
+                if message:
+                    await matcher.finish(message)
+                else:
+                    await matcher.finish(result.message)
 
-            await matcher.finish(
-                f'{result.message}（当前总语录条数：{group_control.get_group_quote_count(get_group_id(session))})')
+    await matcher.finish()
 
 
 @ocr.handle()

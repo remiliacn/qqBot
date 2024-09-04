@@ -1,9 +1,6 @@
 import json
-import os
-from time import time
 from typing import Union, List
 
-import requests
 from nonebot.adapters.onebot.v11 import Message, MessageSegment
 
 from awesome.adminControl import group_control
@@ -21,29 +18,6 @@ def set_group_permission(message: str, group_id: Union[str, int], tag: str) -> b
 
     group_control.set_group_permission(group_id=group_id, tag=tag, stat=False)
     return False
-
-
-def get_downloaded_quote_image_path(response: str, path: str) -> str:
-    path = _download_image_to_path(response, path)
-    return path
-
-
-def _download_image_to_path(response, path):
-    image_response = requests.get(
-        response,
-        stream=True
-    )
-    image_response.raise_for_status()
-    if 'multimedia.nt' not in response:
-        path = f'{path}/{response.split("/")[-2]}.png'
-    else:
-        path = f'{path}/{time()}.png'
-
-    if not os.path.exists(path):
-        with open(path, 'wb') as file:
-            file.write(image_response.content)
-
-    return path
 
 
 def ark_helper(args: list) -> str:

@@ -13,10 +13,10 @@ from nonebot.log import logger
 from Services import global_rate_limiter
 from Services.rate_limiter import UserLimitModifier
 from Services.util.ctx_utility import get_nickname
+from Services.util.download_helper import download_image
 from awesome.Constants import user_permission as perm
 from awesome.Constants.plugins_command_constants import ADD_PIC_PROMPT, CHITCHAT_PIC_TYPES, CHITCHAT_PIC_DICT
 from awesome.adminControl import get_privilege
-from util.helper_util import get_downloaded_quote_image_path
 
 add_more_pic_cmd = on_command('添加图片')
 
@@ -33,7 +33,7 @@ async def add_more_pic(_event: GroupMessageEvent, matcher: Matcher, args: Messag
     path = CHITCHAT_PIC_DICT[args[0]]
     extracted_image_url = extract_image_urls(args)
     if extracted_image_url:
-        _ = get_downloaded_quote_image_path(extracted_image_url[0], path)
+        _ = await download_image(extracted_image_url[0], path)
         await matcher.finish('图片已添加！')
 
     await matcher.finish('你发的smjb玩意……')

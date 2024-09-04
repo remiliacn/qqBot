@@ -4,11 +4,12 @@ from asyncio import sleep, get_running_loop
 from functools import lru_cache
 from hashlib import sha1
 from math import ceil
+from mimetypes import guess_extension
 from os import remove, getcwd, path
 from os.path import exists
 from random import randint
 from ssl import SSLContext
-from typing import List, Literal, Dict, Any
+from typing import List, Literal, Dict, Any, LiteralString, Union
 from uuid import uuid4
 
 import markdown2
@@ -79,7 +80,14 @@ def _compile_forward_node(self_id: int, data: Message) -> MessageSegment:
     return MessageSegment.node_custom(user_id=self_id, nickname='月朗风清', content=data)
 
 
-def calculate_sha1(file_path) -> str:
+def calculate_sha1_string(input_str: str) -> str:
+    sha1_hash = sha1()
+
+    sha1_hash.update(input_str.encode('utf-8-sig'))
+    return sha1_hash.hexdigest()
+
+
+def calculate_sha1(file_path: str) -> str:
     sha1_hash = sha1()
 
     with open(file_path, "rb") as f:
@@ -391,7 +399,8 @@ class HttpxHelperClient:
         async with AsyncClient(headers=headers, timeout=timeout, default_encoding='utf-8') as client:
             return await client.post(url, json=json)
 
-    async def download(self, url: str, file_name: str, timeout=20.0, headers=None, retry=0) -> str:
+    async def download(self, url: str, file_name: Union[str, LiteralString, bytes],
+                       timeout=20.0, headers=None, retry=0) -> str:
         file_name = file_name.replace('\\', '/')
         headers = headers if headers is not None else self.headers
         if retry > 5:
@@ -402,8 +411,10 @@ class HttpxHelperClient:
             if not exists(file_name):
                 logger.info(f'Downloading file name: {file_name.split("/")[-1]}')
                 async with AsyncClient(timeout=timeout, headers=headers, verify=self.context) as client:
-                    # noinspection PyArgumentList
                     async with client.stream('GET', url=url, follow_redirects=True) as response:
+                        ext = guess_extension(response.headers['Content-Type'].partition(';').strip())
+
+                        file_name = f'{file_name}.{ext}'
                         if response.status_code == 403:
                             logger.warning(f'Download retry: {retry + 1}, url: {url}')
                             await sleep(15 * (retry + 1))
@@ -416,7 +427,7 @@ class HttpxHelperClient:
                                     file.write(chunk)
                                     progress.update(len(chunk))
 
-            return file_name
+            return file_name.__str__()
         except Exception as err:
             logger.warning(f'Download failed in common util download: {err.__class__}')
             if exists(file_name):
