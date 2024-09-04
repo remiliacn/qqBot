@@ -1,4 +1,3 @@
-from . import simulate_stock
 from .cangku_api import CangkuApi
 from .discord_service import DiscordService
 from .live_notification import LiveNotification, BilibiliDynamicNotifcation

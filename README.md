@@ -177,10 +177,4 @@ database: # 数据库相关设置
     enable: true
 ```
 
-如果您没有查询`虚拟货币`
-价格，K线以及其技术图形的需求，则可忽略OKEx相关配置。如果您有这方面的需求，请参阅OKEx的[官方API文档](https://www.okex.com/docs/zh/#README)，该链接中有如何获取API KEY， SECRET
-KEY，PASSPHRASE和使用OKEx相关API的详细介绍。
-
-在配置后可能会出现部分文件缺失的情况，请按需删除不需要的参数。（因为有些功能是为某些群的需求特供的，所以可能不适合大部分用户）
-
 您可以参考`sample_config`的配置方式对您的机器人进行配置。

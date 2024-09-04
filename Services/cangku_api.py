@@ -5,8 +5,6 @@ from typing import Union
 
 import httpx
 
-from config import CANGKU_USERNAME, CANGKU_PASSWORD
-
 NO_SEARCH_RESULT_ERROR = '无搜索结果'
 UNKNOWN_ERROR = '未知错误'
 
@@ -51,6 +49,8 @@ class CangkuApi:
         self.last_auth_time = time.time()
 
     def auth(self):
+        from config import CANGKU_USERNAME, CANGKU_PASSWORD
+
         _ = self.session.get(
             'https://cangku.icu/login'
         )
