@@ -1,5 +1,4 @@
-from os import getcwd, path
-from os.path import join
+from os import path
 from random import choice, randint
 from re import split, findall
 from time import time
@@ -23,9 +22,10 @@ from Services.util.download_helper import download_image
 from Services.util.sauce_nao_helper import sauce_helper
 from awesome.Constants import user_permission as perm, group_permission
 from awesome.Constants.function_key import SETU, TRIGGER_BLACKLIST_WORD, HIT_XP
-from awesome.Constants.path_constants import DL_PATH
+from awesome.Constants.path_constants import DL_PATH, PIXIV_PIC_PATH
 from awesome.Constants.plugins_command_constants import PROMPT_FOR_KEYWORD
 from awesome.adminControl import setu_function_control, get_privilege, group_control, user_control
+from awesome.plugins.setu.setu_utilties import download_gif
 from awesome.plugins.setu.setuconfig import SetuConfig
 from config import SUPER_USER, PIXIV_REFRESH_TOKEN
 from util.helper_util import anime_reverse_search_response, set_group_permission, construct_message_chain
@@ -554,6 +554,19 @@ def _get_image_data_from_username(key_word: str) -> (str, str):
 
 
 async def _download_pixiv_image_helper(illust) -> str:
+    if illust.type != 'ugoira':
+        return await _handle_normal_illust_download(illust)
+
+    ugoira_data = pixiv_api.ugoira_metadata(illust.id)
+    url_list = ugoira_data.ugoira_metadata.zip_urls.medium
+    duration = ugoira_data.ugoira_metadata.frames[0].delay
+    gif_path = await download_gif(url_list, illust.user.name + '_' + illust.title, duration)
+
+    logger.success(f'Gif path done: {gif_path}')
+    return gif_path if gif_path else ''
+
+
+async def _handle_normal_illust_download(illust):
     if illust['meta_single_page']:
         if 'original_image_url' in illust['meta_single_page']:
             image_url = illust.meta_single_page['original_image_url']
@@ -569,19 +582,15 @@ async def _download_pixiv_image_helper(illust) -> str:
             image_urls['large'] if 'large' in image_urls else \
                 image_urls['medium'] if 'medium' in image_urls else \
                     image_urls['square_medium']
-
     logger.info(f"{illust.title}: {image_url}, {illust.id}")
-    setu_file_path = join(getcwd(), 'data', 'pixivPic')
-
+    setu_file_path = PIXIV_PIC_PATH
     try:
         setu_file_path = await download_image(
             image_url, setu_file_path, headers={'Referer': 'https://app-api.pixiv.net/'})
     except Exception as err:
         logger.info(f'Download image error: {err}')
         return ''
-
     edited_path = await slight_adjust_pic_and_get_path(setu_file_path)
-
     logger.info("PATH = " + edited_path)
     return edited_path
 
