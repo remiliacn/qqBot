@@ -1,4 +1,4 @@
-from os import getcwd
+from os import getcwd, path
 from os.path import join
 from random import choice, randint
 from re import split, findall
@@ -11,8 +11,9 @@ from nonebot.internal.matcher import Matcher
 from nonebot.log import logger
 from nonebot.params import CommandArg
 from pixivpy3 import PixivError, AppPixivAPI
+from pixivpy3.utils import ParsedJson
 
-from Services import global_rate_limiter, cangku_api
+from Services import global_rate_limiter
 from Services.pixiv_word_cloud import get_word_cloud_img
 from Services.rate_limiter import UserLimitModifier
 from Services.util.common_util import compile_forward_message, autorevoke_message, get_if_has_at_and_qq, \
@@ -22,6 +23,7 @@ from Services.util.download_helper import download_image
 from Services.util.sauce_nao_helper import sauce_helper
 from awesome.Constants import user_permission as perm, group_permission
 from awesome.Constants.function_key import SETU, TRIGGER_BLACKLIST_WORD, HIT_XP
+from awesome.Constants.path_constants import DL_PATH
 from awesome.Constants.plugins_command_constants import PROMPT_FOR_KEYWORD
 from awesome.adminControl import setu_function_control, get_privilege, group_control, user_control
 from awesome.plugins.setu.setuconfig import SetuConfig
@@ -179,23 +181,7 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
 
     multiplier = setu_function_control.get_bad_word_penalty(key_word)
     if multiplier > 0:
-        setu_function_control.set_user_data(user_id, TRIGGER_BLACKLIST_WORD, nickname)
-        if setu_function_control.get_user_data_by_tag(
-                user_id, TRIGGER_BLACKLIST_WORD) >= config.IF_REPEAT_BAN_COUNT:
-            user_control.set_user_privilege(user_id, 'BANNED', True)
-            await matcher.send(f'用户{user_id}已被封停机器人使用权限')
-            await bot.send_private_msg(
-                user_id=SUPER_USER,
-                message=f'User {user_id} has been banned for triggering prtection. Keyword = {key_word}'
-            )
-
-        else:
-            await matcher.send('我劝这位年轻人好自为之，管理好自己的XP，不要污染图池')
-            await bot.send_private_msg(
-                user_id=SUPER_USER,
-                message=f'User {user_id} triggered protection mechanism. Keyword = {key_word}'
-            )
-
+        await _do_blacklist_keyword_process(bot, key_word, matcher, nickname, user_id)
         await matcher.finish()
 
     if key_word in setu_function_control.get_monitored_keywords():
@@ -204,15 +190,8 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
             setu_function_control.set_user_data(user_id, HIT_XP, nickname)
             setu_function_control.set_user_xp(user_id, key_word, nickname)
 
-    elif '色图' in key_word:
-        await matcher.finish(
-            MessageSegment.image(
-                f'{getcwd()}/data/dl/others/QQ图片20191013212223.jpg'
-            )
-        )
+    await _handle_special_keyword(key_word, matcher)
 
-    elif '屑bot' in key_word:
-        await matcher.finish('你屑你🐴呢')
     try:
         if '最新' in key_word:
             json_result = pixiv_api.illust_ranking('week')
@@ -237,39 +216,21 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
     if key_word.isdigit():
         illust = pixiv_api.illust_detail(key_word).illust
     else:
-        if 'user=' in key_word:
-            json_result, key_word = _get_image_data_from_username(key_word)
-            if isinstance(json_result, str):
-                await matcher.finish(json_result)
-
-        else:
-            json_result = pixiv_api.search_illust(word=key_word, sort="popular_desc")
-
-        if not json_result.illusts or len(json_result.illusts) < 4:
-            logger.warning(f"未找到图片, keyword = {key_word}")
-            await matcher.send(f"{key_word}无搜索结果或图片过少……")
-            return
+        json_result, key_word = await _setu_analyze_user_input(key_word, matcher)
 
         setu_function_control.track_keyword(key_word)
         illust = choice(json_result.illusts)
 
     is_work_r18 = illust.sanity_level == 6
     if not allow_r18:
-        if is_work_r18 and not key_word.isdigit():
-            # Try 10 times to find an SFW image.
-            for i in range(10):
-                illust = choice(json_result.illusts)
-                is_work_r18 = illust.sanity_level == 6
-                if not is_work_r18:
-                    break
-            else:
-                await matcher.finish('太色了发不了（')
+        illust, is_work_r18 = \
+            await _attempt_to_extract_sfw_pixiv_img(illust, is_work_r18, json_result, key_word, matcher)
 
     elif not allow_r18 and key_word.isdigit():
         await matcher.finish('太色了发不了（')
 
     start_time = time()
-    path = await _download_pixiv_image_helper(illust)
+    setu_file_path = await _download_pixiv_image_helper(illust)
 
     if not path:
         await matcher.finish('开摆！')
@@ -278,7 +239,7 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
         message = construct_message_chain(
             MessageSegment.reply(message_id),
             f'Pixiv ID: {illust.id}\n',
-            MessageSegment.image(path),
+            MessageSegment.image(setu_file_path),
             f'Download Time: {(time() - start_time):.2f}s')
 
     # group_id = -1 when private session.
@@ -288,7 +249,7 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
             f'芜湖~好图来了ww\n'
             f'Pixiv ID: {illust.id}\n'
             f'关键词：{key_word}\n',
-            MessageSegment.image(path),
+            MessageSegment.image(setu_file_path),
             f'Download Time: {(time() - start_time):.2f}s')
 
     else:
@@ -304,13 +265,71 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
             messages=compile_forward_message(event.self_id, message)
         )
 
-    logger.info("sent image on path: " + path)
-    await _setu_data_collection(event, key_word, monitored, path, illust, bot=bot)
+    logger.info(f"sent image on path: {setu_file_path}")
+    await _setu_data_collection(event, key_word, monitored, setu_file_path, illust, bot=bot)
+
+
+async def _handle_special_keyword(key_word: str, matcher: Matcher):
+    if '色图' in key_word:
+        await matcher.finish(
+            MessageSegment.image(
+                path.join(DL_PATH, 'QQ图片20191013212223.jpg')
+            )
+        )
+    elif '屑bot' in key_word:
+        await matcher.finish('你屑你🐴呢')
+
+
+async def _attempt_to_extract_sfw_pixiv_img(
+        illust: dict, is_work_r18: bool, json_result: ParsedJson, key_word: str, matcher: Matcher):
+    if is_work_r18 and not key_word.isdigit():
+        # Try 10 times to find an SFW image.
+        safe_illusts = [x for x in json_result.illusts if x.sanity_level < 6]
+        if not safe_illusts:
+            await matcher.finish('太色了发不了（')
+
+        illust = choice(safe_illusts)
+
+    return illust, is_work_r18
+
+
+async def _setu_analyze_user_input(key_word: str, matcher: Matcher) -> (str, str):
+    if 'user=' in key_word:
+        json_result, key_word = _get_image_data_from_username(key_word)
+        if isinstance(json_result, str):
+            await matcher.finish(json_result)
+
+    else:
+        json_result = pixiv_api.search_illust(word=key_word, sort="popular_desc")
+    if not json_result.illusts or len(json_result.illusts) < 4:
+        logger.warning(f"未找到图片, keyword = {key_word}")
+        await matcher.finish(f"{key_word}无搜索结果或图片过少……")
+
+    return json_result, key_word
+
+
+async def _do_blacklist_keyword_process(bot: Bot, key_word: str, matcher: Matcher, nickname: str, user_id: str):
+    setu_function_control.set_user_data(user_id, TRIGGER_BLACKLIST_WORD, nickname)
+    if setu_function_control.get_user_data_by_tag(
+            user_id, TRIGGER_BLACKLIST_WORD) >= config.IF_REPEAT_BAN_COUNT:
+        user_control.set_user_privilege(user_id, 'BANNED', True)
+        await matcher.send(f'用户{user_id}已被封停机器人使用权限')
+        await bot.send_private_msg(
+            user_id=SUPER_USER,
+            message=f'User {user_id} has been banned for triggering prtection. Keyword = {key_word}'
+        )
+
+    else:
+        await matcher.send('我劝这位年轻人好自为之，管理好自己的XP，不要污染图池')
+        await bot.send_private_msg(
+            user_id=SUPER_USER,
+            message=f'User {user_id} triggered protection mechanism. Keyword = {key_word}'
+        )
 
 
 async def _setu_data_collection(
         event: GroupMessageEvent | PrivateMessageEvent, key_word: str,
-        monitored: bool, path: str, illust=None, bot=None):
+        monitored: bool, setu_file_path: str, illust=None, bot=None):
     if isinstance(event, GroupMessageEvent):
         setu_function_control.set_group_data(get_group_id(event), SETU)
 
@@ -338,7 +357,7 @@ async def _setu_data_collection(
                 f'图片来自：{nickname}\n'
                 f'查询关键词:{key_word}\n'
                 f'Pixiv ID: {illust.id}\n',
-                MessageSegment.image(path))
+                MessageSegment.image(setu_file_path))
         )
 
 
@@ -416,7 +435,7 @@ async def get_user_xp_data_with_at(
     group_id = get_group_id(event)
 
     xp_information = SetuRequester(event, has_id, pixiv_id, xp_result, requester_qq, search_target_qq)
-    result = await _get_xp_information(xp_information)
+    result = await _get_xp_information(xp_information, matcher)
     final_message = ([MessageSegment.reply(message_id)]
                      + result + MessageSegment.text(f'\n{FRIENDLY_REMINDER if not has_id else ""}'))
 
@@ -424,7 +443,7 @@ async def get_user_xp_data_with_at(
     await autorevoke_message(bot, group_id, 'forward', messages, 30)
 
 
-async def _get_xp_information(xp_information: SetuRequester) -> List[MessageSegment]:
+async def _get_xp_information(xp_information: SetuRequester, matcher: Matcher) -> List[MessageSegment]:
     response: List[MessageSegment] = []
     json_result = []
     try:
@@ -446,22 +465,13 @@ async def _get_xp_information(xp_information: SetuRequester) -> List[MessageSegm
 
     illust = choice(json_result)
     start_time = time()
-    path = await _download_pixiv_image_helper(illust)
+    setu_file_path = await _download_pixiv_image_helper(illust)
     allow_r18 = xp_information.group_id != -1 and group_control.get_group_permission(
         xp_information.group_id, group_permission.ALLOW_R18)
     is_r18 = illust.sanity_level == 6
-    iteration = 0
 
     if not allow_r18:
-        while is_r18 and iteration < 10:
-            if not is_r18:
-                break
-
-            illust = choice(json_result)
-            is_r18 = illust.sanity_level == 6
-            iteration += 1
-        else:
-            return construct_message_chain('目前找不到好图呢~')
+        illust, is_r18 = await _attempt_to_extract_sfw_pixiv_img(illust, is_r18, json_result, '', matcher)
 
     nickname = xp_information.nickname
 
@@ -469,7 +479,6 @@ async def _get_xp_information(xp_information: SetuRequester) -> List[MessageSegm
         setu_function_control.set_group_data(xp_information.group_id, SETU)
 
     tags = illust['tags']
-
     for tag in tags:
         tag_name = tag['name']
         setu_function_control.set_user_xp(xp_information.search_target_qq, tag_name, nickname)
@@ -480,7 +489,7 @@ async def _get_xp_information(xp_information: SetuRequester) -> List[MessageSegm
         f'标题：{illust.title}\n'
         f'Pixiv ID： {illust.id}\n'
         f'画师：{illust["user"]["name"]}\n',
-        MessageSegment.image(path),
+        MessageSegment.image(setu_file_path),
         f'Download Time: {(time() - start_time):.2f}s',
         f'\nTA最喜欢的关键词是{xp_information.xp_result[0]}'
         f'，已经查询了{xp_information.xp_result[1]}次。' if xp_information.xp_result else ''
@@ -562,15 +571,16 @@ async def _download_pixiv_image_helper(illust) -> str:
                     image_urls['square_medium']
 
     logger.info(f"{illust.title}: {image_url}, {illust.id}")
-    path = join(getcwd(), 'data', 'pixivPic')
+    setu_file_path = join(getcwd(), 'data', 'pixivPic')
 
     try:
-        path = await download_image(image_url, path, headers={'Referer': 'https://app-api.pixiv.net/'})
+        setu_file_path = await download_image(
+            image_url, setu_file_path, headers={'Referer': 'https://app-api.pixiv.net/'})
     except Exception as err:
         logger.info(f'Download image error: {err}')
         return ''
 
-    edited_path = await slight_adjust_pic_and_get_path(path)
+    edited_path = await slight_adjust_pic_and_get_path(setu_file_path)
 
     logger.info("PATH = " + edited_path)
     return edited_path
@@ -613,39 +623,6 @@ def set_function_auth() -> bool:
         return False
 
     return True
-
-
-cangku_search_cmd = on_command('仓库搜索')
-
-
-@cangku_search_cmd.handle()
-async def cangku_search(event: GroupMessageEvent | PrivateMessageEvent, matcher: Matcher,
-                        args: Message = CommandArg()):
-    if not (key_word := args.extract_plain_text()):
-        await matcher.finish(PROMPT_FOR_KEYWORD)
-
-    if isinstance(event, PrivateMessageEvent):
-        allow_r18 = True
-    else:
-        group_id = get_group_id(event)
-        allow_r18 = group_control.get_group_permission(group_id, group_permission.ALLOW_R18)
-
-    user_id = get_user_id(event)
-    user_id = str(user_id)
-
-    search_result = cangku_api.get_search_string(
-        key_word,
-        user_id=user_id,
-        is_r18=allow_r18
-    )
-    index = matcher.got(
-        'index_name',
-        prompt=search_result + '\n'
-                               '请输入序号进行查询~'
-    )
-    search_by_index = cangku_api.get_info_by_index(user_id, index)
-    dissect_to_string = cangku_api.anaylze_dissected_data(search_by_index)
-    await matcher.finish(dissect_to_string)
 
 
 def _get_info_for_setu(event: GroupMessageEvent):
