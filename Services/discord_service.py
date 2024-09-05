@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime
 from json import dumps, loads
-from os import getcwd, path
+from os import path
 from re import findall
 from time import time
 from typing import List
@@ -10,10 +10,12 @@ from loguru import logger
 from nonebot.adapters.onebot.v11 import MessageSegment
 from youtube_dl.utils import sanitize_filename
 
-from Services.util.common_util import HttpxHelperClient, DiscordGroupNotification, DiscordMessageStatus, time_to_literal
-from awesome.Constants.path_constants import BILIBILI_PIC_PATH
+from Services.util.common_util import HttpxHelperClient, time_to_literal
+from awesome.Constants.path_constants import BILIBILI_PIC_PATH, DB_PATH
 from awesome.Constants.vtuber_function_constants import GPT_4_MODEL_NAME
 from config import SUPER_USER, DISCORD_AUTH
+from model.common_model import DiscordMessageStatus, DiscordGroupNotification
+from util.db_utils import fetch_one_or_default
 from util.helper_util import construct_message_chain
 
 
@@ -25,7 +27,7 @@ class DiscordService:
                           ' AppleWebKit/537.36 (KHTML, like Gecko)'
                           ' Chrome/126.0.0.0 Safari/537.36'
         }
-        self.database = sqlite3.connect(f'{getcwd()}/data/db/live_notification_data.db')
+        self.database = sqlite3.connect(path.join(DB_PATH, 'live_notification_data.db'))
         self._init_database()
         self.client = HttpxHelperClient()
 
@@ -110,11 +112,7 @@ class DiscordService:
             """, (channel_id,)
         ).fetchone()
 
-        data = data if not isinstance(data, tuple) else data[0]
-        if data is None:
-            return 0
-
-        return data
+        return fetch_one_or_default(data, 0)
 
     async def check_discord_updates(self) -> List[DiscordGroupNotification]:
         notification_list = self._retrieve_all_record_in_db()

@@ -1,5 +1,3 @@
-import dataclasses
-import time
 from asyncio import sleep, get_running_loop
 from functools import lru_cache
 from hashlib import sha1
@@ -9,7 +7,8 @@ from os import remove, getcwd, path
 from os.path import exists
 from random import randint
 from ssl import SSLContext
-from typing import List, Literal, Dict, Any, Union
+from time import time
+from typing import List, Literal, Dict, Any, Union, TypeVar
 from uuid import uuid4
 
 import markdown2
@@ -34,42 +33,10 @@ from tqdm import tqdm
 from webdriver_manager.chrome import ChromeDriverManager
 
 from Services.util.ctx_utility import get_user_id, get_group_id
+from awesome.Constants.path_constants import BOT_RESPONSE_PATH
 
 TEMP_FILE_DIRECTORY = path.join(getcwd(), 'data', 'temp')
-
-
-@dataclasses.dataclass
-class Status:
-    is_success: bool
-    message: any
-
-
-@dataclasses.dataclass
-class ValidatedTimestampStatus(Status):
-    validated_timestamp: str = ''
-
-
-@dataclasses.dataclass
-class TwitchDownloadStatus(Status):
-    file_path: str = ''
-
-
-@dataclasses.dataclass
-class DiscordMessageStatus(Status):
-    message: List[MessageSegment] = dataclasses.field(default_factory=lambda: [])
-    group_to_notify: str = ''
-    has_update: bool = False
-    is_edit: bool = False
-
-
-@dataclasses.dataclass
-class DiscordGroupNotification(Status):
-    message: Message
-    has_update: bool
-    group_to_notify: str
-    channel_name: str
-    channel_id: str
-    is_edit: bool
+T = TypeVar("T")
 
 
 def chunk_string(string, length):
@@ -246,7 +213,7 @@ def markdown_to_html(string: str):
     html_string = markdown2.markdown(
         string, extras=['fenced-code-blocks', 'strike', 'tables', 'task_list', 'code-friendly'])
 
-    file_name = f'{getcwd()}/data/bot/response/{int(time.time())}.html'
+    file_name = f'{getcwd()}/data/bot/response/{int(time())}.html'
     with open(file_name, 'w+', encoding='utf-8') as file:
         file.write(r"""
 <script type="text/x-mathjax-config">
@@ -279,7 +246,8 @@ pre { font-size: 20px !important }
 
 
 def html_to_image(file_name) -> str:
-    file_name_png = f'{getcwd()}/data/bot/response/{int(time.time())}.png'
+    file_name_png = path.join(BOT_RESPONSE_PATH, f'{int(time())}.png')
+
     options = Options()
     options.add_argument('--headless')
     options.add_argument("--force-device-scale-factor=3.0")
@@ -365,7 +333,7 @@ class OptionalDict:
 
         return OptionalDict()
 
-    def or_else(self, data) -> any:
+    def or_else(self, data: T) -> T:
         if self.anything is None:
             return data
 

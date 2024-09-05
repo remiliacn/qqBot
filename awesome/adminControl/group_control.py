@@ -1,11 +1,13 @@
 import sqlite3
-from os import listdir, getcwd, path, remove
+from os import listdir, path, remove
 from os.path import exists
 from typing import Union
 
 from nonebot import logger
 
-from Services.util.common_util import Status, calculate_sha1
+from Services.util.common_util import calculate_sha1
+from model.common_model import Status
+from awesome.Constants.path_constants import LOL_FOLDER_PATH
 
 GROUP_PERMISSION_DEFAULT = {
     'IS_BANNED': False,
@@ -82,8 +84,8 @@ class GroupControlModule:
         return result is not None and result
 
     def group_quote_startup_sanity_check(self):
-        for file in listdir(f'{getcwd()}/data/lol'):
-            quote_file_abs_path = path.join(getcwd(), 'data', 'lol', file).replace('\\', '/')
+        for file in listdir(LOL_FOLDER_PATH):
+            quote_file_abs_path = path.join(LOL_FOLDER_PATH, file).replace('\\', '/')
             if not self._check_if_file_exists_in_db(quote_file_abs_path):
                 remove(quote_file_abs_path)
                 logger.info(f'Deleting file {quote_file_abs_path} because it does not exist in db.')
@@ -95,8 +97,9 @@ class GroupControlModule:
         ).fetchall()
 
         for entry in all_results:
-            cq_image, qq_group, file_hash = entry
-            self._backfill_file_sha1_hash(cq_image, file_hash)
+            if entry:
+                cq_image, qq_group, file_hash = entry
+                self._backfill_file_sha1_hash(cq_image, file_hash)
 
     def _backfill_file_sha1_hash(self, cq_image, file_hash):
         if not file_hash and exists(cq_image):

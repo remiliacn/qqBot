@@ -44,8 +44,7 @@ global_help_cmd = on_command('help')
 @global_help_cmd.handle()
 async def send_help(_event: GroupMessageEvent, matcher: Matcher):
     await matcher.send(
-        '请移步\n'
-        'https://github.com/remiliacn/Lingye-Bot/blob/master/README.md\n'
+        '请移步\nhttps://github.com/remiliacn/Lingye-Bot/blob/master/README.md\n'
         '如果有新功能想要添加，请提交issue!'
     )
 

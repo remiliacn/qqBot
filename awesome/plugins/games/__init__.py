@@ -1,6 +1,6 @@
-import datetime
-import re
+from datetime import datetime
 from random import randint, seed
+from re import split, findall, fullmatch
 from time import time_ns
 from typing import List
 
@@ -78,24 +78,25 @@ ru_roulette_game = ru_game.Russianroulette(config.BULLET_IN_GUN)
 
 async def _dice_expr_evaluation(expression: str, result_sum: int, evaluation_target: float) -> bool:
     evaluation_result = False
-    if expression == '大于' or expression == '>':
-        evaluation_result = result_sum > evaluation_target
-    elif expression == '小于' or expression == '<':
-        evaluation_result = result_sum < evaluation_target
-    elif expression == '大于等于' or expression == '>=':
-        evaluation_result = result_sum >= evaluation_target
-    elif expression == '小于等于' or expression == '<=':
-        evaluation_result = result_sum <= evaluation_target
-    elif expression == '等于' or expression == '=' or expression == '==':
-        evaluation_result = result_sum == evaluation_target
-    elif expression == '不等于' or expression == '≠' or expression == '!=':
-        evaluation_result = result_sum != evaluation_target
+    match expression:
+        case '大于' | '>':
+            evaluation_result = result_sum > evaluation_target
+        case '小于' | '<':
+            evaluation_result = result_sum < evaluation_target
+        case '大于等于' | '>=':
+            evaluation_result = result_sum >= evaluation_target
+        case '小于等于' | '<=':
+            evaluation_result = result_sum <= evaluation_target
+        case '等于' | '=' | '==':
+            evaluation_result = result_sum == evaluation_target
+        case '不等于' | '≠' | '!=':
+            evaluation_result = result_sum != evaluation_target
 
     return evaluation_result
 
 
 async def _get_dice_result(text: str) -> DiceResult:
-    args = re.split(r'[dD]', text)
+    args = split(r'[dD]', text)
     throw_times = int(args[0])
     if throw_times > 30:
         throw_times = 30
@@ -167,7 +168,7 @@ async def _multiple_row_result(text_args: list) -> str:
 
 
 async def _evaluate_dice_expression(text: str):
-    all_dice_role_evaluation = re.findall(r'\d+[dD]\d+', text)
+    all_dice_role_evaluation = findall(r'\d+[dD]\d+', text)
     evaluation_list_result = [(await _get_dice_result(x)) for x in all_dice_role_evaluation]
     for idx, dice_text in enumerate(all_dice_role_evaluation):
         text = text.replace(dice_text, str(evaluation_list_result[idx].result_sum))
@@ -189,18 +190,18 @@ dice_roll_cmd = on_command('骰娘')
 @dice_roll_cmd.handle()
 async def pao_tuan_shai_zi(event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
     raw_message = args.extract_plain_text()
-    text_args = re.split(r'[,，\s]', raw_message)
+    text_args = split(r'[,，\s]', raw_message)
     text_args = [x.strip() for x in text_args if x]
 
     normal_decision = True
-    if all(re.fullmatch(r'^\d+[dD]\d+$', x) for x in text_args):
+    if all(fullmatch(r'^\d+[dD]\d+$', x) for x in text_args):
         await matcher.finish(await _multiple_row_result(text_args))
 
-    if re.fullmatch(r'^\d+[dD]\d+([+\-*/]\d+([dD]\d+)?)+$', text_args[0]):
+    if fullmatch(r'^\d+[dD]\d+([+\-*/]\d+([dD]\d+)?)+$', text_args[0]):
         await matcher.finish(await _evaluate_dice_expression(text_args[0]))
 
-    if not re.fullmatch(r'^\d+[dD]\d+$', text_args[0]):
-        if not re.fullmatch(r'^\d+([dD]\d+)?/\d+([dD]\d+)?$', text_args[0]):
+    if not fullmatch(r'^\d+[dD]\d+$', text_args[0]):
+        if not fullmatch(r'^\d+([dD]\d+)?/\d+([dD]\d+)?$', text_args[0]):
             await matcher.finish('用法错误：应为“xdy”, x 可以 = y，示例：1d100。如需自动判定，则可添加表达式：1d100 < 5')
         else:
             normal_decision = False
@@ -257,7 +258,7 @@ async def russian_roulette(event: GroupMessageEvent, matcher: Matcher):
             return
 
         rand_num = 60 * 2
-        if 0 < datetime.datetime.now().hour < 4 and config.ENABLE_GOOD_NIGHT_MODE:
+        if 0 < datetime.now().hour < 4 and config.ENABLE_GOOD_NIGHT_MODE:
             rand_num = 60 * 60 * 6
             await matcher.send('晚安')
 

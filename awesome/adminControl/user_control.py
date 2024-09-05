@@ -1,9 +1,10 @@
 import json
 from os.path import exists
-from typing import Union
+from typing import Union, Optional
 
 from nonebot import logger
 
+from Services.util.common_util import OptionalDict
 from awesome.Constants.user_permission import *
 from config import SUPER_USER
 
@@ -63,13 +64,7 @@ class UserControl:
         if isinstance(user_id, int):
             user_id = str(user_id)
 
-        if user_id not in self.user_privilege:
-            return False
-
-        if tag not in self.user_privilege[user_id]:
-            return False
-
-        return self.user_privilege[user_id][tag]
+        return OptionalDict(self.user_privilege).map(user_id).map(tag).or_else(False)
 
     def set_user_repeat_question(self, user_id):
         if user_id not in self.user_repeat_question_count:
@@ -78,19 +73,16 @@ class UserControl:
             self.user_repeat_question_count[user_id] += 1
 
     def get_user_repeat_question(self, user_id):
-        if user_id not in self.user_repeat_question_count:
-            return 0
-
-        return self.user_repeat_question_count[user_id]
+        return OptionalDict(self.user_repeat_question_count).map(user_id).or_else(0)
 
     def get_last_question(self) -> dict:
         return self.last_question
 
-    def get_last_question_by_group(self, group_id: Union[str, int]):
+    def get_last_question_by_group(self, group_id: Union[str, int]) -> Optional[str]:
         if isinstance(group_id, int):
             group_id = str(group_id)
 
-        return self.last_question[group_id] if group_id in self.last_question else None
+        return OptionalDict(self.last_question).map(group_id).or_else(None)
 
     def set_last_question_by_group(self, group_id: Union[str, int], msg: str):
         if isinstance(group_id, int):

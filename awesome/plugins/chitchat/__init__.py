@@ -1,7 +1,6 @@
 from os import getcwd, listdir
 from os.path import exists
-from random import seed, randint, choice
-from time import time_ns
+from random import choice
 
 from nonebot import on_command
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message, MessageSegment
@@ -12,7 +11,6 @@ from nonebot.log import logger
 
 from Services import global_rate_limiter
 from Services.rate_limiter import UserLimitModifier
-from Services.util.ctx_utility import get_nickname
 from Services.util.download_helper import download_image
 from awesome.Constants import user_permission as perm
 from awesome.Constants.plugins_command_constants import ADD_PIC_PROMPT, CHITCHAT_PIC_TYPES, CHITCHAT_PIC_DICT
@@ -48,23 +46,6 @@ async def change_question_mark(event: GroupMessageEvent, matcher: Matcher):
         return
 
     await matcher.finish('¿?¿?')
-
-
-neigui_cmd = on_command('内鬼', aliases={'有没有内鬼'})
-
-
-@neigui_cmd.handle()
-async def nei_gui_response(event: GroupMessageEvent, matcher: Matcher):
-    seed(time_ns())
-    rand_num = randint(0, 50)
-    if rand_num >= 26 and not get_privilege(event.get_user_id(), perm.OWNER):
-        qq_num = event.get_user_id()
-        await matcher.send(f'哦屑！有内鬼！终止交易！！ \n'
-                           f'TA的QQ号是：{qq_num}！！！ \n'
-                           f'QQ昵称是：{get_nickname(event)}')
-
-    else:
-        await matcher.send('一切安全！开始交易！')
 
 
 useless_cmd = on_command('我什么都不行', aliases={'什么都不行', '都不行', '不行', '流泪猫猫头'})

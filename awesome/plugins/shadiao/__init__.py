@@ -14,19 +14,16 @@ from nonebot.internal.params import ArgStr
 from nonebot.message import event_preprocessor
 from nonebot.params import CommandArg
 
-from Services import ark_nights, shadiao, global_rate_limiter
+from Services import shadiao, global_rate_limiter
 from Services.util.common_util import HttpxHelperClient
-from Services.util.ctx_utility import get_nickname, get_user_id, get_group_id
+from Services.util.ctx_utility import get_user_id, get_group_id
 from Services.util.download_helper import download_image
 from awesome.Constants import user_permission as perm, group_permission
-from awesome.Constants.function_key import ARKNIGHTS_PULLS, ARKNIGHTS_SINGLE_PULL, ARKNIGHTS_SIX_STAR_PULL, \
+from awesome.Constants.function_key import ARKNIGHTS_SIX_STAR_PULL, \
     YULU_CHECK, ARKNIGHTS_BAD_LUCK_PULL, POKER_GAME, SETU, QUESTION, HIT_XP, ROULETTE_GAME, HORSE_RACE
 from awesome.adminControl import get_privilege, group_control, setu_function_control
 from config import SUPER_USER
-from util.helper_util import ark_helper, set_group_permission, construct_message_chain
-
-arknights_api = ark_nights.ArkHeadhunt(times=10)
-ark_pool_pity = ark_nights.ArknightsPity()
+from util.helper_util import set_group_permission, construct_message_chain
 
 timeout = aiohttp.ClientTimeout(total=5)
 
@@ -48,8 +45,6 @@ add_quote_cmd = on_command('添加语录', block=True, priority=2)
 ocr = on_command('图片识别')
 how_lewd_cmd = on_command('你群有多色')
 set_r18_cmd = on_command('设置R18')
-ten_roll_cmd_arknights = on_command('方舟十连')
-arknights_up = on_command('方舟up', aliases={'方舟UP'})
 help_me_choose_cmd = on_command('帮我做选择')
 
 
@@ -97,8 +92,8 @@ async def get_group_quotes(session: GroupMessageEvent, matcher: Matcher):
         group_id,
         time_period=15,
         function_limit=2)
-    if isinstance(rate_limiter_check, str):
-        await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), rate_limiter_check))
+    if rate_limiter_check.is_limited:
+        await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), rate_limiter_check.prompt))
 
     nickname = session.sender.nickname
 
@@ -217,66 +212,6 @@ async def set_r18(session: GroupMessageEvent, matcher: Matcher, stats: Annotated
     await matcher.finish('Done!')
 
 
-@ten_roll_cmd_arknights.handle()
-async def ten_polls(bot: Bot, session: GroupMessageEvent):
-    if get_privilege(get_user_id(session), perm.OWNER):
-        arknights_api.get_randomized_results(98)
-
-    else:
-        offset = ark_pool_pity.get_offset_setting(get_group_id(session))
-        arknights_api.get_randomized_results(offset)
-        class_list = arknights_api.random_class
-        six_star_count = class_list.count(6) + class_list.count(-1)
-        if 6 in class_list or -1 in class_list:
-            ark_pool_pity.reset_offset(get_group_id(session))
-
-        five_star_count = class_list.count(5)
-
-        data = {
-            "6": six_star_count,
-            "5": five_star_count,
-            "4": class_list.count(4),
-            "3": class_list.count(3)
-        }
-
-        nickname = get_nickname(session)
-
-        if six_star_count == 0 and five_star_count == 0:
-            setu_function_control.set_user_data(get_user_id(session), ARKNIGHTS_BAD_LUCK_PULL, nickname)
-
-        setu_function_control.set_group_data(group_id=get_group_id(session), tag=ARKNIGHTS_PULLS, data=data)
-        setu_function_control.set_group_data(group_id=get_group_id(session), tag=ARKNIGHTS_SINGLE_PULL)
-        setu_function_control.set_user_data(get_user_id(session), ARKNIGHTS_SIX_STAR_PULL, six_star_count)
-
-    qq_num = get_user_id(session)
-    await bot.send_group_msg(
-        group_id=session.group_id,
-        message=construct_message_chain(MessageSegment.at(qq_num), arknights_api.__str__()))
-
-
-@arknights_up.got(
-    'key_word',
-    prompt='使用方法：！方舟up 干员名 星级（数字）是否限定(y/n) 是否二级限定(y/n)')
-async def up_ten_polls(session: GroupMessageEvent, matcher: Matcher,
-                       key_word: Annotated[str, ArgStr('key_word')]):
-    if not get_privilege(get_user_id(session), perm.OWNER):
-        await matcher.finish('您无权使用本功能')
-
-    args = key_word.split()
-    validation = ark_helper(args)
-    if validation:
-        await matcher.finish(validation)
-
-    await matcher.finish(
-        arknights_api.up_op(
-            args[0],
-            args[1],
-            args[2].lower() == 'y',
-            args[3].lower() == 'y'
-        )
-    )
-
-
 @help_me_choose_cmd.handle()
 async def do_mcq(bot: Bot, session: GroupMessageEvent):
     raw_message = session.raw_message
@@ -293,35 +228,6 @@ async def do_mcq(bot: Bot, session: GroupMessageEvent):
         answer += f'{chr(random.randint(65, 68))}'
 
     await bot.send_group_msg(group_id=session.group_id, message=answer + '。')
-
-
-up_reset_cmd = on_command('方舟up重置', aliases={'方舟UP重置', 'UP重置'})
-
-
-@up_reset_cmd.handle()
-async def reset_ark_up(session: GroupMessageEvent, matcher: Matcher):
-    if not get_privilege(get_user_id(session), perm.OWNER):
-        await matcher.finish('您无权使用本功能')
-
-    arknights_api.clear_ups()
-    await matcher.finish('Done!')
-
-
-add_arknights_operator_cmd = on_command('添加干员')
-
-
-@add_arknights_operator_cmd.got('key_word', prompt='使用方法：！方舟up 干员名 星级（数字）')
-async def add_ark_op(session: GroupMessageEvent, matcher: Matcher,
-                     key_word: Annotated[str, ArgStr('key_word')]):
-    if not get_privilege(get_user_id(session), perm.OWNER):
-        await matcher.finish('您无权使用本功能')
-
-    args = key_word.split()
-    validation = ark_helper(args)
-    if validation:
-        await matcher.finish(validation)
-
-    await matcher.finish(arknights_api.add_op(args[0], args[1]))
 
 
 def get_stat(key: str, lis: dict) -> (int, int):

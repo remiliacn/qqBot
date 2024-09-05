@@ -90,7 +90,8 @@ async def twitch_live_tracking(bot: Bot, event: GroupMessageEvent, matcher: Matc
     await matcher.send(download_status.message)
     try:
         temp_group_filename = f'{str(int(time()))}.mp4'
-        temp_group_filename = twitch_clip_instruction.file_name if twitch_clip_instruction.file_name else temp_group_filename
+        temp_group_filename = \
+            twitch_clip_instruction.file_name if twitch_clip_instruction.file_name else temp_group_filename
         if download_status.is_success and download_status.file_path:
             logger.info(f'Trying to upload the group file. {download_status.file_path}')
             await bot.call_api(

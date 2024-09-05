@@ -1,7 +1,8 @@
 import sqlite3
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Optional
 
 from awesome.Constants.function_key import USER_XP
+from util.db_utils import fetch_one_or_default
 
 
 class SetuFunctionControl:
@@ -123,7 +124,7 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             """
         ).fetchone()
 
-        return result[0] if result is not None and result[0] is not None else 0
+        return fetch_one_or_default(result, 0)
 
     def track_keyword(self, key_word: str):
         self.setu_db_connection.execute(
@@ -148,14 +149,14 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
 
         return result
 
-    def _get_user_nickname(self, user_id: str) -> Union[str, None]:
+    def _get_user_nickname(self, user_id: str) -> Optional[str]:
         result = self.stat_db_connection.execute(
             """
             select nickname from user_activity_count where user_id = ? and nickname is not null limit 1;
             """, (user_id,)
         ).fetchone()
 
-        return result[0] if result is not None and result[0] is not None else None
+        return fetch_one_or_default(result, None)
 
     def _get_keyword_usage_expand(self, key_word: str):
         results = self.stat_db_connection.execute(
@@ -166,11 +167,11 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             """, (f'%{key_word}%',)
         ).fetchall()
 
-        if results is None:
+        if not results:
             return ''
 
         for result in results:
-            if result[0] is not None and result[1] is not None:
+            if result[0] and result[1]:
                 user_id = result[0]
                 nickname = self._get_user_nickname(user_id)
                 if nickname is not None:
@@ -194,7 +195,7 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             """, (f'%{key_word}%',)
         ).fetchone()
 
-        return result[0] if result is not None and result[0] is not None else 0
+        return fetch_one_or_default(result, 0)
 
     def _keyword_filter_query(self):
         result = ['keyword != ?' for _ in self.blacklist_freq_keyword]
@@ -218,7 +219,7 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             """, (keyword,)
         ).fetchone()
 
-        return result[0] if result is not None else -1
+        return fetch_one_or_default(result, -1)
 
     def add_bad_word_dict(self, key_word, multiplier):
         if multiplier == 1:
@@ -295,7 +296,7 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             """, (user_id, 'pixiv_id')
         ).fetchone()
 
-        return result[0] if result is not None else -1
+        return fetch_one_or_default(result, -1)
 
     def _update_global_tag(self, tag: str):
         self.stat_db_connection.execute(
@@ -344,14 +345,14 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             else:
                 self._update_user_xp_data(user_id, keyword, user_nickname)
 
-    def get_global_stat(self, keyword) -> List[Tuple[str, int]]:
+    def get_global_stat(self, keyword) -> Optional[int]:
         result = self.stat_db_connection.execute(
             """
             select hit from global_stat where keyword = ? limit 1;
             """, (keyword,)
         ).fetchone()
 
-        return result if isinstance(result, int) else result[0] if result is not None and result[0] is not None else 0
+        return fetch_one_or_default(result, None)
 
     def get_user_xp(self, user_id: int | str) -> List[str]:
         if isinstance(user_id, int):
@@ -376,7 +377,7 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             """, (user_id, tag)
         ).fetchone()
 
-        return result[0] if result is not None else 0
+        return fetch_one_or_default(result, 0)
 
     def _get_data_rank(self, user_id: str, tag: str) -> int:
         result = self.stat_db_connection.execute(
@@ -389,7 +390,7 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             """, (tag, user_id)
         ).fetchone()
 
-        return result[0] if result is not None and result[0] is not None else -1
+        return fetch_one_or_default(result, -1)
 
     def get_user_data(self, user_id: Union[int, str]) -> dict:
         if isinstance(user_id, int):
@@ -461,14 +462,14 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
     def set_group_data(self, group_id, tag, data=None):
         group_id = str(group_id)
 
-        if tag == 'setu' or tag == 'yanche' or tag == 'pull':
-            self._set_group_usage_helper(group_id, tag)
-
-        elif tag == 'pulls':
-            self._set_group_usage_helper(group_id, 'pulls3', data['3'])
-            self._set_group_usage_helper(group_id, 'pulls4', data['4'])
-            self._set_group_usage_helper(group_id, 'pulls5', data['5'])
-            self._set_group_usage_helper(group_id, 'pulls6', data['6'])
+        match tag:
+            case 'setu' | 'yanche' | 'pull':
+                self._set_group_usage_helper(group_id, tag)
+            case 'pulls':
+                self._set_group_usage_helper(group_id, 'pulls3', data['3'])
+                self._set_group_usage_helper(group_id, 'pulls4', data['4'])
+                self._set_group_usage_helper(group_id, 'pulls5', data['5'])
+                self._set_group_usage_helper(group_id, 'pulls6', data['6'])
 
         self.commit_change()
 
@@ -492,7 +493,7 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             """, (tag, original_rank)
         ).fetchone()
 
-        return abs(hit - result[0]) if result is not None else -1
+        return abs(hit - result[0]) if result else -1
 
     def get_group_activity_rank(self, group_id: Union[int, str], tag: str) -> int:
         group_id = str(group_id)
@@ -507,7 +508,7 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             """, (tag, group_id)
         ).fetchone()
 
-        return result[0] if result is not None else -1
+        return fetch_one_or_default(result, -1)
 
     def get_group_usage(self, group_id: Union[int, str], tag: str) -> int:
         group_id = str(group_id)
@@ -517,7 +518,7 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             """, (group_id, tag)
         ).fetchone()
 
-        return result[0] if result is not None else 0
+        return fetch_one_or_default(result, 0)
 
     def get_group_top_xp(self, group_id: Union[int, str]) -> str:
         group_id = str(group_id)
@@ -529,7 +530,7 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             """, (group_id, *self.blacklist_freq_keyword)
         ).fetchone()
 
-        return query_result[0] if query_result is not None and query_result[0] is not None else ''
+        return fetch_one_or_default(query_result, '')
 
     def get_group_usage_literal(self, group_id: Union[int, str]) -> dict:
         group_id = str(group_id)

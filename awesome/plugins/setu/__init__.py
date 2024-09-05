@@ -159,9 +159,9 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
     # 限流5秒单用户只能请求一次。
     user_limit = UserLimitModifier(5.0, 1.0, True)
     rate_limiter_check = await global_rate_limiter.user_limit_check(SETU, user_id, user_limit)
-    if isinstance(rate_limiter_check, str):
+    if rate_limiter_check.is_limited:
         await matcher.finish(
-            construct_message_chain(MessageSegment.reply(message_id), rate_limiter_check))
+            construct_message_chain(MessageSegment.reply(message_id), rate_limiter_check.prompt))
 
     monitored = False
 

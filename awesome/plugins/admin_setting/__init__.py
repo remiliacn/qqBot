@@ -21,13 +21,15 @@ from awesome.Constants.user_permission import OWNER
 from awesome.adminControl import get_privilege, user_control, setu_function_control
 from util.helper_util import set_group_permission
 
+_LAZY_RESPONSE = '可是我不想动哎.jpg'
+
 free_speech_cmd = on_command('自由发言')
 
 
 @free_speech_cmd.handle()
 async def free_speech_switch(event: GroupMessageEvent, matcher: Matcher):
     group_id = event.group_id
-    role = event.sender.role if event.sender.role is not None else 'member'
+    role = event.sender.role if event.sender.role else 'member'
 
     if group_id == -1 or (role == 'member' and not get_privilege(event.get_user_id(), OWNER)):
         return
@@ -190,8 +192,7 @@ async def send_answer(bot: Bot, event: GroupMessageEvent, matcher: Matcher, args
     response = _prefetch(question, get_user_id(event))
     if response:
         await matcher.send(
-            response + '\n'
-                       f'回答用时：{(time() - start_time):.2f}s'
+            response + f'\n回答用时：{(time() - start_time):.2f}s'
         )
     else:
         # math processing
@@ -199,7 +200,6 @@ async def send_answer(bot: Bot, event: GroupMessageEvent, matcher: Matcher, args
             response = _math_fetch(question, get_user_id(event))
 
         except Exception as err:
-            await matcher.send('计算时遇到了问题，本事件已上报bot主人进行分析。')
             await bot.send_private_msg(
                 user_id=config.SUPER_USER,
                 message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
@@ -209,13 +209,9 @@ async def send_answer(bot: Bot, event: GroupMessageEvent, matcher: Matcher, args
                         f'使用人：{event.get_user_id()}\n'
                         f'来自群：{event.group_id}\n'
             )
-            return
+            await matcher.finish('计算时遇到了问题，本事件已上报bot主人进行分析。')
 
         if response:
-            await matcher.send(
-                response + '\n'
-                           f'回答用时：{(time() - start_time):.2f}s'
-            )
             await bot.send_private_msg(
                 user_id=config.SUPER_USER,
                 message=f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] '
@@ -225,12 +221,13 @@ async def send_answer(bot: Bot, event: GroupMessageEvent, matcher: Matcher, args
                         f'使用人：{event.get_user_id()}\n'
                         f'来自群：{event.group_id}'
             )
+            await matcher.finish(f'{response}\n回答用时：{(time() - start_time):.2f}s')
 
         else:
             logger.info("It is not a normal question.")
             ai_process = _simple_ai_process(question, event)
             if question != ai_process:
-                await matcher.send(ai_process + f'\n回答用时：{(time() - start_time):.2f}s')
+                await matcher.send(f'{ai_process}\n回答用时：{(time() - start_time):.2f}s')
 
 
 def _simple_ai_process(question: str, event: GroupMessageEvent) -> str:
@@ -306,47 +303,47 @@ def _math_fetch(question: str, user_id: str) -> str:
 
     if 'factorial' in question:
         if len(question) > 20:
-            return '可是我不想动哎.jpg'
+            return _LAZY_RESPONSE
 
         if '**' in question:
-            return '可是我不想动哎.jpg'
+            return _LAZY_RESPONSE
 
         if 'pow' in question:
-            return '可是我不想动哎.jpg'
+            return _LAZY_RESPONSE
 
         fact_number = findall(r'.*?factorial\((\d+)\)', question)
         if fact_number:
             if int(fact_number[0]) > 500:
-                return '可是我不想动哎.jpg'
+                return _LAZY_RESPONSE
 
     if match(r'.*?<<', question):
         overflow_fetch = findall(r'.*?<<(\d+)', question)
         if overflow_fetch:
             if len(overflow_fetch) != 1:
-                return '可是我不想动哎.jpg'
+                return _LAZY_RESPONSE
             if int(overflow_fetch[0]) > 100:
-                return '可是我不想动哎.jpg'
+                return _LAZY_RESPONSE
 
     if match(r'.*?\*\*', question):
         if len(question) > 10:
-            return '可是我不想动哎.jpg'
+            return _LAZY_RESPONSE
 
         overflow_fetch = findall(r'.*?\*\*(\d+)', question)
         if overflow_fetch:
             if len(overflow_fetch) > 2:
-                return '可是我不想动哎.jpg'
+                return _LAZY_RESPONSE
             else:
                 if int(overflow_fetch[0]) > 99:
-                    return '可是我不想动哎.jpg'
+                    return _LAZY_RESPONSE
                 if len(overflow_fetch) == 2 and int(overflow_fetch[1]) > 2:
-                    return '可是我不想动哎.jpg'
+                    return _LAZY_RESPONSE
 
     if match(r'.*?pow\(\d+,\d+\)', question):
         if len(question) > 10:
-            return '可是我不想动哎.jpg'
+            return _LAZY_RESPONSE
 
         if int(findall(r'.*?pow\(\d+,(\d+)\)', question)[0]) > 99:
-            return '可是我不想动哎.jpg'
+            return _LAZY_RESPONSE
 
     if match(r'.*?\\u\d+', question) or match(r'.*?\\\w{3}', question):
         return '你说你马呢（'
@@ -368,11 +365,9 @@ def _math_fetch(question: str, user_id: str) -> str:
         return ''
 
     if is_float(answer):
-        return f'运算结果是：{answer:.2f}' \
-               '\n我算的对吧~'
+        return f'运算结果是：{answer:.2f}\n我算的对吧~'
     else:
-        return f'计算结果：{answer}\n' \
-               f'请注意，本次计算已被汇报。'
+        return f'计算结果：{answer}\n请注意，本次计算已被汇报。'
 
 
 def _prefetch(question: str, user_id: str) -> str:

@@ -1,3 +1,6 @@
+"""
+This function is currently deprecated and waiting for a rewrite.
+"""
 # import re
 # import traceback
 # from asyncio.log import logger

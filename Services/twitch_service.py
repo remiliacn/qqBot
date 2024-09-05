@@ -18,8 +18,8 @@ from twitchdl import twitch
 from youtube_dl.utils import sanitize_filename
 
 from Services.live_notification import LiveNotificationData
-from Services.util.common_util import OptionalDict, HttpxHelperClient, Status, TwitchDownloadStatus, \
-    ValidatedTimestampStatus
+from Services.util.common_util import OptionalDict, HttpxHelperClient
+from model.common_model import Status, ValidatedTimestampStatus, TwitchDownloadStatus
 from config import SUPER_USER, PATH_TO_ONEDRIVE, SHARE_LINK, CLOUD_STORAGE_SIZE_LIMIT_GB
 from util.helper_util import construct_message_chain
 

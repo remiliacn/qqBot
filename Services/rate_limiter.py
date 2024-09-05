@@ -3,6 +3,7 @@ import time
 from typing import Union
 
 from Services.util.common_util import time_to_literal
+from model.common_model import RateLimitStatus
 
 
 class UserLimitModifier:
@@ -193,15 +194,16 @@ class RateLimiter:
         query_user_prompt, wait_time = await self._query_user_permission(function_name, user_id, user_limit_modifier)
         return query_user_prompt, wait_time
 
-    async def _assemble_limit_prompt(self, prompt, wait_time) -> [None, str]:
+    async def _assemble_limit_prompt(self, prompt, wait_time) -> RateLimitStatus:
         if prompt == self.LIMIT_BY_USER:
-            return f'别玩啦，过{await time_to_literal(wait_time)}再回来玩好不好？'
+            return RateLimitStatus(
+                True, f'别玩啦，过{await time_to_literal(wait_time if wait_time > 0 else 1)}再回来玩好不好？')
         elif prompt == self.LIMIT_BY_GROUP:
-            return f'群使用已到达允许上限，请稍等{await time_to_literal(wait_time)}重试'
+            return RateLimitStatus(True, f'群使用已到达允许上限，请稍等{await time_to_literal(wait_time)}重试')
         elif prompt == self.TEMPRORARY_DISABLED:
-            return f'该功能全局禁用中，请稍等{await time_to_literal(wait_time)}再试。'
+            return RateLimitStatus(True, f'该功能全局禁用中，请稍等{await time_to_literal(wait_time)}再试。')
 
-        return None
+        return RateLimitStatus(False, None)
 
     async def user_group_limit_check(
             self,
@@ -209,7 +211,7 @@ class RateLimiter:
             user_id: Union[str, int],
             group_id: Union[str, int],
             user_limit_modifier: UserLimitModifier
-    ) -> Union[str, None]:
+    ) -> RateLimitStatus:
         user_id = str(user_id)
         group_id = str(group_id)
 
@@ -221,7 +223,7 @@ class RateLimiter:
             function_name: str,
             user_id: Union[str, int],
             user_limit_modifier: UserLimitModifier
-    ):
+    ) -> RateLimitStatus:
         user_id = str(user_id)
         query_result, wait_time = await self._query_user_permission(function_name, user_id, user_limit_modifier)
         return await self._assemble_limit_prompt(query_result, wait_time)
@@ -232,7 +234,7 @@ class RateLimiter:
             group_id: Union[str, int],
             time_period=60,
             function_limit=None
-    ):
+    ) -> RateLimitStatus:
         group_id = str(group_id)
         query_result, wait_time = await self._query_group_permission(
             function_name,

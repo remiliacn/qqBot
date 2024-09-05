@@ -1,7 +1,6 @@
-import re
 from os import getcwd
 from random import seed, randint
-from re import fullmatch, match
+from re import fullmatch, match, findall, sub
 from time import time_ns
 from typing import List
 
@@ -93,11 +92,11 @@ async def natural_language_proc(bot: Bot, event: GroupMessageEvent, matcher: Mat
 
 async def _check_if_asking_definition(message: str) -> str:
     keyword_regex = r'(.*?)是个?(什么|啥)'
-    if re.match(keyword_regex, message) and '不是' not in message:
+    if match(keyword_regex, message) and '不是' not in message:
         logger.success(f'hit asking definition. {message}')
         if randint(0, 10) < 5:
             logger.success('hit random chance.')
-            extracted_keyword = re.findall(keyword_regex, message)
+            extracted_keyword = findall(keyword_regex, message)
 
             if not extracted_keyword:
                 return ''
@@ -138,7 +137,7 @@ def _extract_keyword_from_sentence(key_word: str) -> str:
         return ''
 
     key_word = words[-1][0]
-    key_word = re.sub(r'[，。、；’【】！￥…（）《》？：”“‘]', '', key_word)
+    key_word = sub(r'[，。、；’【】！￥…（）《》？：”“‘]', '', key_word)
     return key_word
 
 
