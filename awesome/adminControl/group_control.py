@@ -11,7 +11,6 @@ from Services.util.common_util import calculate_sha1
 from awesome.Constants.path_constants import LOL_FOLDER_PATH
 from model.common_model import Status
 from util.db_utils import fetch_one_or_default
-from util.helper_util import construct_message_chain
 
 GROUP_PERMISSION_DEFAULT = {
     'IS_BANNED': False,
@@ -177,6 +176,7 @@ class GroupControlModule:
         if not query:
             return Status(False, MessageSegment.text('该群没有语录哦'))
 
+        from util.helper_util import construct_message_chain
         return Status(True, construct_message_chain(MessageSegment.image(query), notes if notes else ''))
 
     def clear_group_quote(self, group_id: Union[int, str]):

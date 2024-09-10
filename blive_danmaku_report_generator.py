@@ -17,7 +17,8 @@ from matplotlib import font_manager, rc, rcParams, ticker
 from nonebot.log import logger
 
 import blivedm.models.web as web_models
-from Services.live_notification import LiveNotification, LivestreamDanmakuData
+from Services import live_notification
+from Services.live_notification import LivestreamDanmakuData
 from Services.util.common_util import OptionalDict, find_repeated_substring, construct_timestamp_string, gradient_fill
 from blivedm import BaseHandler, BLiveClient
 from blivedm.clients import ws_base
@@ -43,7 +44,6 @@ def _get_log_filename() -> str:
     return f'log_{int(time.time())}_{getpid()}.log'
 
 
-live_notification = LiveNotification()
 logger.add(f'./logs/{_get_log_filename()}', level='INFO', colorize=False, backtrace=True, diagnose=True,
            rotation='50MB', retention='3 days')
 
