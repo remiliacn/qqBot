@@ -82,7 +82,7 @@ async def transfer_group_quotes(session: GroupMessageEvent, matcher: Matcher, ar
 
 
 @your_group_quote.handle()
-async def get_group_quotes(session: GroupMessageEvent, matcher: Matcher):
+async def get_group_quotes(session: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
     group_id = session.group_id
     user_id = session.get_user_id()
     message_id = session.message_id
@@ -96,27 +96,27 @@ async def get_group_quotes(session: GroupMessageEvent, matcher: Matcher):
         await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), rate_limiter_check.prompt))
 
     nickname = session.sender.nickname
+    other_info = args.extract_plain_text()
 
     setu_function_control.set_user_data(user_id, YULU_CHECK, nickname)
-    result = group_control.get_group_quote(group_id)
-    if not result.is_success:
-        await matcher.finish(result.message)
+    result = group_control.get_group_quote(group_id, notes=other_info)
 
-    await matcher.finish(MessageSegment.image(result.message))
+    await matcher.finish(result.message)
 
 
 @add_quote_cmd.handle()
-async def add_group_quotes(session: GroupMessageEvent, matcher: Matcher):
+async def add_group_quotes(session: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
     if not extract_image_urls(session.get_message()):
         await matcher.finish('图呢？')
 
     image_urls = extract_image_urls(session.get_message())
+    other_info = args.extract_plain_text()
     message = ''
     for url in image_urls:
         key_word = await download_image(url, f'{os.getcwd()}/data/lol')
 
         if key_word:
-            result = group_control.add_quote(get_group_id(session), key_word)
+            result = group_control.add_quote(get_group_id(session), key_word, other_info)
             message = f'{result.message}（当前总语录条数：{group_control.get_group_quote_count(get_group_id(session))})'
             if not result.is_success:
                 if message:

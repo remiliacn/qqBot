@@ -3,14 +3,13 @@ from datetime import datetime
 from json import dumps, loads
 from os import path
 from re import findall
-from time import time
 from typing import List
 
 from loguru import logger
 from nonebot.adapters.onebot.v11 import MessageSegment
 from youtube_dl.utils import sanitize_filename
 
-from Services.util.common_util import HttpxHelperClient, time_to_literal
+from Services.util.common_util import HttpxHelperClient
 from awesome.Constants.path_constants import BILIBILI_PIC_PATH, DB_PATH
 from awesome.Constants.vtuber_function_constants import GPT_4_MODEL_NAME
 from config import SUPER_USER, DISCORD_AUTH
@@ -262,13 +261,8 @@ class DiscordService:
                 timestamp = message.replace('t:', '').replace(':F', '')
                 if timestamp.isdigit():
                     dt = datetime.fromtimestamp(float(timestamp))
-                    translated_timestamp = dt.strftime('%B %d, %Y')
+                    translated_timestamp = dt.isoformat()
                     replacement_dict[message] = translated_timestamp
-            elif message.startswith('t') and message.endswith('R'):
-                timestamp = message.replace('t:', '').replace(':R', '')
-                if timestamp.isdigit():
-                    time_until_that_timestamp = int(timestamp) - int(time())
-                    replacement_dict[message] = f'{await time_to_literal(time_until_that_timestamp)}'
             else:
                 replacement_dict[message] = ''
 

@@ -41,11 +41,15 @@ async def natural_language_proc(bot: Bot, event: GroupMessageEvent, matcher: Mat
 
     if '添加语录' in plain_message:
         extracted_images = extract_image_urls(event.message)
+        other_info = (event.get_plaintext().replace('添加语录', '')
+                      .replace('!', '')
+                      .replace('！', '')
+                      .strip())
         if extracted_images:
             path = await download_image(extracted_images[0], f'{getcwd()}/data/lol')
 
             if path:
-                result = group_control.add_quote(group_id, path)
+                result = group_control.add_quote(group_id, path, other_info)
                 if not result.is_success:
                     await matcher.finish(result.message)
 

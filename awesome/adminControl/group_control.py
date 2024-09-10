@@ -1,13 +1,17 @@
 import sqlite3
 from os import listdir, path, remove
 from os.path import exists
+from sqlite3 import OperationalError
 from typing import Union
 
 from nonebot import logger
+from nonebot.adapters.onebot.v11 import MessageSegment
 
 from Services.util.common_util import calculate_sha1
-from model.common_model import Status
 from awesome.Constants.path_constants import LOL_FOLDER_PATH
+from model.common_model import Status
+from util.db_utils import fetch_one_or_default
+from util.helper_util import construct_message_chain
 
 GROUP_PERMISSION_DEFAULT = {
     'IS_BANNED': False,
@@ -49,21 +53,25 @@ class GroupControlModule:
             create table if not exists quotes (
                 "cq_image" text unique on conflict ignore, 
                 "qq_group" text,
-                "file_hash" text
+                "file_hash" text,
+                "notes" text
             )
             """
         )
         self.group_info_db.commit()
-        try:
-            self.group_info_db.execute(
-                """
-                ALTER TABLE quotes ADD COLUMN file_hash text;
-                """
-            )
-            self.group_info_db.commit()
-        except Exception as err:
-            logger.warning(
-                f'Failed to add column, but it is probably fine because it is already existed. {err.__class__}')
+
+        column_backfill_data = [('file_hash', 'text'), ('notes', 'text')]
+        for data in column_backfill_data:
+            try:
+                self.group_info_db.execute(
+                    f"""
+                    ALTER TABLE quotes ADD COLUMN {data[0]} {data[1]};
+                    """
+                )
+                self.group_info_db.commit()
+            except OperationalError as err:
+                logger.warning(
+                    f'Failed to add column, but it is probably fine because it is already existed. {err.__class__}')
 
     def _check_if_file_exists_in_db(self, file_name: str) -> bool:
         result = self.group_info_db.execute(
@@ -98,7 +106,7 @@ class GroupControlModule:
 
         for entry in all_results:
             if entry:
-                cq_image, qq_group, file_hash = entry
+                cq_image, qq_group, file_hash, _notes = entry
                 self._backfill_file_sha1_hash(cq_image, file_hash)
 
     def _backfill_file_sha1_hash(self, cq_image, file_hash):
@@ -112,7 +120,7 @@ class GroupControlModule:
             )
             self.group_info_db.commit()
 
-    def add_quote(self, group_id: Union[int, str], quote: str) -> Status:
+    def add_quote(self, group_id: Union[int, str], quote: str, notes: str) -> Status:
         if isinstance(group_id, int):
             group_id = str(group_id)
 
@@ -122,8 +130,8 @@ class GroupControlModule:
 
         self.group_info_db.execute(
             f"""
-            insert into quotes (cq_image, qq_group, file_hash) values (?, ?, ?)
-            """, (quote, group_id, calculate_sha1(quote))
+            insert into quotes (cq_image, qq_group, file_hash, notes) values (?, ?, ?, ?)
+            """, (quote, group_id, calculate_sha1(quote), notes.strip())
         )
         self.group_info_db.commit()
         return Status(True, '整好了~')
@@ -142,20 +150,34 @@ class GroupControlModule:
         )
         self.group_info_db.commit()
 
-    def get_group_quote(self, group_id: Union[int, str]) -> Status:
+    def get_group_quote(self, group_id: Union[int, str], notes=None) -> Status:
         if isinstance(group_id, int):
             group_id = str(group_id)
 
-        query = self.group_info_db.execute(
-            f"""
-            select cq_image from quotes where qq_group = '{group_id}' order by random() limit 1;
-            """
-        ).fetchone()
+        query = None
+        notes = notes.strip() if notes else ''
 
-        if query is None or query[0] is None:
-            return Status(False, '本群还没有语录哦~')
+        if notes:
+            data = self.group_info_db.execute(
+                f"""
+                select cq_image, notes from quotes where qq_group = ? and notes like ? order by random() limit 1;
+                """, (group_id, f'%{notes}%')
+            ).fetchone()
+            if data:
+                query, notes = data
 
-        return Status(True, query[0])
+        if not query:
+            query = self.group_info_db.execute(
+                f"""
+                select cq_image from quotes where qq_group = ? order by random() limit 1;
+                """, (group_id,)
+            ).fetchone()
+            query = fetch_one_or_default(query, None)
+
+        if not query:
+            return Status(False, MessageSegment.text('该群没有语录哦'))
+
+        return Status(True, construct_message_chain(MessageSegment.image(query), notes if notes else ''))
 
     def clear_group_quote(self, group_id: Union[int, str]):
         if isinstance(group_id, int):

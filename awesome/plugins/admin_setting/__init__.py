@@ -4,7 +4,7 @@ from random import randint, seed
 from re import findall, match, sub, compile
 from time import time, time_ns
 
-from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message, Bot
+from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message, Bot, PrivateMessageEvent
 from nonebot.internal.matcher import Matcher
 from nonebot.log import logger
 from nonebot.params import CommandArg
@@ -449,3 +449,14 @@ async def unban_someone(event: GroupMessageEvent, matcher: Matcher, args: Messag
 
     else:
         await matcher.send('您无权进行该操作')
+
+
+shutdown_cmd = on_command('shutdown')
+
+
+@shutdown_cmd.handle()
+async def do_shutdown_cmd(event: GroupMessageEvent | PrivateMessageEvent, matcher: Matcher):
+    if not get_privilege(get_user_id(event), perm.OWNER):
+        await matcher.finish()
+
+    exit(1)

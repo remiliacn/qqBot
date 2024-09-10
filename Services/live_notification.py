@@ -529,7 +529,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
         orig_data = OptionalDict(item).map('orig').map('modules').map('module_dynamic').or_else({})
         orig_data_draw = OptionalDict(dynamic_module).map('major').map('draw').or_else({})
         if orig_data_draw:
-            orig_text += MessageSegment.text('\n附图：') + await self._fetch_draw_from_dynamic(orig_data_draw)
+            orig_text += await self._fetch_draw_from_dynamic(orig_data_draw)
         if orig_data:
             orig_text += MessageSegment.text('\n其他内容：\n') + await self._fetch_content_in_orig_node(orig_data)
 
