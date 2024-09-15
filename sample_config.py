@@ -1,40 +1,24 @@
-from os import getcwd
+HOST = '127.0.0.1'  # 必填
+PORT = 5700  # 必填
+SUPER_USER = 0  # 必填
 
-# noinspection PyUnresolvedReferences
-from nonebot.default_config import *
+NICKNAME = {}
 
-CONSUMER_KEY = ''
-CONSUMER_SECRET = ''
-ACCESS_TOKEN = ''
-ACCESS_SECRET = ''
+PIXIV_REFRESH_TOKEN = ''  # 选填，用于搜图功能
+OPEN_API_KEY = ''  # 选填，用于chatgpt功能
 
-PIXIV_REFRESH_TOKEN = ''
+DANMAKU_PROCESS = f''  # 选填，如果需要b站开播追踪功能
 
-CANGKU_USERNAME = ''
-CANGKU_PASSWORD = ''
+PATH_TO_ONEDRIVE = ''  # 选填，如果需要twitch下载功能
+PATH_TEMP_DOWNLOAD = ''  # 选填，如果需要YouTube下载功能
+FFMPEG_PATH = ''  # 选填，如果需要twitch或YouTube下载功能
+SHARE_LINK = ''  # 选填，如果需要twitch或YouTube下载功能
 
-# ai_setu function
-NOVEL_AI_KEY = ''
-NOVEL_AI_BEARER = 'Bearer xxxxx'
+SAUCE_API_KEY = ''  # 选填，如果需要sauceNAO逆向图片搜索
+DISCORD_AUTH = ''  # 选填，如果需要discord跟踪功能
 
-PATH_TO_ONEDRIVE = ''
-PATH_TEMP_DOWNLOAD = ''
-FFMPEG_PATH = ''
-SHARE_LINK = ''
+COMMAND_START = {'/', '!', '／', '！', '#'}
 
-ITPK_KEY = ''
-ITPK_SECRET = ''
+CLOUD_STORAGE_SIZE_LIMIT_GB = 90
 
-SAUCE_API_KEY = ''
-OKEX_API_KEY = ''
-OKEX_SECRET_KEY = ''
-OKEX_PASSPHRASE = ''
-
-HOST = ''
-PORT = 0
-SUPER_USER = 0
-
-DISCORD_AUTH = ''
-
-DANMAKU_PROCESS = f'path_to_py310_python_executable' + \
-                  f' {getcwd()}/blive_danmaku_report_generator.py'
+BILI_SESS_DATA = ""  # 选填，如果需要b站开播追踪功能

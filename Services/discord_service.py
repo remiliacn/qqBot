@@ -3,7 +3,7 @@ from datetime import datetime
 from json import dumps, loads
 from os import path
 from re import findall
-from typing import List
+from typing import List, Optional
 
 from loguru import logger
 from nonebot.adapters.onebot.v11 import MessageSegment
@@ -12,7 +12,7 @@ from youtube_dl.utils import sanitize_filename
 from Services.util.common_util import HttpxHelperClient
 from awesome.Constants.path_constants import BILIBILI_PIC_PATH, DB_PATH
 from awesome.Constants.vtuber_function_constants import GPT_4_MODEL_NAME
-from config import SUPER_USER, DISCORD_AUTH
+from config import DISCORD_AUTH
 from model.common_model import DiscordMessageStatus, DiscordGroupNotification
 from util.db_utils import fetch_one_or_default
 from util.helper_util import construct_message_chain
@@ -124,9 +124,9 @@ class DiscordService:
             if discord_status.has_update:
                 try:
                     chatgpt_message = await self._get_machine_translation_result(discord_status)
-                    if chatgpt_message.status_code == 500:
+                    if not chatgpt_message:
                         raise ConnectionError
-                    chatgpt_message = chatgpt_message.text
+
                     final_message = construct_message_chain(
                         f'\n', discord_status.message, '\n粗翻：\n', chatgpt_message)
                     statuses.append(DiscordGroupNotification(
@@ -152,24 +152,28 @@ class DiscordService:
 
         return statuses
 
-    async def _get_machine_translation_result(self, discord_status: DiscordMessageStatus):
-        url = 'http://localhost:5001/chat'
+    @staticmethod
+    async def _get_machine_translation_result(discord_status: DiscordMessageStatus) -> Optional[str]:
         logger.info('Requesting machine translation for discord update.')
-        chatgpt_message = await self.client.post(
-            url,
-            json={
-                'message': 'Please help to translate the following message to Chinese, While translating,'
-                           'please ignore and remove messges that in this pattern: `[CQ:.*?]` '
-                           'in your response and only response with the result of the translation. '
-                           "Do not translate name, and translate \"stream\" to 直播: \n\n"
-                           + '\n'.join([x.__str__() for x in discord_status.message]),
-                'is_chat': False,
-                'user_id': SUPER_USER,
-                'model_name': GPT_4_MODEL_NAME
-            },
-            timeout=20.0
-        )
-        return chatgpt_message
+
+        from Services import chatgpt_api
+        from Services.chatgpt import ChatGPTRequestMessage
+
+        chatgpt_message = chatgpt_api.chat(
+            ChatGPTRequestMessage(
+                message='Please help to translate the following message to Chinese, While translating,'
+                        'please ignore and remove messges that in this pattern: `[CQ:.*?]` '
+                        'in your response and only response with the result of the translation. '
+                        "Do not translate name, and translate \"stream\" to 直播: \n\n"
+                        + '\n'.join([x.__str__() for x in discord_status.message]),
+                is_chat=False,
+                model_name=GPT_4_MODEL_NAME
+            ))
+
+        if chatgpt_message.is_success:
+            return chatgpt_message.message
+
+        return None
 
     @staticmethod
     async def group_notification_to_literal_string(data: DiscordGroupNotification):
