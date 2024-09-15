@@ -577,14 +577,27 @@ class BilibiliDynamicNotifcation(LiveNotification):
 
         return orig_text
 
-    async def _fetch_content_in_orig_node(self, orig_data) -> List[MessageSegment]:
-        rich_text_node = OptionalDict(orig_data) \
+    async def _fetch_content_in_orig_node(self, major_dynamic: dict) -> List[MessageSegment]:
+        rich_text_node = OptionalDict(major_dynamic) \
             .map('desc') \
             .map('rich_text_nodes') \
             .or_else([])
         orig_text = await self._fetch_content_in_text_node(rich_text_node)
-        pic = OptionalDict(orig_data).map('major').map('draw').or_else({})
-        archive = OptionalDict(orig_data).map('major').map('archive').or_else({})
+
+        pic = OptionalDict(major_dynamic).map('major').map('draw').or_else({})
+        archive = OptionalDict(major_dynamic).map('major').map('archive').or_else({})
+        opus = OptionalDict(major_dynamic).map('major').map('opus').or_else({})
+
+        if opus:
+            summaries = OptionalDict(opus).map('summary').map('text').or_else('')
+            orig_text.append(MessageSegment.text(summaries))
+            files = OptionalDict(opus).map('pics').or_else([])
+            for idx, file in enumerate(files):
+                file_url: str = file['url']
+                file_name = file_url.split('/')[-1]
+                file_name = await global_httpx_client.download(file['url'], path.join(BILIBILI_PIC_PATH, file_name))
+                orig_text.append(MessageSegment.image(file_name))
+
         if pic:
             pic_id = pic['id']
             files = pic['items']

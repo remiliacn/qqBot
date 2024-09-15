@@ -10,7 +10,6 @@ from nonebot.adapters.onebot.v11 import MessageSegment
 from Services.util.common_util import calculate_sha1
 from awesome.Constants.path_constants import LOL_FOLDER_PATH
 from model.common_model import Status
-from util.db_utils import fetch_one_or_default
 
 GROUP_PERMISSION_DEFAULT = {
     'IS_BANNED': False,
@@ -166,12 +165,13 @@ class GroupControlModule:
                 query, notes = data
 
         if not query:
-            query = self.group_info_db.execute(
+            data = self.group_info_db.execute(
                 f"""
-                select cq_image from quotes where qq_group = ? order by random() limit 1;
+                select cq_image, notes from quotes where qq_group = ? order by random() limit 1;
                 """, (group_id,)
             ).fetchone()
-            query = fetch_one_or_default(query, None)
+            if data:
+                query, notes = data
 
         if not query:
             return Status(False, MessageSegment.text('该群没有语录哦'))
