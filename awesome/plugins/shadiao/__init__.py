@@ -1,12 +1,12 @@
 import os
 import random
 import re
-from typing import Annotated
+from typing import Annotated, Union
 
 import aiohttp
 import nonebot
 from nonebot import on_command
-from nonebot.adapters.onebot.v11 import Event, Bot, GroupMessageEvent, Message, MessageSegment
+from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, Message, MessageSegment, PrivateMessageEvent
 from nonebot.adapters.onebot.v11.helpers import extract_image_urls
 from nonebot.exception import FinishedException
 from nonebot.internal.matcher import Matcher
@@ -159,16 +159,16 @@ async def ocr_image_test(session: GroupMessageEvent, matcher: Matcher):
 
 
 @event_preprocessor
-async def message_preprocessing(event: Event):
+async def message_preprocessing(event: Union[GroupMessageEvent, PrivateMessageEvent]):
     if not isinstance(event, GroupMessageEvent):
         return
 
     group_id = event.group_id
-    user_id = event.user_id
+    user_id = event.get_user_id()
 
     if group_id is not None:
         if not group_control.get_group_permission(group_id, group_permission.ENABLED) \
-                and not get_privilege(event['user_id'], perm.OWNER):
+                and not get_privilege(user_id, perm.OWNER):
             raise FinishedException('Group disabled')
 
         if user_id is not None:
