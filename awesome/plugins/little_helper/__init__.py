@@ -3,16 +3,20 @@ import time
 from aiocache import cached
 from aiocache.serializers import PickleSerializer
 from nonebot import on_command
-from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message, MessageSegment
+from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message, MessageSegment, ActionFailed
 from nonebot.internal.matcher import Matcher
 from nonebot.log import logger
 from nonebot.params import CommandArg
 
+from Services import chatgpt_api
+from Services.chatgpt import ChatGPTRequestMessage
+from Services.stock import text_to_image
 from Services.util.common_util import HttpxHelperClient, markdown_to_image
 from Services.util.ctx_utility import get_nickname
 from awesome.Constants.function_key import HHSH_FUNCTION
 from awesome.Constants.plugins_command_constants import PROMPT_FOR_KEYWORD
 from awesome.adminControl import setu_function_control
+from util.helper_util import construct_message_chain
 
 markdown_cmd = on_command('markdown', aliases={'md'})
 
@@ -109,3 +113,50 @@ async def hhsh(entry: str) -> str:
             return ''
 
     return result.strip()
+
+
+hi_lingye_cmd = on_command('灵夜')
+
+
+@hi_lingye_cmd.handle()
+async def get_chatgpt_response(event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
+    if not args.extract_plain_text():
+        await matcher.finish('在，怎么了？')
+
+    user_input = args.extract_plain_text()
+
+    group_id = event.group_id
+    user_id = event.get_user_id()
+
+    try:
+        logger.info(f'Requesting information: user id: [{user_id}], group id: [{group_id}], message: {user_input}')
+        chatgpt_message = chatgpt_api.chat(
+            ChatGPTRequestMessage(message=user_input, is_chat=False, group_id=str(group_id)))
+        if not chatgpt_message.is_success:
+            await matcher.finish('稍等一下再问！')
+
+        chatgpt_message = chatgpt_message.message
+    except Exception as err:
+        logger.error(f'Something wrong when communicating with openAI {err.__class__}')
+        await matcher.finish('我现在头有点晕不想回答……')
+
+    message_id = event.message_id
+    reply_message = MessageSegment.reply(message_id)
+
+    try:
+        if len(chatgpt_message) < 250 \
+                and '`' not in chatgpt_message \
+                and '$' not in chatgpt_message \
+                and '[' not in chatgpt_message:
+            await matcher.finish(chatgpt_message)
+
+        result, success = markdown_to_image(chatgpt_message)
+        if success:
+            await matcher.finish(
+                construct_message_chain(MessageSegment.reply(message_id), MessageSegment.image(result)))
+        else:
+            await matcher.finish(
+                construct_message_chain(reply_message, MessageSegment.image(await text_to_image(chatgpt_message))))
+
+    except ActionFailed as err:
+        logger.error(f'Sending chatGPT info error {err.__class__}')
