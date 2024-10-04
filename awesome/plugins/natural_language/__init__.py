@@ -41,21 +41,7 @@ async def natural_language_proc(bot: Bot, event: GroupMessageEvent, matcher: Mat
 
     if '添加语录' in plain_message:
         extracted_images = extract_image_urls(event.message)
-        other_info = (event.get_plaintext().replace('添加语录', '')
-                      .replace('!', '')
-                      .replace('！', '')
-                      .strip())
-        if extracted_images:
-            path = await download_image(extracted_images[0], f'{getcwd()}/data/lol')
-
-            if path:
-                result = group_control.add_quote(group_id, path, other_info)
-                if not result.is_success:
-                    await matcher.finish(result.message)
-
-                await matcher.finish(
-                    f'{result.message}'
-                    f' （当前总语录条数：{group_control.get_group_quote_count(get_group_id(event))})')
+        await _extract_image_and_add_quote(event, extracted_images, group_id, matcher)
 
     if 'md' in plain_message[:4]:
         message_list = plain_message.split('\n')
@@ -69,7 +55,7 @@ async def natural_language_proc(bot: Bot, event: GroupMessageEvent, matcher: Mat
         response = await _do_soutu_operation(event.get_message())
         await matcher.finish(construct_message_chain(response))
 
-    reply_response = await _check_reply_keywords(event, event.reply, event.self_id, bot)
+    reply_response = await _check_reply_keywords(event, event.reply, event.self_id, bot, matcher)
     if reply_response:
         try:
             await bot.send_group_forward_msg(
@@ -92,6 +78,25 @@ async def natural_language_proc(bot: Bot, event: GroupMessageEvent, matcher: Mat
             await matcher.finish(fetch_result)
 
     matcher.skip()
+
+
+async def _extract_image_and_add_quote(
+        event: GroupMessageEvent, extracted_images: List[str], group_id: int, matcher: Matcher):
+    other_info = (event.get_plaintext().replace('添加语录', '')
+                  .replace('!', '')
+                  .replace('！', '')
+                  .strip())
+    if extracted_images:
+        path = await download_image(extracted_images[0], f'{getcwd()}/data/lol')
+
+        if path:
+            result = group_control.add_quote(group_id, path, other_info)
+            if not result.is_success:
+                await matcher.finish(result.message)
+
+            await matcher.finish(
+                f'{result.message}'
+                f' （当前总语录条数：{group_control.get_group_quote_count(get_group_id(event))})')
 
 
 async def _check_if_asking_definition(message: str) -> str:
@@ -146,7 +151,8 @@ def _extract_keyword_from_sentence(key_word: str) -> str:
 
 
 async def _check_reply_keywords(
-        message: GroupMessageEvent, reply: Reply, self_id: int, bot: Bot) -> [str, List[MessageSegment]]:
+        message: GroupMessageEvent, reply: Reply, self_id: int, bot: Bot, matcher: Matcher) -> [str,
+                                                                                                List[MessageSegment]]:
     if reply:
         message_str = message.get_plaintext()
         if '搜图' in message_str:
@@ -154,6 +160,9 @@ async def _check_reply_keywords(
         elif '撤' in message_str:
             await _do_delete_msg(bot, reply, self_id)
             response = ''
+        elif '添加语录' in message_str:
+            await _extract_image_and_add_quote(message, extract_image_urls(reply.message), message.group_id, matcher)
+            return ''
         else:
             response = ''
     else:
