@@ -1,5 +1,6 @@
 import asyncio
 from json import loads
+from pathlib import Path
 from time import time
 from traceback import format_exc
 from typing import List
@@ -93,15 +94,17 @@ async def twitch_live_tracking(bot: Bot, event: GroupMessageEvent, matcher: Matc
         temp_group_filename = \
             twitch_clip_instruction.file_name if twitch_clip_instruction.file_name else temp_group_filename
         if download_status.is_success and download_status.file_path:
-            logger.info(f'Trying to upload the group file. {download_status.file_path}')
-            await bot.call_api(
-                'upload_group_file',
-                group_id=event.group_id,
-                file=f'{download_status.file_path}',
-                name=temp_group_filename,
-                folder='/'
-            )
-            logger.success(f'Group file transfer completed. {temp_group_filename}')
+            if not await _is_file_too_big(download_status.file_path):
+                logger.info(f'Trying to upload the group file. {download_status.file_path}')
+                await bot.call_api(
+                    'upload_group_file',
+                    group_id=event.group_id,
+                    file=f'{download_status.file_path}',
+                    name=temp_group_filename,
+                    folder='/'
+                )
+                logger.success(f'Group file transfer completed. {temp_group_filename}')
+
     except Exception as err:
         logger.error(f'Failed to upload to group file. skipping that. {err.__class__}')
 
@@ -221,6 +224,11 @@ async def do_bilibili_live_fetch():
             await bot.call_api('send_group_msg',
                                group_id=int(group),
                                message=live_notification.stringify_danmaku_data(danmaku_data))
+
+
+async def _is_file_too_big(file_path: str) -> bool:
+    file_size_gb = Path(file_path).stat().st_size / (1024 ** 3)
+    return file_size_gb > 1
 
 
 async def do_dynamic_fetch():

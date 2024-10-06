@@ -4,8 +4,9 @@ from re import split, findall, fullmatch
 from time import time_ns
 from typing import List
 
-from nonebot import get_plugin_config, on_command, get_bot
+from nonebot import get_plugin_config, on_command, get_bot, logger
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message, MessageSegment
+from nonebot.exception import FinishedException
 from nonebot.internal.matcher import Matcher
 from nonebot.params import CommandArg
 
@@ -132,22 +133,19 @@ async def _get_normal_decision_result(text_args: list):
     return await _get_dice_result_plain_text(dice_result) + '，' + ('判定成功' if evaluation_result else '判定失败')
 
 
-async def _get_binary_decision_result(text_args):
-    if len(text_args) < 2 or not text_args[1].isdigit():
-        return '必须有第二个判定值，例：1d150/50 50，如果1d100 < 50则取1d150结果，反之取50'
-
-    data_args = text_args[0].split('/')
+async def _get_binary_decision_result(text_args: List[str]):
+    data_args = text_args[0].split('OR')
     if len(data_args) != 2:
         return '必须有两个选项。'
 
-    first_data_choice = data_args[0]
+    first_data_choice = data_args[0].strip()
     if first_data_choice.isdigit():
         first_choice = int(first_data_choice)
     else:
         first_choice_await = await _get_dice_result(first_data_choice)
         first_choice = first_choice_await.result_sum
 
-    second_data_choice = data_args[1]
+    second_data_choice = data_args[1].strip()
 
     if second_data_choice.isdigit():
         second_choice = int(second_data_choice)
@@ -155,10 +153,10 @@ async def _get_binary_decision_result(text_args):
         second_choice_await = await _get_dice_result(second_data_choice)
         second_choice = second_choice_await.result_sum
 
-    if await _dice_expr_evaluation('<', randint(1, 100), int(text_args[1])):
-        return f'1d100 < {text_args[1]}成功，取第一个结果：{first_choice}'
+    if await _dice_expr_evaluation('>=', first_choice, int(data_args[1])):
+        return f'1d100 >= {data_args[1]}成功，取第一个结果：{first_choice}'
 
-    return f'1d100 < {text_args[1]}失败，取第二个结果：{second_choice}'
+    return f'1d100 >= {data_args[1]}失败（Roll点结果为：{first_choice}），取第二个结果：{second_choice}'
 
 
 async def _multiple_row_result(text_args: list) -> str:
@@ -171,7 +169,7 @@ async def _evaluate_dice_expression(text: str):
     all_dice_role_evaluation = findall(r'\d+[dD]\d+', text)
     evaluation_list_result = [(await _get_dice_result(x)) for x in all_dice_role_evaluation]
     for idx, dice_text in enumerate(all_dice_role_evaluation):
-        text = text.replace(dice_text, str(evaluation_list_result[idx].result_sum))
+        text = text.replace(dice_text, str(evaluation_list_result[idx].result_sum), 1)
 
     try:
         result = eval(text)
@@ -189,8 +187,8 @@ dice_roll_cmd = on_command('骰娘')
 
 @dice_roll_cmd.handle()
 async def pao_tuan_shai_zi(event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
-    raw_message = args.extract_plain_text()
-    text_args = split(r'[,，\s]', raw_message)
+    raw_message = args.extract_plain_text().strip()
+    text_args = split(r'[,，\s]+', raw_message)
     text_args = [x.strip() for x in text_args if x]
 
     normal_decision = True
@@ -200,20 +198,24 @@ async def pao_tuan_shai_zi(event: GroupMessageEvent, matcher: Matcher, args: Mes
     if fullmatch(r'^\d+[dD]\d+([+\-*/]\d+([dD]\d+)?)+$', text_args[0]):
         await matcher.finish(await _evaluate_dice_expression(text_args[0]))
 
-    if not fullmatch(r'^\d+[dD]\d+$', text_args[0]):
-        if not fullmatch(r'^\d+([dD]\d+)?/\d+([dD]\d+)?$', text_args[0]):
-            await matcher.finish('用法错误：应为“xdy”, x 可以 = y，示例：1d100。如需自动判定，则可添加表达式：1d100 < 5')
-        else:
-            normal_decision = False
+    if fullmatch(r'^\d+([dD]\d+)?\s*OR\s*\d+([dD]\d+)?$', raw_message):
+        normal_decision = False
 
     message_id = event.message_id
 
-    if normal_decision:
-        await matcher.finish(
-            construct_message_chain(MessageSegment.reply(message_id), await _get_normal_decision_result(text_args)))
-    else:
-        await matcher.finish(
-            construct_message_chain(MessageSegment.reply(message_id), await _get_binary_decision_result(text_args)))
+    try:
+        if normal_decision:
+            await matcher.finish(
+                construct_message_chain(MessageSegment.reply(message_id), await _get_normal_decision_result(text_args)))
+        else:
+            await matcher.finish(
+                construct_message_chain(MessageSegment.reply(message_id),
+                                        await _get_binary_decision_result([raw_message])))
+    except FinishedException:
+        pass
+    except Exception as err:
+        logger.error(f'Dice result error: {err.__class__.__name__}: {err}')
+        await matcher.finish('使用方式有误。')
 
 
 russia_roulette_cmd = on_command('轮盘赌')
