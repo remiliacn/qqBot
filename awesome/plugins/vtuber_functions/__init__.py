@@ -85,7 +85,7 @@ async def twitch_live_tracking(bot: Bot, event: GroupMessageEvent, matcher: Matc
         await matcher.finish(verification_status.message)
 
     twitch_clip_instruction: TwitchClipInstruction = verification_status.message
-    download_status = await twitch_clipping.download_twitch_videos(twitch_clip_instruction)
+    download_status = await twitch_clipping.download_twitch_videos(twitch_clip_instruction, matcher)
     logger.info(f'Received download status: {download_status}')
 
     await matcher.send(download_status.message)

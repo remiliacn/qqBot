@@ -19,8 +19,8 @@ from youtube_dl.utils import sanitize_filename
 
 from Services.live_notification import LiveNotificationData
 from Services.util.common_util import OptionalDict, HttpxHelperClient
-from model.common_model import Status, ValidatedTimestampStatus, TwitchDownloadStatus
 from config import SUPER_USER, PATH_TO_ONEDRIVE, SHARE_LINK, CLOUD_STORAGE_SIZE_LIMIT_GB
+from model.common_model import Status, ValidatedTimestampStatus, TwitchDownloadStatus
 from util.helper_util import construct_message_chain
 
 
@@ -235,6 +235,11 @@ class TwitchClippingService:
     def __init__(self):
         self.TIMESTAMP_FORMAT = re.compile(r'(\d+[：:]){1,2}\d+')
 
+        self.data_found_notification_done = False
+        self.ffmpeg_notification_done = False
+        self.downloaded_notification_done = False
+        self.downloading_notification_done = False
+
     async def analyze_clip_comment(self, message_arg: str, session: Matcher) -> Status:
         message_arg = message_arg.split()
         if len(message_arg) < 1:
@@ -243,15 +248,25 @@ class TwitchClippingService:
 
         video_id = message_arg[0]
         await session.send('我去去就回~')
-        if len(message_arg) == 1:
+        if len(message_arg) == 1 and (video_id.isnumeric() or 'videos/' in video_id):
             return Status(True, TwitchClipInstruction(video_id))
 
         if not video_id.isnumeric():
-            video_list = await self._get_twitch_archive_list(video_id)
-            if not video_list['videos']:
-                return Status(False, '你这是让我切谁呢？要不你给个videoID我再试试？')
+            if 'videos/' not in video_id:
+                try:
+                    video_list = await self._get_twitch_archive_list(video_id)
+                    if not video_list['videos']:
+                        return Status(False, '你这是让我切谁呢？要不你给个videoID我再试试？')
+                except Exception as err:
+                    logger.exception(f'Failed to retrieve streamer data: {err.__class__}')
+                    return Status(False, f'出问题了！{err}')
 
-            video_id = video_list['videos'][0]['id']
+                video_id = video_list['videos'][0]['id']
+                logger.info(f'Found video id: {video_id}')
+            else:
+                video_id = video_id.split('/')[-1]
+                if not video_id.isnumeric():
+                    return Status(False, '你这是让我切谁呢？ 要不给一个主播名试试？')
 
         start_time = ''
         end_time = ''
@@ -276,6 +291,9 @@ class TwitchClippingService:
 
         start_time = start_time.replace('：', ':')
         end_time = end_time.replace('：', ':')
+
+        if not start_time and not end_time:
+            return Status(True, TwitchClipInstruction(video_id))
 
         validate_start_time = await self._validate_timestamp(start_time)
         validate_end_time = await self._validate_timestamp(end_time)
@@ -339,8 +357,10 @@ class TwitchClippingService:
 
         return Status(True, None)
 
-    async def download_twitch_videos(self, instruction: TwitchClipInstruction) -> TwitchDownloadStatus:
+    async def download_twitch_videos(self, instruction: TwitchClipInstruction,
+                                     matcher: Matcher) -> TwitchDownloadStatus:
         disk_check_status = await self._check_space_used()
+
         if not disk_check_status.is_success:
             return TwitchDownloadStatus(disk_check_status.is_success, message='')
         try:
@@ -367,6 +387,7 @@ class TwitchClippingService:
                     stdout = (await process.stdout.readline()).decode('utf-8')
                     if stdout:
                         logger.info(f'[twitch downloader] {stdout}')
+                        await self._twitch_stdout_handler(matcher, stdout)
 
                     stderr = (await process.stderr.readline()).decode('utf-8')
                     if stderr:
@@ -399,3 +420,17 @@ class TwitchClippingService:
             return TwitchDownloadStatus(
                 False, construct_message_chain(f'Someone tell ', MessageSegment.at(SUPER_USER),
                                                f'there is some problem with my clip. {err.__class__}'))
+
+    async def _twitch_stdout_handler(self, matcher: Matcher, stdout: str):
+        if not self.ffmpeg_notification_done and 'ffmpeg' in stdout:
+            await matcher.send('在压制咯')
+            self.ffmpeg_notification_done = True
+        if not self.data_found_notification_done and 'Found:' in stdout:
+            await matcher.send(f'找到源了 ~~ {stdout}')
+            self.data_found_notification_done = True
+        if not self.downloading_notification_done and 'Downloading' in stdout:
+            await matcher.send('正在下载切片视频源~')
+            self.downloading_notification_done = True
+        if not self.downloaded_notification_done and 'Downloaded' in stdout:
+            await matcher.send('源检查和下载已完成')
+            self.downloaded_notification_done = True

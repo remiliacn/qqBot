@@ -106,6 +106,15 @@ class GroupControlModule:
             if entry:
                 cq_image, qq_group, file_hash, _notes = entry
                 self._backfill_file_sha1_hash(cq_image, file_hash)
+                if not exists(cq_image):
+                    logger.info(f'File no longer exist, deleting entry: {cq_image}')
+                    self.group_info_db.execute(
+                        """
+                        delete from quotes where cq_image = ?
+                        """, (cq_image,)
+                    )
+
+        self.group_info_db.commit()
 
     def _backfill_file_sha1_hash(self, cq_image, file_hash):
         if not file_hash and exists(cq_image):
@@ -116,7 +125,6 @@ class GroupControlModule:
                 update quotes set file_hash = ? where cq_image = ?
                 """, (file_hash, cq_image)
             )
-            self.group_info_db.commit()
 
     def add_quote(self, group_id: Union[int, str], quote: str, notes: str) -> Status:
         if isinstance(group_id, int):
