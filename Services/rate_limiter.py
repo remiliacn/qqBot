@@ -4,6 +4,7 @@ from typing import Union
 
 from Services.util.common_util import time_to_literal
 from model.common_model import RateLimitStatus
+from util.db_utils import fetch_one_or_default
 
 
 class UserLimitModifier:
@@ -110,7 +111,7 @@ class RateLimiter:
             """, (function_name, user_id)
         ).fetchone()
 
-        return result if isinstance(result, int) else result[0] if result is not None and result[0] is not None else 0
+        return fetch_one_or_default(result, 0)
 
     async def _query_group_permission(
             self,
