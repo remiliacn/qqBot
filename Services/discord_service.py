@@ -161,13 +161,14 @@ class DiscordService:
 
         chatgpt_message = chatgpt_api.chat(
             ChatGPTRequestMessage(
-                message='Please help to translate the following message to Chinese, While translating,'
-                        'please ignore and remove messges that in this pattern: `[CQ:.*?]` '
-                        'in your response and only response with the result of the translation. '
-                        "Do not translate name, and translate \"stream\" to 直播: \n\n"
-                        + '\n'.join([x.__str__() for x in discord_status.message]),
+                message='\n'.join([x.__str__() for x in discord_status.message]),
                 is_chat=False,
-                model_name=GPT_4_MODEL_NAME
+                model_name=GPT_4_MODEL_NAME,
+                context='Please help to translate the following message to Chinese, While translating,'
+                        'please ignore and keep messges that in this pattern: `[CQ:.*?]` '
+                        'in your response and only response with the result of the translation. '
+                        'Do not translate names, and translate "stream" to 直播: \n\n.'
+                        " Do not translate markdown and timestamp format."
             ))
 
         if chatgpt_message.is_success:

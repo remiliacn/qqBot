@@ -614,7 +614,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
 
             orig_text.append(MessageSegment.text(
                 f'\n转发视频标题：{archive["title"]}\n'
-                f'转发视频bvid：{bvid}\n'))
+                f'转发视频：https://www.bilibili.com/video/{bvid}\n'))
             orig_text.append(MessageSegment.image(forwarded_video_cover))
 
         return orig_text
@@ -649,7 +649,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
 
         return [MessageSegment.text('发布了新视频：\n'
                                     f'标题：{OptionalDict(archive_object).map("title").or_else("未知")}\n'
-                                    f'bvid：{bvid}\n'),
+                                    f'蓝链：https://www.bilibili.com/video/{bvid}\n'),
                 MessageSegment.image(file_name)]
 
 

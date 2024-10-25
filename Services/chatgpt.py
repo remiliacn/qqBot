@@ -20,6 +20,7 @@ class ChatGPTRequestMessage:
     group_id: str = '1'
     is_chat: bool = False
     should_filter: bool = False
+    context: str = None
 
 
 class ChatGPTBaseAPI:
@@ -59,6 +60,12 @@ class ChatGPTBaseAPI:
         if not context:
             context = self.SYSTEM_MESSAGE_NON_CHAT
 
+        if isinstance(context, str):
+            context = {
+                "role": "system",
+                "content": context
+            }
+
         group_id = str(group_id)
         self._add_group_info_context(group_id, user_message, 'user')
         last_contexts = self._get_conversation_context_by_group(group_id)
@@ -96,10 +103,11 @@ class ChatGPTBaseAPI:
         self._add_group_info_context(group_id, response, 'assistant')
         return response
 
-    def chat(self, message: ChatGPTRequestMessage, context=None) -> Status:
+    def chat(self, message: ChatGPTRequestMessage) -> Status:
         is_chat = message.is_chat
         group_id = message.group_id
         model_name = message.model_name
+        context = message.context
         if message.should_filter:
             message_status = self._sanity_check(message)
             if not message_status.is_success:
