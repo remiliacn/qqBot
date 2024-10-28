@@ -130,7 +130,7 @@ async def get_chatgpt_response(event: GroupMessageEvent, matcher: Matcher, args:
 
     try:
         logger.info(f'Requesting information: user id: [{user_id}], group id: [{group_id}], message: {user_input}')
-        chatgpt_message = chatgpt_api.chat(
+        chatgpt_message = await chatgpt_api.chat(
             ChatGPTRequestMessage(message=user_input, is_chat=False, group_id=str(group_id)))
         if not chatgpt_message.is_success:
             await matcher.finish('稍等一下再问！')

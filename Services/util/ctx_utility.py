@@ -1,3 +1,4 @@
+from nonebot import logger
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, PrivateMessageEvent
 
 
@@ -13,4 +14,5 @@ def get_group_id(event: GroupMessageEvent | PrivateMessageEvent) -> int:
 
 
 def get_nickname(event: GroupMessageEvent) -> str:
-    return event.sender.nickname
+    logger.info(f'sender event: {event.sender.card}, {event.sender.nickname}')
+    return event.sender.card if event.sender.card else event.sender.nickname

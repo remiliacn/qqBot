@@ -169,14 +169,14 @@ async def message_preprocessing(event: Union[GroupMessageEvent, PrivateMessageEv
     if group_id is not None:
         if not group_control.get_group_permission(group_id, group_permission.ENABLED) \
                 and not get_privilege(user_id, perm.OWNER):
-            raise FinishedException('Group disabled')
+            raise FinishedException
 
         if user_id is not None:
             if get_privilege(user_id, perm.BANNED) and str(user_id) != str(SUPER_USER):
-                raise FinishedException('User disabled')
+                raise FinishedException
     else:
         if str(user_id) != str(SUPER_USER):
-            raise FinishedException('User disabled')
+            raise FinishedException
 
 
 @how_lewd_cmd.handle()

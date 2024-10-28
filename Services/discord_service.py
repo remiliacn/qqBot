@@ -159,7 +159,7 @@ class DiscordService:
         from Services import chatgpt_api
         from Services.chatgpt import ChatGPTRequestMessage
 
-        chatgpt_message = chatgpt_api.chat(
+        chatgpt_message = await chatgpt_api.chat(
             ChatGPTRequestMessage(
                 message='\n'.join([x.__str__() for x in discord_status.message]),
                 is_chat=False,
