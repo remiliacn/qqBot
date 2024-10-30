@@ -2,7 +2,7 @@ import sqlite3
 from datetime import datetime
 from json import dumps, loads
 from os import path
-from re import findall
+from re import findall, sub
 from typing import List, Optional
 
 from loguru import logger
@@ -161,18 +161,18 @@ class DiscordService:
 
         chatgpt_message = await chatgpt_api.chat(
             ChatGPTRequestMessage(
-                message='\n'.join([x.__str__() for x in discord_status.message]),
+                message='\n'.join([sub(r'\[CQ:.*?]', '', x.__str__()) for x in discord_status.message]),
                 is_chat=False,
                 model_name=GPT_4_MODEL_NAME,
                 context='Please help to translate the following message to Chinese, While translating,'
-                        'please ignore and keep messges that in this pattern: `[CQ:.*?]` '
+                        'please ignore and remove messges that in this pattern: `[CQ:.*?]` '
                         'in your response and only response with the result of the translation. '
                         'Do not translate names, and translate "stream" to 直播: \n\n.'
-                        " Do not translate markdown and timestamp format."
+                        " Do not translate markdown and timestamp in ISO 8601 format."
             ))
 
         if chatgpt_message.is_success:
-            return chatgpt_message.message
+            return sub(r'\[CQ:.*?]', '', chatgpt_message.message)
 
         return None
 
