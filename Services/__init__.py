@@ -1,3 +1,4 @@
+from .BotSpotify import BotSpotify
 from .chatgpt import ChatGPTBaseAPI
 from .discord_service import DiscordService
 from .live_notification import LiveNotification, BilibiliDynamicNotifcation
@@ -11,3 +12,4 @@ dynamic_notification = BilibiliDynamicNotifcation()
 twitch_clipping = TwitchClippingService()
 discord_notification = DiscordService()
 chatgpt_api = ChatGPTBaseAPI()
+spotify_main_api = BotSpotify()

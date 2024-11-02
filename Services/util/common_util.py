@@ -245,8 +245,10 @@ pre { font-size: 20px !important }
     return file_name
 
 
-def html_to_image(file_name) -> str:
-    file_name_png = path.join(BOT_RESPONSE_PATH, f'{int(time())}.png')
+def html_to_image(file_name, run_hljs=True, render_spotify_iframe='') -> str:
+    file_name_png = path.join(BOT_RESPONSE_PATH, f'{file_name.split("/")[-1]}.png')
+    if exists(file_name_png):
+        return file_name_png
 
     options = Options()
     options.add_argument('--headless')
@@ -254,30 +256,44 @@ def html_to_image(file_name) -> str:
     options.add_argument("--disable-gpu")
     services = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(options=options, service=services)
-    driver.set_page_load_timeout(5)
+    driver.set_page_load_timeout(10)
     driver.get(f'file:///{file_name}')
-    driver.execute_script("hljs.highlightAll();")
+    if run_hljs:
+        driver.execute_script("hljs.highlightAll();")
+        try:
+            WebDriverWait(driver, 5, poll_frequency=1) \
+                .until(
+                exp_con.presence_of_element_located(
+                    (By.XPATH, "//*[@id='MathJax_Message'][contains(@style, 'display: none')]")))
+        except TimeoutException:
+            logger.warning('Render markdown exceeded time limit.')
 
-    try:
-        WebDriverWait(driver, 15, poll_frequency=0.5) \
-            .until(
-            exp_con.presence_of_element_located(
-                (By.XPATH, "//*[@id='MathJax_Message'][contains(@style, 'display: none')]")))
-    except TimeoutException:
-        logger.warning('Render markdown exceeded time limit.')
-    finally:
-        required_width = driver.execute_script('return document.body.parentNode.scrollWidth')
-        required_height = driver.execute_script('return document.body.parentNode.scrollHeight')
+    if render_spotify_iframe:
+        try:
+            logger.info('Trying to switch to iframe')
+            WebDriverWait(driver, 5, poll_frequency=1).until(
+                exp_con.frame_to_be_available_and_switch_to_it((By.ID, render_spotify_iframe))
+            )
+            logger.info('Trying to find the button.')
+            WebDriverWait(driver, 8, poll_frequency=1) \
+                .until(
+                exp_con.presence_of_element_located((By.XPATH, "//button")))
+        except TimeoutException:
+            logger.warning('Render iframe exceeded time limit.')
 
-        element = driver.find_element(by=By.CLASS_NAME, value='container')
-        driver.set_window_size(required_width, required_height + 2000)
-        element.screenshot(file_name_png)
+    required_width = driver.execute_script('return document.body.parentNode.scrollWidth')
+    required_height = driver.execute_script('return document.body.parentNode.scrollHeight')
 
-        driver.quit()
+    if render_spotify_iframe:
+        driver.switch_to.default_content()
 
-        remove(file_name)
+    element = driver.find_element(by=By.CLASS_NAME, value='container')
+    driver.set_window_size(required_width, required_height + 2000)
+    element.screenshot(file_name_png)
 
-        return file_name_png
+    driver.quit()
+    remove(file_name)
+    return file_name_png
 
 
 def markdown_to_image(text: str) -> (str, bool):
@@ -378,13 +394,13 @@ class HttpxHelperClient:
             return ''
 
         try:
-            if not exists(file_name):
-                async with AsyncClient(timeout=timeout, headers=headers, verify=self.context) as client:
-                    async with client.stream('GET', url=url, follow_redirects=True) as response:
-                        ext = guess_extension(response.headers['Content-Type'].strip())
-                        if ext:
-                            file_name = f'{file_name}{ext}'
+            async with AsyncClient(timeout=timeout, headers=headers, verify=self.context) as client:
+                async with client.stream('GET', url=url, follow_redirects=True) as response:
+                    ext = guess_extension(response.headers['Content-Type'].strip())
+                    if ext:
+                        file_name = f'{file_name}{ext}'
 
+                    if not exists(file_name):
                         logger.info(f'Downloading file name: {file_name.split("/")[-1]}')
                         if response.status_code == 403:
                             logger.warning(f'Download retry: {retry + 1}, url: {url}')
