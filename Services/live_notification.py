@@ -1,14 +1,13 @@
-import asyncio
 import codecs
-import dataclasses
 import pickle
-import sqlite3
-import subprocess
-import uuid
+from dataclasses import dataclass, field
 from json import dumps, loads
 from os import getcwd, path
+from sqlite3 import connect
+from subprocess import Popen
 from time import time, time_ns
 from typing import Union, List, Dict
+from uuid import uuid1
 
 from aiohttp import ClientSession
 from nonebot.adapters.onebot.v11 import MessageSegment, Message
@@ -23,7 +22,7 @@ from config import DANMAKU_PROCESS
 from util.helper_util import construct_message_chain
 
 
-@dataclasses.dataclass
+@dataclass
 class LivestreamDanmakuData:
     danmaku_frequency_dict: Dict = None
     danmaku_count: int = 0
@@ -33,7 +32,7 @@ class LivestreamDanmakuData:
     highest_rank: int = 999
     gift_total_price: float = 0
     new_captains: int = 0
-    top_crazy_timestamps: List[str] = dataclasses.field(default_factory=list)
+    top_crazy_timestamps: List[str] = field(default_factory=list)
     danmaku_analyze_graph: str = ''
 
 
@@ -72,7 +71,7 @@ class LiveNotification:
             'Referer': 'https://www.bilibili.com/'
         }
         self.cookies = None
-        self.live_database = sqlite3.connect(f'{getcwd()}/data/db/live_notification_data.db')
+        self.live_database = connect(f'{getcwd()}/data/db/live_notification_data.db')
         self.bilibili_live_check_url = 'https://api.live.bilibili.com/room/v1/Room/get_info?room_id='
         self._init_database()
 
@@ -201,7 +200,7 @@ class LiveNotification:
         return response
 
     def dump_live_data(self, data: str):
-        uid = str(uuid.uuid1())
+        uid = str(uuid1())
         self.live_database.execute(
             """
             insert into bilibili_danmaku_data (uid, data_dump) values (?, ?)
@@ -225,15 +224,13 @@ class LiveNotification:
                                max_words=90,
                                width=1920,
                                height=1080).generate_from_frequencies(data.danmaku_frequency_dict)
-        path = f'{getcwd()}/data/pixivPic/{int(time_ns())}.png'
-        word_cloud.to_file(path)
+        word_cloud_file_path = f'{getcwd()}/data/pixivPic/{int(time_ns())}.png'
+        word_cloud.to_file(word_cloud_file_path)
 
         new_captains_prompt = f'新舰长{data.new_captains}个\n' if data.new_captains >= 3 else ''
         gift_price_string = f'（预估收入：￥{data.gift_total_price:.2f}）\n' if data.gift_total_price > 0 else ''
-        # hotspot_data_prompt = (f'前{len(data.top_crazy_timestamps)}弹幕最多的精彩时间：'
-        #                        f'\n{", ".join(data.top_crazy_timestamps)}') \
-        #     if data.top_crazy_timestamps else ''
         danmaku_graph_data = MessageSegment.image(data.danmaku_analyze_graph) if data.danmaku_analyze_graph else ''
+
         return construct_message_chain(
             '直播已结束！撒花~✿✿ヽ(°▽°)ノ✿\n',
             f'一共收到啦{data.danmaku_count}枚弹幕\n',
@@ -242,7 +239,7 @@ class LiveNotification:
             f'{gift_price_string}',
             f'最高人气排名：{data.highest_rank}\n',
             # f'{hotspot_data_prompt}\n\n',
-            MessageSegment.image(path),
+            MessageSegment.image(word_cloud_file_path),
             danmaku_graph_data)
 
     def _delete_dumped_live_data(self, uid):
@@ -316,10 +313,11 @@ class LiveNotification:
         thumbnail_url = OptionalDict(data_response_json) \
             .map('data') \
             .map('user_cover') \
-            .or_else(None)
-        if thumbnail_url is not None:
+            .or_else('')
+        if thumbnail_url:
             stream_thumbnail_filename = (
-                path.join(BILIBILI_PIC_PATH, thumbnail_url.split("/")[-1].replace("]", "").replace("[", ""))).__str__()
+                path.join(BILIBILI_PIC_PATH, thumbnail_url.split("/")[-1].replace("]", "")
+                          .replace("[", ""))).__str__()
             stream_thumbnail_filename = await global_httpx_client.download(thumbnail_url,
                                                                            file_name=stream_thumbnail_filename)
         else:
@@ -361,7 +359,7 @@ class LiveNotification:
                 if notify_data.is_live:
                     notify_data.set_live_change_status('开播啦！')
                     live_data_list.append(notify_data)
-                    subprocess.Popen(f'{DANMAKU_PROCESS} {room_id} {group_ids} "{notify_data.stream_live_time}"')
+                    Popen(f'{DANMAKU_PROCESS} {room_id} {group_ids} "{notify_data.stream_live_time}"')
                 else:
                     notify_data = LiveNotificationData(streamer_name, False)
                     notify_data.set_live_change_status('下播啦！')
@@ -660,8 +658,3 @@ async def main():
     for ddd in dd:
         if ddd is not None:
             print(await d.construct_string_from_data(ddd))
-
-
-if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
