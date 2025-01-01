@@ -185,6 +185,9 @@ class DiscordService:
         if not channel_id.isdigit():
             return DiscordMessageStatus(False, [MessageSegment.text('Channel ID should be digit.')])
 
+        if not DISCORD_AUTH:
+            return DiscordMessageStatus(False)
+
         result = await self.client.get(
             f'https://discord.com/api/v9/channels/{channel_id}/messages?limit=5',
             headers=self.headers)

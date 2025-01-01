@@ -240,7 +240,7 @@ pre { font-size: 20px !important }
  integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
-""" + f'<body><div class="container bg-dark text-white">{html_string}</div></body>')
+""" + f'<body><div class="container">{html_string}</div></body>')
 
     return file_name
 

@@ -180,7 +180,7 @@ async def scheduled_jobs():
 async def do_discord_live_fetch():
     logger.info('Automatically fetching discord info...')
     data_list = await discord_notification.check_discord_updates()
-    bot = get_bot()
+    bot: Bot = get_bot()
 
     for data in data_list:
         logger.info(f'New data found for {data.channel_name} for discord')
@@ -188,7 +188,9 @@ async def do_discord_live_fetch():
         if notify_group is None:
             continue
         for group in notify_group:
-            if data.is_success:
+            group_lists = await bot.get_group_list()
+            group_set = set([str(x.get('group_id', '')) for x in group_lists])
+            if data.is_success and group in group_set:
                 await bot.call_api(
                     'send_group_msg',
                     group_id=int(group),
@@ -198,7 +200,7 @@ async def do_discord_live_fetch():
                                    user_id=global_config.SUPER_USER,
                                    message=f'discord动态更新出了点小问题，user：{data.channel_name},'
                                            f' channel id: {data.channel_id},'
-                                           f' error message: {data.message}')
+                                           f' error message: {data.message}, group_set: {group_set}')
 
 
 async def do_bilibili_live_fetch():
@@ -211,11 +213,15 @@ async def do_bilibili_live_fetch():
         notify_group = loads(live_notification.get_group_ids_for_streamer(data.streamer_name))
         if notify_group is None:
             continue
+
+        group_lists = await bot.get_group_list()
+        group_set = set([str(x.get('group_id', '')) for x in group_lists])
         for group in notify_group:
-            await bot.call_api('send_group_msg',
-                               group_id=int(group),
-                               message=construct_message_chain(
-                                   await live_notification.convert_live_data_to_string(data)))
+            if group in group_set:
+                await bot.call_api('send_group_msg',
+                                   group_id=int(group),
+                                   message=construct_message_chain(
+                                       await live_notification.convert_live_data_to_string(data)))
 
     unpickled_danmaku_datas = live_notification.get_dumped_live_data()
     for danmaku_data in unpickled_danmaku_datas:
@@ -235,16 +241,21 @@ async def do_dynamic_fetch():
     logger.info('Automatically fetching bilibili dynamic info...')
     data_list = await dynamic_notification.fetch_all_dynamic_updates()
 
-    bot = get_bot()
+    bot: Bot = get_bot()
+    group_lists = await bot.get_group_list()
+    group_set = set([str(x.get('group_id', '')) for x in group_lists])
+
+    logger.info(f'Group set: {group_set}')
     for data in data_list:
         logger.info(f'New data found for {data.name}. Dynamic.')
         notify_group = await dynamic_notification.get_group_to_notify(data.name)
         if notify_group is None:
             continue
         for group in notify_group:
-            dynamic_message = await dynamic_notification.construct_string_from_data(data)
-            if dynamic_message:
-                logger.success(dynamic_message)
-                await bot.call_api('send_group_msg',
-                                   group_id=int(group),
-                                   message=dynamic_message)
+            if group in group_set:
+                dynamic_message = await dynamic_notification.construct_string_from_data(data)
+                if dynamic_message:
+                    logger.success(dynamic_message)
+                    await bot.call_api('send_group_msg',
+                                       group_id=int(group),
+                                       message=dynamic_message)
