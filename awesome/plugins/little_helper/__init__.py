@@ -8,7 +8,7 @@ from nonebot.internal.matcher import Matcher
 from nonebot.log import logger
 from nonebot.params import CommandArg
 
-from Services import chatgpt_api
+from Services import deepseek_api
 from Services.chatgpt import ChatGPTRequestMessage
 from Services.stock import text_to_image
 from Services.util.common_util import HttpxHelperClient, markdown_to_image
@@ -32,14 +32,6 @@ async def markdown_text_to_image(_event: GroupMessageEvent, matcher: Matcher, ar
         await matcher.finish(MessageSegment.image(result))
 
     await matcher.finish(result)
-
-
-search_deprecated_cmd = on_command('搜索')
-
-
-@search_deprecated_cmd.handle()
-async def search_command(_event: GroupMessageEvent, matcher: Matcher):
-    await matcher.finish('改功能已被废弃，请使用！灵夜。')
 
 
 global_help_cmd = on_command('help')
@@ -130,7 +122,7 @@ async def get_chatgpt_response(event: GroupMessageEvent, matcher: Matcher, args:
 
     try:
         logger.info(f'Requesting information: user id: [{user_id}], group id: [{group_id}], message: {user_input}')
-        chatgpt_message = await chatgpt_api.chat(
+        chatgpt_message = await deepseek_api.chat(
             ChatGPTRequestMessage(message=user_input, is_chat=False, group_id=str(group_id)))
         if not chatgpt_message.is_success:
             await matcher.finish('稍等一下再问！')

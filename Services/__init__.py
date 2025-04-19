@@ -1,5 +1,6 @@
 from .BotSpotify import BotSpotify
 from .chatgpt import ChatGPTBaseAPI
+from .deepseek import DeepSeekAPI
 from .discord_service import DiscordService
 from .live_notification import LiveNotification, BilibiliDynamicNotifcation
 from .rate_limiter import RateLimiter
@@ -12,4 +13,5 @@ dynamic_notification = BilibiliDynamicNotifcation()
 twitch_clipping = TwitchClippingService()
 discord_notification = DiscordService()
 chatgpt_api = ChatGPTBaseAPI()
+deepseek_api = DeepSeekAPI()
 spotify_main_api = BotSpotify()

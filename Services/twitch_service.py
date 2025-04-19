@@ -411,11 +411,20 @@ class TwitchClippingService:
                 if not exists(creator_folder):
                     mkdir(creator_folder)
                 move(f'{getcwd()}/{file}', file_path_to_return)
+
+            self.data_found_notification_done = False
+            self.ffmpeg_notification_done = False
+            self.downloaded_notification_done = False
+            self.downloading_notification_done = False
             return TwitchDownloadStatus(
                 True,
                 message=f'下载好了哦~文件名:\n {files[0]}\n{SHARE_LINK}',
                 file_path=file_path_to_return)
         except Exception as err:
+            self.data_found_notification_done = False
+            self.ffmpeg_notification_done = False
+            self.downloaded_notification_done = False
+            self.downloading_notification_done = False
             logger.exception('An error occurred')
             return TwitchDownloadStatus(
                 False, construct_message_chain(f'Someone tell ', MessageSegment.at(SUPER_USER),

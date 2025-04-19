@@ -11,7 +11,8 @@ from aiohttp import ClientSession
 MOD = 1 << 64
 
 headers = {
-    "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                  "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
     "referer": "https://www.bilibili.com",
 }
 
@@ -146,7 +147,8 @@ def get_payload() -> str:
             "6527": 0,
             "7003": 1,
             "807e": 1,
-            "b8ce": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15",
+            "b8ce": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/134.0.0.0 Safari/537.36",
             "641c": 0,
             "07a4": "en-US",
             "1c57": "not available",

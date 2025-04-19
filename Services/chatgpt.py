@@ -16,7 +16,7 @@ from model.common_model import Status
 @dataclass
 class ChatGPTRequestMessage:
     message: str
-    model_name: str = "gpt-4o-mini"
+    model_name: str = "gpt-4.1-nano"
     group_id: str = '1'
     is_chat: bool = False
     should_filter: bool = False
