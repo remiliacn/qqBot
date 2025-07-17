@@ -51,6 +51,7 @@ async def text_to_image(string: str):
     line_char_count = 50 * 2  # 每行字符数：30个中文字符(=60英文字符)
     char_size = 36
     table_width = 4
+    padding = 50  # Padding in pixels
 
     def line_break(line):
         ret = ''
@@ -60,12 +61,12 @@ async def text_to_image(string: str):
                 if line_char_count == width + 1:  # 剩余位置不够一个汉字
                     width = 2
                     ret += '\n' + char
-                else:  # 中文宽度加2，注意换行边界
+                else:  # 中文宽度加2
                     width += 2
                     ret += char
             else:
                 if char == '\t':
-                    space_c = table_width - width % table_width  # 已有长度对TABLE_WIDTH取余
+                    space_c = table_width - width % table_width
                     ret += ' ' * space_c
                     width += space_c
                 elif char == '\n':
@@ -81,14 +82,22 @@ async def text_to_image(string: str):
             return ret
         return ret + '\n'
 
-    output_str = string
-    output_str = line_break(output_str)
-    d_font = ImageFont.truetype(f'data/util/Deng.ttf', char_size)
+    output_str = line_break(string)
+    d_font = ImageFont.truetype('data/util/Deng.ttf', char_size)
     lines = output_str.count('\n')
 
-    image = Image.new("L", (line_char_count * char_size // 2, char_size * lines), "white")
+    text_width = line_char_count * char_size // 2
+    text_height = char_size * lines
+
+    # Create image with padding
+    image_width = text_width + padding * 2
+    image_height = text_height + padding * 2
+
+    image = Image.new("L", (image_width, image_height), "white")
     draw_table = ImageDraw.Draw(im=image)
-    draw_table.text(xy=(0, 0), text=output_str, fill='#000000', font=d_font, spacing=4)
+
+    # Draw text with offset for padding
+    draw_table.text(xy=(padding, padding), text=output_str, fill='#000000', font=d_font, spacing=4)
 
     file_name = f'{getcwd()}/data/bot/stock/{int(time_ns())}.png'
     image.save(file_name)

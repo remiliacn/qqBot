@@ -257,8 +257,7 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
 
     if is_work_r18:
         await autorevoke_message(
-            bot, event.group_id, 'forward',
-            compile_forward_message(event.self_id, message), 30)
+            bot, event.group_id, 'normal', construct_message_chain(message), 30)
     else:
         await bot.send_group_forward_msg(
             group_id=group_id,
@@ -436,11 +435,11 @@ async def get_user_xp_data_with_at(
 
     xp_information = SetuRequester(event, has_id, pixiv_id, xp_result, requester_qq, search_target_qq)
     result = await _get_xp_information(xp_information, matcher)
-    final_message = ([MessageSegment.reply(message_id)]
-                     + result + MessageSegment.text(f'\n{FRIENDLY_REMINDER if not has_id else ""}'))
 
-    messages = compile_forward_message(event.self_id, final_message)
-    await autorevoke_message(bot, group_id, 'forward', messages, 30)
+    messages = construct_message_chain(([MessageSegment.reply(message_id)]
+                                        + result
+                                        + MessageSegment.text(f'\n{FRIENDLY_REMINDER if not has_id else ""}')))
+    await autorevoke_message(bot, group_id, 'normal', messages, 30)
 
 
 async def _get_xp_information(xp_information: SetuRequester, matcher: Matcher) -> List[MessageSegment]:

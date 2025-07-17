@@ -6,7 +6,7 @@ from nonebot.params import CommandArg
 from Services.util.ctx_utility import get_user_id
 from awesome.Constants import group_permission
 from awesome.Constants.user_permission import OWNER
-from awesome.adminControl import get_privilege
+from awesome.adminControl import get_privilege, group_control
 from config import SUPER_USER
 from util.helper_util import set_group_permission
 
@@ -37,3 +37,5 @@ async def _group_handle_ban_events(bot: Bot, event: GroupBanNoticeEvent):
         await bot.set_group_leave(group_id=group_id)
         await bot.send_private_msg(user_id=SUPER_USER,
                                    message=f'Quitting group: {group_id} because long ban time.')
+    elif user_id == event.self_id:
+        group_control.set_group_permission(group_id, group_permission.NLP, False)

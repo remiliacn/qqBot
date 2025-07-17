@@ -64,6 +64,12 @@ def calculate_sha1(file_path: str) -> str:
     return sha1_hash.hexdigest()
 
 
+def base64_encode_image(file_path: str) -> str:
+    with open(file_path, 'rb') as f:
+        import base64
+        return base64.b64encode(f.read()).decode('utf-8')
+
+
 async def slight_adjust_pic_and_get_path(input_path: str):
     logger.info(f'Starting to sightly adjust the image: {input_path}')
     edited_path = path.join(TEMP_FILE_DIRECTORY, f'{uuid4().hex}.{input_path.split(".")[-1]}')
