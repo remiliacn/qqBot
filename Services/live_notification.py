@@ -493,7 +493,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
                     continue
 
                 dynamic_id = OptionalDict(item).map('id_str').or_else('')
-                dynamic_time = OptionalDict(modules).map('module_author').map('pub_ts').or_else(0)
+                dynamic_time = int(OptionalDict(modules).map('module_author').map('pub_ts').or_else(0))
                 dynamic_type = OptionalDict(item).map('type').or_else('')
                 if dynamic_type == self.LIVESTREAM_DYNAMIC_TYPE:
                     continue
