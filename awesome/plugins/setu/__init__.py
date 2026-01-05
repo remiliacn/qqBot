@@ -259,10 +259,7 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
         await autorevoke_message(
             bot, event.group_id, 'normal', construct_message_chain(message), 30)
     else:
-        await bot.send_group_forward_msg(
-            group_id=group_id,
-            messages=compile_forward_message(event.self_id, message)
-        )
+        await matcher.send(message)
 
     logger.info(f"sent image on path: {setu_file_path}")
     await _setu_data_collection(event, key_word, monitored, setu_file_path, illust, bot=bot)
