@@ -8,6 +8,8 @@ import time
 import httpx
 from aiohttp import ClientSession
 
+from config import BILI_SESS_DATA
+
 MOD = 1 << 64
 
 headers = {
@@ -338,7 +340,8 @@ async def update_buvid_params() -> (dict, dict):
         "buvid3": spi_data['b_3'],
         "buvid4": spi_data['b_4'],
         "buvid_fp": gen_buvid_fp(payload, 31),
-        "_uuid": uuid
+        "_uuid": uuid,
+        'SESSDATA': BILI_SESS_DATA
     })
     async with ClientSession() as s:
         async with s.post(url=_exclimbwuzhi_url, headers=headers, data=payload, cookies=cookies) as resp:

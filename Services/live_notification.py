@@ -36,6 +36,18 @@ class LivestreamDanmakuData:
     danmaku_analyze_graph: str = ''
 
 
+def _parse_guard_level_info(medal_info: dict, medal_name: Union[str, int], prefix=''):
+    match medal_info.get('guard_level', 0):
+        case 0:
+            return False, prefix + f'啥也木有'
+        case 1:
+            return True, prefix + f'我的天啊，是{medal_name}最敬爱的总督大人'
+        case 2:
+            return True, prefix + f'我超！{medal_name}提督！'
+        case 3:
+            return True, prefix + f'是{medal_name}舰长呢'
+
+
 class DynamicNotificationData:
     def __init__(self, name: str, dynamic_content: List[MessageSegment]):
         self.name = name
@@ -86,7 +98,7 @@ class LiveNotification:
                 last_record_live_status boolean,
                 group_to_notify text,
                 fetch_gift_price boolean
-            )
+            );
             """
         )
         self.live_database.execute(
@@ -94,6 +106,17 @@ class LiveNotification:
             create table if not exists bilibili_danmaku_data (
                 uid text not null unique on conflict ignore,
                 data_dump text
+            )
+            """
+        )
+        self.live_database.execute(
+            """
+            create table if not exists sail_data_check(
+                uid varchar(200) not null unique on conflict ignore,
+                guard_level integer not null default 0,
+                room_id varchar(200) not null,
+                username varchar(200) not null,
+                expiry_time varchar(200) not null
             )
             """
         )
@@ -121,6 +144,25 @@ class LiveNotification:
     async def _check_if_notification_exist_in_db(self, streamer_name) -> bool:
         data = await self._get_one_notification_data_from_db(streamer_name)
         return data is not None
+
+    def insert_sail_data(self, uid: Union[int, str], guard_level: int, room_id: Union[int, str], username: str):
+        self.live_database.execute(
+            """
+            insert or replace into sail_data_check(uid, guard_level, room_id, username, expiry_time) 
+            values (?, ?, ?, ?, ?)
+            """, (str(uid), guard_level, str(room_id), username, str(time() + 60 * 60 * 24 * 31))
+        )
+        self.live_database.commit()
+
+    def retrieve_sail_data(self, uid: Union[int, str], room_id: Union[int, str]):
+        data = self.live_database.execute("""
+        select guard_level, username, expiry_time from sail_data_check where uid = ? and room_id = ?
+        """, (str(uid), str(room_id))).fetchone()
+
+        if data is None:
+            return None
+
+        return data
 
     def get_group_ids_for_streamer(self, name: str):
         data = self.live_database.execute(
@@ -378,6 +420,62 @@ def create_new_cookie(r1):
            f' buvid4={r1["data"]["b_4"]}; buvid_fp=946265982c5f2c530cfed6f97df5cf65'
 
 
+class BilibiliOnSail(LiveNotification):
+    def __init__(self):
+        super().__init__()
+        self.sail_verification_url = f'https://api.live.bilibili.com/xlive/web-ucenter/user/MedalWall?target_id='
+
+    async def check_if_uid_has_guard(self, uid: str, medal_name: str) -> (bool, str):
+        if not uid.isdigit():
+            return False, '查询UID必须是数字。用法：！查上海 用户UID 牌子名称'
+
+        if not uid or not medal_name:
+            return False, 'UID和/或牌子名不能为空字符'
+
+        prefix = ''
+        medal_name = medal_name.strip()
+        if medal_name.isdigit():
+            if (cached_data := self.retrieve_sail_data(uid, medal_name)) is None:
+                return False, prefix + '啥也木有'
+
+            logger.debug(f'Sail data: {cached_data}')
+            guard_level, username, expiry_time = cached_data
+            if float(expiry_time) < time():
+                return False, '以前有牌子但是过期了的老舰长'
+
+            return _parse_guard_level_info({'guard_level': guard_level}, medal_name, f'用户 {username} ')
+
+        if not self.cookies:
+            self.cookies, self.headers = await update_buvid_params()
+        async with ClientSession() as client:
+            async with client.get(
+                    self.sail_verification_url + uid + f'&_={int(time())}',
+                    headers=self.headers, cookies=self.cookies) as resp:
+                data_json = await resp.json()
+
+        code = OptionalDict(data_json).map("code").or_else("?")
+        logger.info(f'Live sail data for {uid} for {medal_name}: {OptionalDict(data_json).map("code").or_else("?")}')
+
+        if code != 0:
+            self.cookies, self.headers = await update_buvid_params()
+            return False, '数据错误，someone tells 祈雨，灵夜坏了。请重试一次看看~'
+
+        username = OptionalDict(data_json).map('data').map('name').or_else('?')
+        if OptionalDict(data_json).map('data').map('only_show_wearing').or_else(1) != 0:
+            prefix = f'由于用户隐私设置，可能无法查询其牌子/上舰情况。\n\n用户 {username} '
+
+        medal_lists = OptionalDict(data_json).map('data').map('list').or_else([])
+        for data in medal_lists:
+            medal_info = data.get('medal_info', {})
+            medal_name_inner = medal_info.get('medal_name', '').strip()
+
+            logger.info(f'Medal info data: {medal_info}')
+            if medal_name_inner == medal_name:
+                return _parse_guard_level_info(medal_info, medal_name, prefix)
+
+        return False, prefix + '啥也木有'
+
+
 class BilibiliDynamicNotifcation(LiveNotification):
     def __init__(self):
         super().__init__()
@@ -396,7 +494,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
                 name text not null unique on conflict ignore,
                 isEnabled boolean not null,
                 mid text not null,
-                last_dynamic_id var(255) not null,
+                last_dynamic_id var(200) not null,
                 dynamic_time var(100) not null,
                 group_to_notify text not null
             )
@@ -649,12 +747,3 @@ class BilibiliDynamicNotifcation(LiveNotification):
                                     f'标题：{OptionalDict(archive_object).map("title").or_else("未知")}\n'
                                     f'蓝链：https://www.bilibili.com/video/{bvid}\n'),
                 MessageSegment.image(file_name)]
-
-
-async def main():
-    d = BilibiliDynamicNotifcation()
-    await d.add_to_dynamic_notification_queue('话梅糖', '3493264923560048', '212345')
-    dd = await d.fetch_all_dynamic_updates()
-    for ddd in dd:
-        if ddd is not None:
-            print(await d.construct_string_from_data(ddd))

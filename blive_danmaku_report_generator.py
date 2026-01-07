@@ -138,8 +138,15 @@ class MyDanmakuHandler(BaseHandler):
             if OptionalDict(command).map("data").or_else(None) is not None:
                 captain_price = OptionalDict(command).map("data").map("price").or_else(0)
                 captain_count = OptionalDict(command).map("data").map("num").or_else(0)
-                logger.info(f'有新舰长？：{OptionalDict(command).map("guard_info").map("role_name").or_else("未知数据")}'
-                            f' x {captain_count} -> 价格：{captain_price}')
+                uid = OptionalDict(command).map("data").map("uid").or_else(-1)
+                guard_level = OptionalDict(command).map("data").map("guard_level").or_else(0)
+                username = OptionalDict(command).map("data").map("username").or_else('?')
+                logger.info(command)
+                logger.info(f'有新舰长？：{OptionalDict(command).map("data").map("role_name").or_else("未知数据")}'
+                            f' x {captain_count} -> 价格：{captain_price} ->'
+                            f' {uid}')
+
+                live_notification.insert_sail_data(uid, guard_level, self.room_id, username)
         if captain_price > 0:
             self.gift_price += (captain_price / 1000) * captain_count
 
