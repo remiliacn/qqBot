@@ -79,6 +79,10 @@ class MyDanmakuHandler(BaseHandler):
         msg = message.msg.lower()
         msg = msg.replace('（', '').replace('）', '').replace('(', '').replace(')', '')
 
+        # Emotes start with `[`
+        if msg.startswith('['):
+            return
+
         if self._is_blacklist_word(msg):
             return
 

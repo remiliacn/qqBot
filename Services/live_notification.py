@@ -10,6 +10,7 @@ from typing import Union, List, Dict
 from uuid import uuid1
 
 from aiohttp import ClientSession
+from async_lru import alru_cache
 from nonebot.adapters.onebot.v11 import MessageSegment, Message
 from nonebot.log import logger
 from wordcloud import WordCloud
@@ -103,6 +104,14 @@ class LiveNotification:
         )
         self.live_database.execute(
             """
+            create table if not exists room_to_medal_name_table (
+                room_uid varchar(200) not null unique on conflict ignore,
+                medal_name varchar(200) not null 
+            );
+            """
+        )
+        self.live_database.execute(
+            """
             create table if not exists bilibili_danmaku_data (
                 uid text not null unique on conflict ignore,
                 data_dump text
@@ -144,6 +153,22 @@ class LiveNotification:
     async def _check_if_notification_exist_in_db(self, streamer_name) -> bool:
         data = await self._get_one_notification_data_from_db(streamer_name)
         return data is not None
+
+    def get_room_uid_from_medal_name(self, medal_name: str) -> str:
+        data = self.live_database.execute(
+            """
+                select room_uid from room_to_medal_name_table where medal_name = ?
+                """, (medal_name.strip(),)).fetchone()
+
+        return data if not isinstance(data, tuple) else data[0]
+
+    def get_medal_name_from_room_uid(self, room_id: str) -> str:
+        data = self.live_database.execute(
+            """
+        select medal_name from room_to_medal_name_table where room_uid = ?
+        """, (room_id,)).fetchone()
+
+        return data if not isinstance(data, tuple) else data[0]
 
     def insert_sail_data(self, uid: Union[int, str], guard_level: int, room_id: Union[int, str], username: str):
         self.live_database.execute(
@@ -425,6 +450,7 @@ class BilibiliOnSail(LiveNotification):
         super().__init__()
         self.sail_verification_url = f'https://api.live.bilibili.com/xlive/web-ucenter/user/MedalWall?target_id='
 
+    @alru_cache(ttl=60 * 10)
     async def check_if_uid_has_guard(self, uid: str, medal_name: str) -> (bool, str):
         if not uid.isdigit():
             return False, '查询UID必须是数字。用法：！查上海 用户UID 牌子名称'
@@ -435,15 +461,19 @@ class BilibiliOnSail(LiveNotification):
         prefix = ''
         medal_name = medal_name.strip()
         if medal_name.isdigit():
-            if (cached_data := self.retrieve_sail_data(uid, medal_name)) is None:
-                return False, prefix + '啥也木有'
+            success, text = await self._retrieve_sail_from_cache(medal_name, prefix, uid)
+            if success:
+                return success, text
 
-            logger.debug(f'Sail data: {cached_data}')
-            guard_level, username, expiry_time = cached_data
-            if float(expiry_time) < time():
-                return False, '以前有牌子但是过期了的老舰长'
+            medal_name = self.get_medal_name_from_room_uid(medal_name)
+        else:
+            room_uid = self.get_room_uid_from_medal_name(medal_name)
+            if room_uid:
+                success, result = await self._retrieve_sail_from_cache(room_uid, prefix, uid)
+                if success:
+                    return success, result
 
-            return _parse_guard_level_info({'guard_level': guard_level}, medal_name, f'用户 {username} ')
+                logger.info('Failed to find sail data from cache. Falling back...')
 
         if not self.cookies:
             self.cookies, self.headers = await update_buvid_params()
@@ -458,12 +488,13 @@ class BilibiliOnSail(LiveNotification):
 
         if code != 0:
             self.cookies, self.headers = await update_buvid_params()
-            return False, '数据错误，someone tells 祈雨，灵夜坏了。请重试一次看看~'
+            return False, '喜报：数据错误，someone tells 祈雨，灵夜坏了。请重试一次看看~'
 
         username = OptionalDict(data_json).map('data').map('name').or_else('?')
         if OptionalDict(data_json).map('data').map('only_show_wearing').or_else(1) != 0:
-            prefix = f'由于用户隐私设置，可能无法查询其牌子/上舰情况。\n\n用户 {username} '
+            prefix = f'由于用户隐私设置，可能无法查询其牌子/上舰情况。\n\n'
 
+        prefix += f'用户 {username} '
         medal_lists = OptionalDict(data_json).map('data').map('list').or_else([])
         for data in medal_lists:
             medal_info = data.get('medal_info', {})
@@ -474,6 +505,18 @@ class BilibiliOnSail(LiveNotification):
                 return _parse_guard_level_info(medal_info, medal_name, prefix)
 
         return False, prefix + '啥也木有'
+
+    async def _retrieve_sail_from_cache(self, room_id, prefix, uid):
+        if (cached_data := self.retrieve_sail_data(uid, room_id)) is None:
+            return False, prefix + '啥也木有'
+        logger.debug(f'Sail data: {cached_data}')
+        guard_level, username, expiry_time = cached_data
+        if float(expiry_time) < time():
+            return False, '以前有牌子但是过期了的老舰长'
+        medal_name_str = self.get_medal_name_from_room_uid(room_id)
+        if medal_name_str:
+            room_id = medal_name_str
+        return _parse_guard_level_info({'guard_level': guard_level}, room_id, f'用户 {username} ')
 
 
 class BilibiliDynamicNotifcation(LiveNotification):
