@@ -184,6 +184,7 @@ class ChatGPTBaseAPI:
             model=self.web_search_judge_model_name,
             input=user_text,
             instructions=self._judge_instructions,
+            reasoning={"effort": "minimal"},
         )
         raw = (getattr(resp, "output_text", "") or "").strip()
 
@@ -194,7 +195,8 @@ class ChatGPTBaseAPI:
             if need and not query:
                 query = user_text.strip()[:200]
             return need, query
-        except Exception:
+        except Exception as err:
+            logger.error(f'Failed to judge web search efforts {err}')
             return False, ""
 
     async def _judge_need_web_search(self, user_text: str) -> Tuple[bool, str]:
@@ -217,9 +219,13 @@ class ChatGPTBaseAPI:
         kwargs: Dict[str, Any] = {
             "model": message.model_name,
             "messages": context_data,
+
         }
         if self._supports_temperature(message.model_name):
             kwargs["temperature"] = 0.75
+
+        if message.model_name.startswith('gpt-5'):
+            kwargs['reasoning_effort'] = 'low'
 
         completion = await self.client.chat.completions.create(**kwargs)
         response = completion.choices[0].message.content or ""
