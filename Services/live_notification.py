@@ -1,12 +1,13 @@
 import codecs
 import pickle
 from dataclasses import dataclass, field
+from datetime import datetime
 from json import dumps, loads
 from os import getcwd, path
 from sqlite3 import connect
 from subprocess import Popen
 from time import time, time_ns
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Tuple
 from uuid import uuid1
 
 from aiohttp import ClientSession
@@ -35,6 +36,26 @@ class LivestreamDanmakuData:
     new_captains: int = 0
     top_crazy_timestamps: List[str] = field(default_factory=list)
     danmaku_analyze_graph: str = ''
+
+
+def _parse_line(line: str) -> Tuple[int, str, str, float]:
+    parts: list[str] = line.strip().split()
+
+    guard_level_str: str = parts[0]
+    match guard_level_str:
+        case '提督':
+            gd_lvl = 2
+        case '总督':
+            gd_lvl = 1
+        case _:
+            gd_lvl = 3
+
+    user_id: str = parts[1]
+    # onsail time + 31 days.
+    ts: float = datetime.fromisoformat(parts[-1]).timestamp() + 60 * 60 * 24 * 31
+    uname: str = " ".join(parts[2:-1])
+
+    return gd_lvl, user_id, uname, ts
 
 
 def _parse_guard_level_info(medal_info: dict, medal_name: Union[str, int], prefix=''):
@@ -170,12 +191,16 @@ class LiveNotification:
 
         return data if not isinstance(data, tuple) else data[0]
 
-    def insert_sail_data(self, uid: Union[int, str], guard_level: int, room_id: Union[int, str], username: str):
+    def insert_sail_data(
+            self, uid: Union[int, str], guard_level: int,
+            room_id: Union[int, str], username: str, expiry_date=None):
         self.live_database.execute(
             """
             insert or replace into sail_data_check(uid, guard_level, room_id, username, expiry_time) 
             values (?, ?, ?, ?, ?)
-            """, (str(uid), guard_level, str(room_id), username, str(time() + 60 * 60 * 24 * 31))
+            """, (
+                str(uid), guard_level, str(room_id), username,
+                str(time() + 60 * 60 * 24 * 31) if not expiry_date else expiry_date)
         )
         self.live_database.commit()
 
@@ -505,6 +530,16 @@ class BilibiliOnSail(LiveNotification):
                 return _parse_guard_level_info(medal_info, medal_name, prefix)
 
         return False, prefix + '啥也木有'
+
+    def backfill_sail_data(self):
+        with open(f'{getcwd()}/0111.txt', "r", encoding="utf-8") as infile:
+            for line in infile:
+                if not line.strip():
+                    continue
+
+                gd_lvl, user_id, uname, ts = _parse_line(line)
+                logger.info(f'Inserting {gd_lvl} {user_id} {uname} {ts}')
+                self.insert_sail_data(user_id, gd_lvl, 1852504554, uname, ts)
 
     async def _retrieve_sail_from_cache(self, room_id, prefix, uid):
         if (cached_data := self.retrieve_sail_data(uid, room_id)) is None:
