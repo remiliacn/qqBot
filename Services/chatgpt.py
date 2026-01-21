@@ -1,7 +1,4 @@
-from asyncio import Task, create_task
 from dataclasses import dataclass
-from functools import lru_cache
-from json import loads
 from random import random
 from re import sub
 from typing import List, Literal, Dict, Any, Optional, Union, Tuple
@@ -11,6 +8,7 @@ from openai import AsyncOpenAI
 
 from Services.util.DFA import DFA
 from Services.util.common_util import base64_encode_image
+from Services.web_search_judge import WebSearchJudgeMixin
 from config import OPEN_API_KEY
 from model.common_model import Status
 
@@ -28,7 +26,7 @@ class ChatGPTRequestMessage:
     is_web_search_used: bool = False
 
 
-class ChatGPTBaseAPI:
+class ChatGPTBaseAPI(WebSearchJudgeMixin):
     def __init__(self) -> None:
         self.client = AsyncOpenAI(api_key=OPEN_API_KEY)
         self.group_information: Dict[str, List[Dict[str, Any]]] = {}
@@ -48,7 +46,7 @@ class ChatGPTBaseAPI:
         self.web_search_model_name: str = "gpt-5-mini"
         self.web_search_judge_model_name: str = "gpt-5-nano"
 
-        self._judge_instructions: str = (
+        self._judge_instructions_text: str = (
             "你是一个路由器。任务：判断用户问题是否需要联网搜索才能可靠回答。\n"
             "仅输出严格 JSON，不要输出任何多余文字、代码块、解释。\n"
             "输出格式必须为：\n"
@@ -60,6 +58,19 @@ class ChatGPTBaseAPI:
             "- 如果问题可以在不联网的情况下给出可靠回答 => need_search=false\n"
             "- query 要尽量短，能直接用于搜索\n"
         )
+
+    @property
+    def _judge_instructions(self) -> str:
+        return self._judge_instructions_text
+
+    async def _judge_llm_raw(self, user_text: str) -> str:
+        resp = await self.client.responses.create(
+            model=self.web_search_judge_model_name,
+            input=user_text,
+            instructions=self._judge_instructions,
+            reasoning={"effort": "minimal"},
+        )
+        return (getattr(resp, "output_text", "") or "").strip()
 
     def _add_group_info_context(
             self,
@@ -169,46 +180,6 @@ class ChatGPTBaseAPI:
                 non_system_messages.append(m)
         return system_msg, non_system_messages
 
-    @staticmethod
-    def _normalize_judge_text(text: str) -> str:
-        t = (text or "").strip()
-        t = " ".join(t.split())
-        return t[:500]
-
-    @lru_cache(maxsize=2048)
-    def _judge_task(self, key: str, raw_text: str) -> Task[Tuple[bool, str]]:
-        return create_task(self._judge_need_web_search_uncached(raw_text))
-
-    async def _judge_need_web_search_uncached(self, user_text: str) -> Tuple[bool, str]:
-        resp = await self.client.responses.create(
-            model=self.web_search_judge_model_name,
-            input=user_text,
-            instructions=self._judge_instructions,
-            reasoning={"effort": "minimal"},
-        )
-        raw = (getattr(resp, "output_text", "") or "").strip()
-
-        try:
-            data = loads(raw)
-            need = bool(data.get("need_search", False))
-            query = str(data.get("query", "")).strip()
-            if need and not query:
-                query = user_text.strip()[:200]
-            return need, query
-        except Exception as err:
-            logger.error(f'Failed to judge web search efforts {err}')
-            return False, ""
-
-    async def _judge_need_web_search(self, user_text: str) -> Tuple[bool, str]:
-        key = self._normalize_judge_text(user_text)
-        task = self._judge_task(key, user_text)
-        try:
-            return await task
-        except Exception as err:
-            logger.error(f'having issue to judge if use web search or not {err}')
-            self._judge_task.cache_clear()
-            return False, ""
-
     async def _invoke_chat_completions(self, message: ChatGPTRequestMessage) -> str:
         logger.info(f"is it chat? {message.is_chat}, using gpt model: {message.model_name}")
         intervals = -10
@@ -279,7 +250,7 @@ class ChatGPTBaseAPI:
         if message.is_web_search_used:
             return await self._invoke_responses_with_web_search(message)
 
-        need_search, query = await self._judge_need_web_search(message.message)
+        need_search, query = await self.judge_need_web_search(message.message)
         logger.info(f"web_search judge: need_search={need_search}, query={query}")
 
         if need_search:

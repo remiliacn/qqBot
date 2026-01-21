@@ -92,7 +92,7 @@ async def get_setu_stat(_event: GroupMessageEvent, matcher: Matcher):
 check_group_xp_cmd = on_command('查询本群xp', aliases={'查询本群XP', '本群XP'})
 
 
-@check_setu_stat_cmd.handle()
+@check_group_xp_cmd.handle()
 async def fetch_group_xp(event: GroupMessageEvent, matcher: Matcher):
     group_id = get_group_id(event)
     group_xp = setu_function_control.get_group_xp(group_id)
@@ -215,6 +215,7 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
 
     if key_word.isdigit():
         illust = pixiv_api.illust_detail(key_word).illust
+        json_result = None
     else:
         json_result, key_word = await _setu_analyze_user_input(key_word, matcher)
 
@@ -223,16 +224,17 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
 
     is_work_r18 = illust.sanity_level == 6
     if not allow_r18:
-        illust, is_work_r18 = \
-            await _attempt_to_extract_sfw_pixiv_img(illust, is_work_r18, json_result, key_word, matcher)
+        if key_word.isdigit() and is_work_r18:
+            await matcher.finish('太色了发不了（')
 
-    elif not allow_r18 and key_word.isdigit():
-        await matcher.finish('太色了发不了（')
+        if json_result is not None:
+            illust, is_work_r18 = \
+                await _attempt_to_extract_sfw_pixiv_img(illust, json_result, key_word, matcher)
 
     start_time = time()
     setu_file_path = await _download_pixiv_image_helper(illust)
 
-    if not path:
+    if not setu_file_path:
         await matcher.finish('开摆！')
 
     if not is_work_r18:
@@ -242,7 +244,6 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
             MessageSegment.image(setu_file_path),
             f'Download Time: {(time() - start_time):.2f}s')
 
-    # group_id = -1 when private session.
     elif is_work_r18 and (group_id == -1 or allow_r18):
         message = construct_message_chain(
             MessageSegment.reply(message_id),
@@ -277,14 +278,21 @@ async def _handle_special_keyword(key_word: str, matcher: Matcher):
 
 
 async def _attempt_to_extract_sfw_pixiv_img(
-        illust: dict, is_work_r18: bool, json_result: ParsedJson, key_word: str, matcher: Matcher):
-    if is_work_r18 and not key_word.isdigit():
-        # Try 10 times to find an SFW image.
-        safe_illusts = [x for x in json_result.illusts if x.sanity_level < 6]
+        illust, json_result: ParsedJson | list, key_word: str, matcher: Matcher):
+    is_work_r18 = getattr(illust, 'sanity_level', 0) == 6
+
+    if is_work_r18 and key_word.isdigit():
+        await matcher.finish('太色了发不了（')
+
+    illusts = json_result.illusts if hasattr(json_result, 'illusts') else (json_result or [])
+
+    if is_work_r18:
+        safe_illusts = [x for x in illusts if getattr(x, 'sanity_level', 0) < 6]
         if not safe_illusts:
             await matcher.finish('太色了发不了（')
 
         illust = choice(safe_illusts)
+        is_work_r18 = getattr(illust, 'sanity_level', 0) == 6
 
     return illust, is_work_r18
 
@@ -467,7 +475,7 @@ async def _get_xp_information(xp_information: SetuRequester, matcher: Matcher) -
     is_r18 = illust.sanity_level == 6
 
     if not allow_r18:
-        illust, is_r18 = await _attempt_to_extract_sfw_pixiv_img(illust, is_r18, json_result, '', matcher)
+        illust, is_r18 = await _attempt_to_extract_sfw_pixiv_img(illust, json_result, '', matcher)
 
     nickname = xp_information.nickname
 
