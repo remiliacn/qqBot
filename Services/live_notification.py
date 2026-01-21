@@ -483,7 +483,7 @@ class BilibiliOnSail(LiveNotification):
         if not uid or not medal_name:
             return False, 'UID和/或牌子名不能为空字符'
 
-        prefix = ''
+        prefix = text = ''
         medal_name = medal_name.strip()
         if medal_name.isdigit():
             success, text = await self._retrieve_sail_from_cache(medal_name, prefix, uid)
@@ -529,7 +529,7 @@ class BilibiliOnSail(LiveNotification):
             if medal_name_inner == medal_name:
                 return _parse_guard_level_info(medal_info, medal_name, prefix)
 
-        return False, prefix + '啥也木有'
+        return False, text
 
     def backfill_sail_data(self):
         with open(f'{getcwd()}/0111.txt', "r", encoding="utf-8") as infile:
