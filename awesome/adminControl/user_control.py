@@ -1,5 +1,8 @@
 import json
+import sqlite3
+from os import remove
 from os.path import exists
+from sqlite3 import OperationalError
 from typing import Union, Optional
 
 from nonebot import logger
@@ -45,26 +48,166 @@ class UserControl:
         self.USER_DICT_PATH = 'config/users.json'
 
         self.answer_dict = _init_data(self.WORD_DICT_PATH)
-        self.user_privilege = _init_data(self.USER_DICT_PATH)
+
+        self.user_settings_db_path = 'data/db/user_settings.db'
+        self.user_settings_db = sqlite3.connect(self.user_settings_db_path)
+        self._init_user_settings_db()
+        self._import_user_privilege_from_json_if_needed(self.USER_DICT_PATH)
+        self._ensure_super_user_seed()
 
         self.last_question = {}
         self.user_repeat_question_count = {}
+
+    def _init_user_settings_db(self):
+        self.user_settings_db.execute(
+            """
+            create table if not exists user_settings (
+                user_id varchar(20) unique on conflict ignore,
+                is_owner boolean not null default false,
+                is_admin boolean not null default false,
+                is_whitelist boolean not null default false,
+                is_banned boolean not null default false
+            )
+            """
+        )
+        self.user_settings_db.commit()
+
+    def _import_user_privilege_from_json_if_needed(self, json_path: str):
+        if not exists(json_path):
+            return
+
+        try:
+            raw = _init_data(json_path)
+        except (OSError, json.JSONDecodeError) as err:
+            logger.error(f'Failed to read legacy user privilege json at {json_path}: {err}')
+            return
+
+        if not raw:
+            return
+
+        try:
+            for user_id, settings in raw.items():
+                if not user_id:
+                    continue
+
+                is_owner = bool(OptionalDict(settings).map('OWNER').or_else(False))
+                is_admin = bool(OptionalDict(settings).map('ADMIN').or_else(False))
+                is_whitelist = bool(OptionalDict(settings).map('WHITELIST').or_else(False))
+                is_banned = bool(OptionalDict(settings).map('BANNED').or_else(False))
+
+                self.user_settings_db.execute(
+                    """
+                    insert into user_settings (user_id, is_owner, is_admin, is_whitelist, is_banned)
+                    values (?, ?, ?, ?, ?)
+                    on conflict(user_id) do update set
+                        is_owner = excluded.is_owner,
+                        is_admin = excluded.is_admin,
+                        is_whitelist = excluded.is_whitelist,
+                        is_banned = excluded.is_banned
+                    """,
+                    (str(user_id), int(is_owner), int(is_admin), int(is_whitelist), int(is_banned)),
+                )
+
+            self.user_settings_db.commit()
+        except OperationalError as err:
+            logger.error(f'Failed to import legacy privileges from {json_path}: {err}')
+            return
+
+        try:
+            remove(json_path)
+            logger.info(f'Legacy user privilege json migrated and deleted: {json_path}')
+        except OSError as err:
+            logger.error(f'Imported legacy privileges but failed to delete {json_path}: {err}')
+
+    def _ensure_super_user_seed(self):
+        if SUPER_USER == 0:
+            logger.error('请配置config的SUPER_USER参数')
+            from time import sleep
+            sleep(8)
+            exit(-1)
+
+        super_user_id = str(SUPER_USER)
+        self.user_settings_db.execute(
+            """
+            insert into user_settings (user_id, is_owner, is_admin, is_whitelist, is_banned)
+            values (?, 1, 1, 1, 0)
+            on conflict(user_id) do update set
+                is_owner = 1,
+                is_admin = 1,
+                is_whitelist = 1,
+                is_banned = coalesce(user_settings.is_banned, 0)
+            """,
+            (super_user_id,),
+        )
+        self.user_settings_db.commit()
+
+    @staticmethod
+    def _tag_to_column(tag: USER_T) -> Optional[str]:
+        match tag:
+            case 'OWNER':
+                return 'is_owner'
+            case 'ADMIN':
+                return 'is_admin'
+            case 'WHITELIST':
+                return 'is_whitelist'
+            case 'BANNED':
+                return 'is_banned'
+            case _:
+                return None
 
     def set_user_privilege(self, user_id: Union[int, str], tag: USER_T, stat: bool):
         if isinstance(user_id, int):
             user_id = str(user_id)
 
-        if user_id not in self.user_privilege:
-            self.user_privilege[user_id] = {}
+        column = self._tag_to_column(tag)
+        if not column:
+            logger.error(f'Unknown privilege tag: {tag}')
+            return
 
-        self.user_privilege[user_id][tag] = stat
-        self.make_a_json(self.USER_DICT_PATH)
+        try:
+            self.user_settings_db.execute(
+                """
+                insert into user_settings (user_id) values (?)
+                on conflict(user_id) do nothing
+                """,
+                (user_id,),
+            )
+            self.user_settings_db.execute(
+                f"""
+                update user_settings
+                set {column} = ?
+                where user_id = ?
+                """,
+                (int(bool(stat)), user_id),
+            )
+            self.user_settings_db.commit()
+        except OperationalError as err:
+            logger.error(f'Failed to set privilege {tag} for user {user_id}: {err}')
 
     def get_user_privilege(self, user_id: Union[int, str], tag: USER_T) -> bool:
         if isinstance(user_id, int):
             user_id = str(user_id)
 
-        return OptionalDict(self.user_privilege).map(user_id).map(tag).or_else(False)
+        column = self._tag_to_column(tag)
+        if not column:
+            logger.error(f'Unknown privilege tag: {tag}')
+            return False
+
+        try:
+            result = self.user_settings_db.execute(
+                f"""
+                select {column} from user_settings where user_id = ?
+                """,
+                (user_id,),
+            ).fetchone()
+        except OperationalError as err:
+            logger.error(f'Failed to get privilege {tag} for user {user_id}: {err}')
+            return False
+
+        if not result:
+            return False
+
+        return bool(result[0])
 
     def set_user_repeat_question(self, user_id):
         if user_id not in self.user_repeat_question_count:
@@ -124,10 +267,6 @@ class UserControl:
         if path == self.WORD_DICT_PATH:
             with open(path, 'w+') as f:
                 json.dump(self.answer_dict, f, indent=4)
-
-        elif path == self.USER_DICT_PATH:
-            with open(path, 'w+') as f:
-                json.dump(self.user_privilege, f, indent=4)
 
     def get_response_info(self, question):
         if question in self.answer_dict:
