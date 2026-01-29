@@ -164,6 +164,15 @@ class UserControl:
             logger.error(f'Unknown privilege tag: {tag}')
             return
 
+        columns_to_set: list[str] = [column]
+        match column:
+            case 'is_admin':
+                columns_to_set.append('is_whitelist')
+            case 'is_owner':
+                columns_to_set.extend(['is_admin', 'is_whitelist'])
+
+        columns_to_set = list(dict.fromkeys(columns_to_set))
+
         try:
             self.user_settings_db.execute(
                 """
@@ -172,14 +181,18 @@ class UserControl:
                 """,
                 (user_id,),
             )
+
+            value_to_set = int(bool(stat))
+            set_clause = ", ".join([f"{c} = {value_to_set}" for c in columns_to_set])
             self.user_settings_db.execute(
                 f"""
                 update user_settings
-                set {column} = ?
+                set {set_clause}
                 where user_id = ?
                 """,
-                (int(bool(stat)), user_id),
+                (user_id,),
             )
+
             self.user_settings_db.commit()
         except OperationalError as err:
             logger.error(f'Failed to set privilege {tag} for user {user_id}: {err}')
