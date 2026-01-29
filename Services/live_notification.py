@@ -1,5 +1,8 @@
 import codecs
+import os
 import pickle
+import shutil
+import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
 from json import dumps, loads
@@ -451,7 +454,7 @@ class LiveNotification:
                 if notify_data.is_live:
                     notify_data.set_live_change_status('开播啦！')
                     live_data_list.append(notify_data)
-                    Popen(f'{DANMAKU_PROCESS} {room_id} {group_ids} "{notify_data.stream_live_time}"')
+                    _start_danmaku_process_in_new_terminal(room_id, group_ids, notify_data.stream_live_time)
                 else:
                     notify_data = LiveNotificationData(streamer_name, False)
                     notify_data.set_live_change_status('下播啦！')
@@ -483,7 +486,8 @@ class BilibiliOnSail(LiveNotification):
         if not uid or not medal_name:
             return False, 'UID和/或牌子名不能为空字符'
 
-        prefix = text = ''
+        prefix = ''
+        text = '啥也木有'
         medal_name = medal_name.strip()
         if medal_name.isdigit():
             success, text = await self._retrieve_sail_from_cache(medal_name, prefix, uid)
@@ -825,3 +829,50 @@ class BilibiliDynamicNotifcation(LiveNotification):
                                     f'标题：{OptionalDict(archive_object).map("title").or_else("未知")}\n'
                                     f'蓝链：https://www.bilibili.com/video/{bvid}\n'),
                 MessageSegment.image(file_name)]
+
+
+def _start_danmaku_process_in_new_terminal(room_id: str, group_ids: str, stream_live_time: str):
+    danmaku_cmd = f'{DANMAKU_PROCESS} {room_id} {group_ids} "{stream_live_time}"'
+
+    if os.name == 'nt':
+        try:
+            return Popen(['wt', 'new-tab', '--', 'cmd', '/k', danmaku_cmd])
+        except OSError as err:
+            logger.error(f'Failed to start danmaku process in Windows Terminal, falling back to cmd start: {err}')
+
+        try:
+            return Popen(['cmd', '/c', 'start', 'Danmaku', 'cmd', '/k', danmaku_cmd])
+        except OSError as err:
+            logger.error(f'Failed to start danmaku process via cmd start as well: {err}')
+            return None
+
+    terminal_emulators = [
+        ('x-terminal-emulator', ['x-terminal-emulator', '-e']),
+        ('gnome-terminal', ['gnome-terminal', '--']),
+        ('konsole', ['konsole', '-e']),
+        ('xfce4-terminal', ['xfce4-terminal', '-e']),
+        ('mate-terminal', ['mate-terminal', '-e']),
+        ('lxterminal', ['lxterminal', '-e']),
+        ('xterm', ['xterm', '-e']),
+    ]
+
+    for exe, base_argv in terminal_emulators:
+        if shutil.which(exe):
+            try:
+                return Popen(base_argv + ['sh', '-lc', danmaku_cmd])
+            except OSError as err:
+                logger.error(f'Failed to start danmaku in terminal {exe}: {err}')
+
+    try:
+        if os.name == 'posix':
+            return Popen(
+                ['sh', '-lc', danmaku_cmd],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+
+        return Popen(['sh', '-lc', danmaku_cmd])
+    except OSError as err:
+        logger.error(f'Failed to start danmaku process on unix fallback: {err}')
+        return None
