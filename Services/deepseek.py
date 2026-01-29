@@ -1,11 +1,13 @@
 from re import split, sub
 
-from nonebot import logger
+from nonebot import logger, get_bot
+from nonebot.adapters.onebot.v11 import MessageSegment
 from openai import APIError, APIConnectionError, RateLimitError, APITimeoutError
 from openai import AsyncOpenAI
 
 from Services import ChatGPTBaseAPI
 from Services.chatgpt import ChatGPTRequestMessage
+from Services.stock import text_to_image
 from Services.tavily_search import tavily_search, format_search_results_for_llm
 from Services.web_search_judge import WebSearchJudgeMixin
 from config import (
@@ -13,8 +15,10 @@ from config import (
     DEEPSEEK_PRICE_INPUT_PER_1M_CACHE_HIT_RMB,
     DEEPSEEK_PRICE_INPUT_PER_1M_RMB,
     DEEPSEEK_PRICE_OUTPUT_PER_1M_RMB,
+    SUPER_USER,
 )
 from model.common_model import Status
+from util.helper_util import construct_message_chain
 
 
 class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
@@ -84,6 +88,39 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
         self._add_group_info_context(message.group_id, response, 'assistant')
         return response
 
+    @staticmethod
+    async def _notify_super_user_search_results(query: str, formatted_results: str) -> None:
+        try:
+            bot = get_bot()
+            img_path = await text_to_image(formatted_results[:500] or "(no results)")
+            msg = construct_message_chain(
+                f"我在搜索{query}，这是我找到的结果\n\n",
+                MessageSegment.image(img_path),
+            )
+            await bot.call_api(
+                'send_private_msg',
+                user_id=int(SUPER_USER),
+                message=msg,
+            )
+        except (ValueError, TypeError, AttributeError, RuntimeError) as err:
+            logger.error(f"Failed to notify SUPER_USER about search results. err={err}")
+        except OSError as err:
+            logger.error(f"Failed to generate/send search result image. err={err}")
+
+    @staticmethod
+    def _build_web_search_judge_input(history_text: str, last_user_message: str) -> str:
+        return (
+            "你是一个路由器。任务：判断【用户最后一句话】是否需要联网搜索才能可靠回答。\n"
+            "重要规则：\n"
+            "- 只能根据【用户最后一句话】来决定 need_search。\n"
+            "- 上下文仅用于消歧（例如他/她/那里/这件事指代什么），不能因为上下文本身包含新闻/时效内容就触发搜索。\n"
+            "- 如果用户最后一句话是闲聊/情绪/吐槽/不涉及事实核验 => need_search=false。\n"
+            "- 只有当用户最后一句话明确要求最新信息/事实核验/数据/价格/政策/新闻/链接，或在消歧后仍需要最新信息，才 need_search=true。\n\n"
+            "仅输出严格 JSON：{\"need_search\": true/false, \"query\": \"...\"}\n\n"
+            f"[context_reference]\n{(history_text or '').strip()}\n\n"
+            f"[last_user_message]\n{(last_user_message or '').strip()}"
+        ).strip()
+
     async def _invoke_model(self, message: ChatGPTRequestMessage) -> str:
         if message.has_image:
             return await self._invoke_chat_model(message)
@@ -91,11 +128,18 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
         if message.is_web_search_used:
             return await self._invoke_with_tavily_search(message)
 
-        need_search, query = await self.judge_need_web_search(message.message)
+        intervals = -5
+        context_data = self._construct_openai_message_context(message, intervals)
+        system_msg, non_system_messages = self._extract_system_and_non_system(context_data)
+        history_text = self._messages_to_plain_input(non_system_messages)
+        judge_input = self._build_web_search_judge_input(history_text, message.message)
+
+        need_search, query = await self.judge_need_web_search(judge_input)
         logger.info(f"web_search judge(deepseek): need_search={need_search}, query={query}")
 
         if need_search:
-            return await self._invoke_with_tavily_search(message, query=query)
+            q = (query or "").strip() or message.message.strip()[:200]
+            return await self._invoke_with_tavily_search(message, query=q)
 
         return await self._invoke_chat_model(message)
 
@@ -107,6 +151,11 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
             formatted = "(web search unavailable)"
         else:
             formatted = format_search_results_for_llm(results)
+
+        try:
+            await self._notify_super_user_search_results(q, formatted)
+        except Exception as err:
+            logger.error(f"Failed to notify SUPER_USER about search results: {err}")
 
         web_context = [{
             "role": "assistant",

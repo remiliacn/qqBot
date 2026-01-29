@@ -180,6 +180,18 @@ class ChatGPTBaseAPI(WebSearchJudgeMixin):
                 non_system_messages.append(m)
         return system_msg, non_system_messages
 
+    @staticmethod
+    def _format_judge_input_with_context(context_messages: List[Dict[str, Any]], user_text: str) -> str:
+        system_msg, non_system_messages = ChatGPTBaseAPI._extract_system_and_non_system(context_messages)
+        history_text = ChatGPTBaseAPI._messages_to_plain_input(non_system_messages)
+
+        return (
+            "以下是对话上下文（可能包含用户和助手的最近消息）。\n"
+            "请结合上下文来判断用户最后一句话是否需要联网搜索才能可靠回答。\n\n"
+            f"[context]\n{history_text}\n\n"
+            f"[last_user_message]\n{user_text.strip()}"
+        ).strip()
+
     async def _invoke_chat_completions(self, message: ChatGPTRequestMessage) -> str:
         logger.info(f"is it chat? {message.is_chat}, using gpt model: {message.model_name}")
         intervals = -10
@@ -250,7 +262,11 @@ class ChatGPTBaseAPI(WebSearchJudgeMixin):
         if message.is_web_search_used:
             return await self._invoke_responses_with_web_search(message)
 
-        need_search, query = await self.judge_need_web_search(message.message)
+        intervals = -10
+        context_data = self._construct_openai_message_context(message, intervals)
+        judge_input = self._format_judge_input_with_context(context_data, message.message)
+
+        need_search, query = await self.judge_need_web_search(judge_input)
         logger.info(f"web_search judge: need_search={need_search}, query={query}")
 
         if need_search:
