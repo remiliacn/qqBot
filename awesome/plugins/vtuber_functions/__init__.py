@@ -3,8 +3,9 @@ from json import loads
 from pathlib import Path
 from time import time
 from traceback import format_exc
-from typing import List
+from typing import List, Set
 
+from async_lru import alru_cache
 from nonebot import get_driver, on_command, get_bot
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, PrivateMessageEvent, Message, Bot
 from nonebot.internal.matcher import Matcher
@@ -20,6 +21,17 @@ from awesome.adminControl import user_control
 from util.helper_util import construct_message_chain
 
 global_config = get_driver().config
+
+
+@alru_cache(maxsize=5, ttl=60 * 60)
+async def get_group_id_set(self_id: str) -> Set[str]:
+    bot: Bot = get_bot(self_id)
+    group_lists = await bot.get_group_list()
+    return {
+        str(x.get('group_id', '')).strip()
+        for x in (group_lists or [])
+        if str(x.get('group_id', '')).strip()
+    }
 
 
 async def start_verification(event: GroupMessageEvent | PrivateMessageEvent):
@@ -182,14 +194,18 @@ async def do_discord_live_fetch():
     data_list = await discord_notification.check_discord_updates()
     bot: Bot = get_bot()
 
+    try:
+        group_set = await get_group_id_set(str(bot.self_id))
+    except Exception as err:
+        logger.error(f"Failed to get group list. {err.__class__.__name__}: {err}")
+        group_set = set()
+
     for data in data_list:
         logger.info(f'New data found for {data.channel_name} for discord')
         notify_group = loads(discord_notification.get_group_ids_for_notification(data.channel_id))
         if notify_group is None:
             continue
         for group in notify_group:
-            group_lists = await bot.get_group_list()
-            group_set = set([str(x.get('group_id', '')) for x in group_lists])
             if data.is_success and group in group_set:
                 await bot.call_api(
                     'send_group_msg',
@@ -208,14 +224,18 @@ async def do_bilibili_live_fetch():
     live_notification_data_list = await live_notification.check_live_bilibili()
 
     bot = get_bot()
+    try:
+        group_set = await get_group_id_set(str(bot.self_id))
+    except Exception as err:
+        logger.error(f"Failed to get group list. {err.__class__.__name__}: {err}")
+        group_set = set()
+
     for data in live_notification_data_list:
         logger.info(f'New data found for {data.streamer_name}. bilibili live.')
         notify_group = loads(live_notification.get_group_ids_for_streamer(data.streamer_name))
         if notify_group is None:
             continue
 
-        group_lists = await bot.get_group_list()
-        group_set = set([str(x.get('group_id', '')) for x in group_lists])
         for group in notify_group:
             if group in group_set:
                 await bot.call_api('send_group_msg',
@@ -242,8 +262,11 @@ async def do_dynamic_fetch():
     data_list = await dynamic_notification.fetch_all_dynamic_updates()
 
     bot: Bot = get_bot()
-    group_lists = await bot.get_group_list()
-    group_set = set([str(x.get('group_id', '')) for x in group_lists])
+    try:
+        group_set = await get_group_id_set(str(bot.self_id))
+    except Exception as err:
+        logger.error(f"Failed to get group list. {err.__class__.__name__}: {err}")
+        group_set = set()
 
     logger.info(f'Group set: {group_set}')
     for data in data_list:

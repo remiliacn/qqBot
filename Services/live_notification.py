@@ -153,7 +153,43 @@ class LiveNotification:
             )
             """
         )
+
+        self.live_database.execute(
+            """create index if not exists idx_live_notification_bilibili_uid
+            on live_notification_bilibili(uid)"""
+        )
+        self.live_database.execute(
+            """create index if not exists idx_room_to_medal_name_table_medal_name
+            on room_to_medal_name_table(medal_name)"""
+        )
+        self.live_database.execute(
+            """create index if not exists idx_sail_data_check_uid_room_id
+            on sail_data_check(uid, room_id)"""
+        )
+
         self.live_database.commit()
+
+    @staticmethod
+    def _ensure_group_id_list(raw: Union[str, list, None]) -> List[str]:
+        if raw is None:
+            return []
+
+        if isinstance(raw, list):
+            return [str(x) for x in raw]
+
+        if isinstance(raw, str):
+            if not raw.strip():
+                return []
+            try:
+                decoded = loads(raw)
+            except Exception as err:
+                logger.error(f'Failed to decode group id list from db: {err.__class__}')
+                return []
+            if isinstance(decoded, list):
+                return [str(x) for x in decoded]
+            return []
+
+        return []
 
     async def _get_one_notification_data_from_db(self, streamer_name: str):
         data = self.live_database.execute(
@@ -169,7 +205,7 @@ class LiveNotification:
         if await self._check_if_notification_exist_in_db(streamer_name):
             data = await self._get_one_notification_data_from_db(streamer_name)
             uid = data[2]
-            group_to_notify = data[-1]
+            group_to_notify = data[5]
             logger.info(f'Data found: uid: {uid}, groups: {group_to_notify}')
 
             await self.update_streamer_data(streamer_name, uid, group_to_notify, False)
@@ -230,15 +266,10 @@ class LiveNotification:
         return data if not isinstance(data, tuple) else data[0]
 
     async def update_streamer_data(self, name: str, uid: str, group_id: str, is_enabled=True):
-        group_ids = self.get_group_ids_for_streamer(name)
-        if group_ids is not None:
-            try:
-                group_ids = loads(group_ids)
-            except Exception as err:
-                logger.error(f'Loads group id list from db failed. {err.__class__}')
-                group_ids = []
+        group_ids_raw = self.get_group_ids_for_streamer(name)
+        group_ids = self._ensure_group_id_list(group_ids_raw)
 
-        group_ids.append(group_id)
+        group_ids.append(str(group_id))
         group_ids = dumps(list(set(group_ids)))
         self.live_database.execute(
             """
@@ -248,19 +279,16 @@ class LiveNotification:
         self.live_database.commit()
 
     async def add_data_to_bilibili_notify_database(self, name: str, uid: str, group_id: str):
-        streamer_groups = self.get_group_ids_for_streamer(name)
+        streamer_groups_raw = self.get_group_ids_for_streamer(name)
 
         if await self._check_if_notification_exist_in_db(name):
             await self.update_streamer_data(name, uid, group_id)
             return
 
-        if streamer_groups is not None:
-            streamer_group_list = loads(streamer_groups)
-        else:
-            streamer_group_list = []
-
-        streamer_group_list.append(group_id)
+        streamer_group_list = self._ensure_group_id_list(streamer_groups_raw)
+        streamer_group_list.append(str(group_id))
         streamer_group_list = list(set(streamer_group_list))
+
         self.live_database.execute(
             """
             insert or replace into live_notification_bilibili
@@ -347,24 +375,32 @@ class LiveNotification:
 
     def _analyze_dumped_live_data(self, datas) -> List[LivestreamDanmakuData]:
         unpickled_data_list = []
+        uids_to_delete: List[str] = []
+
         for data in datas:
             uid = data[0]
             dumped_data: str = data[1]
             unpickled_data: LivestreamDanmakuData = pickle.loads(codecs.decode(dumped_data.encode(), "base64"))
             unpickled_data_list.append(unpickled_data)
+            uids_to_delete.append(uid)
 
-            self._delete_dumped_live_data(uid)
+        if uids_to_delete:
+            self.live_database.executemany(
+                """delete from bilibili_danmaku_data where uid = ?""",
+                [(uid,) for uid in uids_to_delete],
+            )
+            self.live_database.commit()
 
         return unpickled_data_list
 
     def check_if_live_cached(self, room_id: str) -> bool:
         user_needs_to_be_checked = self.live_database.execute(
             """
-            select * from live_notification_bilibili where uid = ?
+            select last_record_live_status from live_notification_bilibili where uid = ?
             """, (room_id,)
         ).fetchone()
 
-        is_live = user_needs_to_be_checked is not None and user_needs_to_be_checked[4]
+        is_live = user_needs_to_be_checked is not None and user_needs_to_be_checked[0]
         logger.success(f'Live cache hit, result returned: {is_live}')
 
         return is_live
@@ -582,6 +618,12 @@ class BilibiliDynamicNotifcation(LiveNotification):
             )
             """
         )
+
+        self.live_database.execute(
+            """create index if not exists idx_dynamic_notification_bilibili_name
+            on dynamic_notification_bilibili(name)"""
+        )
+
         self.live_database.commit()
 
     async def stop_notification_for_someone(self, name: str):
@@ -611,13 +653,14 @@ class BilibiliDynamicNotifcation(LiveNotification):
                  VALUES (?, ?, ?, ?, ?, ?)
                 """, (name, True, mid, '0', '0', dumps(group_ids))
             )
-            self.live_database.commit()
         else:
             self.live_database.execute(
                 """
                 update dynamic_notification_bilibili set group_to_notify = ?, isEnabled = 1 where name = ?
                 """, (dumps(group_ids), name)
             )
+
+        self.live_database.commit()
 
     async def get_group_to_notify(self, name) -> Union[List[str], None]:
         data = self.live_database.execute(
@@ -626,7 +669,10 @@ class BilibiliDynamicNotifcation(LiveNotification):
             """, (name,)
         ).fetchone()
 
-        return loads(data) if isinstance(data, str) else (loads(data[0]) if data is not None else None)
+        if data is None:
+            return None
+
+        return self._ensure_group_id_list(data[0])
 
     async def update_latest_dynamic_id_for_user(self, name, dynamic_id, dynamic_time):
         self.live_database.execute(
