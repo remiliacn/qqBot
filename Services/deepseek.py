@@ -27,6 +27,7 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
         self.client = AsyncOpenAI(api_key=DEEPSEEK_API_KEY, base_url='https://api.deepseek.com')
         self.web_search_judge_model_name: str = "deepseek-chat"
 
+    # noinspection PyTypeChecker
     async def _judge_llm_raw(self, user_text: str) -> str:
         resp = await self.client.chat.completions.create(
             model=self.web_search_judge_model_name,
@@ -54,7 +55,7 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
 
     async def _invoke_chat_model(self, message: ChatGPTRequestMessage) -> str:
         logger.info(f'is it chat? {message.is_chat}, using gpt model: {message.model_name}')
-        intervals = -40
+        intervals = -30
         context_data = self._construct_openai_message_context(message, intervals)
 
         logger.info(f'chat context: {context_data}')
@@ -71,7 +72,7 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
             extra_messages,
             extra_system_suffix: str = "",
     ) -> str:
-        intervals = -40
+        intervals = -30
         context_data = self._construct_openai_message_context(message, intervals)
 
         if extra_system_suffix:
