@@ -268,7 +268,6 @@ async def do_dynamic_fetch():
         logger.error(f"Failed to get group list. {err.__class__.__name__}: {err}")
         group_set = set()
 
-    logger.info(f'Group set: {group_set}')
     for data in data_list:
         logger.info(f'New data found for {data.name}. Dynamic.')
         notify_group = await dynamic_notification.get_group_to_notify(data.name)

@@ -1,16 +1,17 @@
 import codecs
-import os
 import pickle
 import shutil
 import subprocess
+from asyncio import get_running_loop
 from dataclasses import dataclass, field
 from datetime import datetime
 from json import dumps, loads
-from os import getcwd, path
+from os import getcwd, path, remove
+from os import name as os_name
 from sqlite3 import connect
 from subprocess import Popen
 from time import time, time_ns
-from typing import Union, List, Dict, Tuple
+from typing import Union, List, Dict, Tuple, Optional
 from uuid import uuid1
 
 from aiohttp import ClientSession
@@ -25,6 +26,13 @@ from Services.util.common_util import OptionalDict
 from awesome.Constants.path_constants import BILIBILI_PIC_PATH
 from config import DANMAKU_PROCESS
 from util.helper_util import construct_message_chain
+
+
+@dataclass
+class GuardCheckResult:
+    success: bool
+    text: str
+    icon_url: Optional[MessageSegment] = None
 
 
 @dataclass
@@ -61,16 +69,18 @@ def _parse_line(line: str) -> Tuple[int, str, str, float]:
     return gd_lvl, user_id, uname, ts
 
 
-def _parse_guard_level_info(medal_info: dict, medal_name: Union[str, int], prefix=''):
+def _parse_guard_level_info(medal_info: dict, medal_name: Union[str, int], prefix='', icon=None) -> GuardCheckResult:
     match medal_info.get('guard_level', 0):
         case 0:
-            return False, prefix + f'啥也木有'
+            return GuardCheckResult(False, prefix + f'啥也木有', icon_url=icon)
         case 1:
-            return True, prefix + f'我的天啊，是{medal_name}最敬爱的总督大人'
+            return GuardCheckResult(True, prefix + f'我的天啊，是{medal_name}最敬爱的总督大人', icon_url=icon)
         case 2:
-            return True, prefix + f'我超！{medal_name}提督！'
+            return GuardCheckResult(True, prefix + f'我超！{medal_name}提督！', icon_url=icon)
         case 3:
-            return True, prefix + f'是{medal_name}舰长呢'
+            return GuardCheckResult(True, prefix + f'是{medal_name}舰长呢', icon_url=icon)
+
+    return GuardCheckResult(False, prefix + f'啥也木有', icon_url=icon)
 
 
 class DynamicNotificationData:
@@ -515,28 +525,28 @@ class BilibiliOnSail(LiveNotification):
         self.sail_verification_url = f'https://api.live.bilibili.com/xlive/web-ucenter/user/MedalWall?target_id='
 
     @alru_cache(ttl=60 * 10)
-    async def check_if_uid_has_guard(self, uid: str, medal_name: str) -> (bool, str):
+    async def check_if_uid_has_guard(self, uid: str, medal_name: str) -> GuardCheckResult:
         if not uid.isdigit():
-            return False, '查询UID必须是数字。用法：！查上海 用户UID 牌子名称'
+            return GuardCheckResult(False, '查询UID必须是数字。用法：！查上海 用户UID 牌子名称')
 
         if not uid or not medal_name:
-            return False, 'UID和/或牌子名不能为空字符'
+            return GuardCheckResult(False, 'UID和/或牌子名不能为空字符')
 
         prefix = ''
         text = '啥也木有'
         medal_name = medal_name.strip()
         if medal_name.isdigit():
-            success, text = await self._retrieve_sail_from_cache(medal_name, prefix, uid)
-            if success:
-                return success, text
+            result = await self._retrieve_sail_from_cache(medal_name, prefix, uid)
+            if result.success:
+                return result
 
             medal_name = self.get_medal_name_from_room_uid(medal_name)
         else:
             room_uid = self.get_room_uid_from_medal_name(medal_name)
             if room_uid:
-                success, result = await self._retrieve_sail_from_cache(room_uid, prefix, uid)
-                if success:
-                    return success, result
+                result = await self._retrieve_sail_from_cache(room_uid, prefix, uid)
+                if result.success:
+                    return result
 
                 logger.info('Failed to find sail data from cache. Falling back...')
 
@@ -553,9 +563,18 @@ class BilibiliOnSail(LiveNotification):
 
         if code != 0:
             self.cookies, self.headers = await update_buvid_params()
-            return False, '喜报：数据错误，someone tells 祈雨，灵夜坏了。请重试一次看看~'
+            return GuardCheckResult(False, '喜报：数据错误，someone tells 祈雨，灵夜坏了。请重试一次看看~')
 
         username = OptionalDict(data_json).map('data').map('name').or_else('?')
+        icon = OptionalDict(data_json).map('data').map('icon').or_else('')
+
+        file_name = path.join(BILIBILI_PIC_PATH, f'{icon.split("/")[-1].replace("]", "").replace("[", "")}')
+        file_name = await global_httpx_client.download(icon, file_name)
+
+        loop = get_running_loop()
+        loop.call_later(60 * 60, lambda: loop.create_task(remove(file_name)))
+
+        icon_data = MessageSegment.image(file_name)
         if OptionalDict(data_json).map('data').map('only_show_wearing').or_else(1) != 0:
             prefix = f'由于用户隐私设置，可能无法查询其牌子/上舰情况。\n\n'
 
@@ -567,9 +586,9 @@ class BilibiliOnSail(LiveNotification):
 
             logger.info(f'Medal info data: {medal_info}')
             if medal_name_inner == medal_name:
-                return _parse_guard_level_info(medal_info, medal_name, prefix)
+                return _parse_guard_level_info(medal_info, medal_name, prefix, icon_data)
 
-        return False, text
+        return GuardCheckResult(False, text, icon_url=icon_data)
 
     def backfill_sail_data(self):
         with open(f'{getcwd()}/0111.txt', "r", encoding="utf-8") as infile:
@@ -581,13 +600,13 @@ class BilibiliOnSail(LiveNotification):
                 logger.info(f'Inserting {gd_lvl} {user_id} {uname} {ts}')
                 self.insert_sail_data(user_id, gd_lvl, 1852504554, uname, ts)
 
-    async def _retrieve_sail_from_cache(self, room_id, prefix, uid):
+    async def _retrieve_sail_from_cache(self, room_id, prefix, uid) -> GuardCheckResult:
         if (cached_data := self.retrieve_sail_data(uid, room_id)) is None:
-            return False, prefix + '啥也木有'
+            return GuardCheckResult(False, prefix + '啥也木有')
         logger.debug(f'Sail data: {cached_data}')
         guard_level, username, expiry_time = cached_data
         if float(expiry_time) < time():
-            return False, '以前有牌子但是过期了的老舰长'
+            return GuardCheckResult(False, '以前有牌子但是过期了的老舰长')
         medal_name_str = self.get_medal_name_from_room_uid(room_id)
         if medal_name_str:
             room_id = medal_name_str
@@ -880,7 +899,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
 def _start_danmaku_process_in_new_terminal(room_id: str, group_ids: str, stream_live_time: str):
     danmaku_cmd = f'{DANMAKU_PROCESS} {room_id} {group_ids} "{stream_live_time}"'
 
-    if os.name == 'nt':
+    if os_name == 'nt':
         try:
             return Popen(['wt', 'new-tab', '--', 'cmd', '/k', danmaku_cmd])
         except OSError as err:
@@ -910,7 +929,7 @@ def _start_danmaku_process_in_new_terminal(room_id: str, group_ids: str, stream_
                 logger.error(f'Failed to start danmaku in terminal {exe}: {err}')
 
     try:
-        if os.name == 'posix':
+        if os_name == 'posix':
             return Popen(
                 ['sh', '-lc', danmaku_cmd],
                 stdout=subprocess.DEVNULL,

@@ -10,6 +10,7 @@ from nonebot.params import CommandArg
 
 from Services import global_rate_limiter, sail_data
 from Services.deepinfra import DeepInfraAPI
+from Services.live_notification import GuardCheckResult
 from Services.rate_limiter import UserLimitModifier
 from Services.util.common_util import HttpxHelperClient
 from Services.util.ctx_utility import get_user_id
@@ -31,10 +32,21 @@ sail_check = on_command('查上海')
 async def check_sail_data(_bot: Bot, event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
     key_word = args.extract_plain_text()
     uid, medal_name = key_word.split(' ', 1)
-    _, text = await sail_data.check_if_uid_has_guard(uid, medal_name)
+    result: GuardCheckResult = await sail_data.check_if_uid_has_guard(uid, medal_name)
 
     message_id = event.message_id
-    await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), text))
+
+    try:
+        icon_message_segment = result.icon_url if result.icon_url else None
+        await matcher.send(construct_message_chain(
+            MessageSegment.reply(message_id),
+            '用户头像：\n', icon_message_segment, '\n', result.text))
+    except Exception as err:
+        logger.error(f'Failed to send sail check result message, '
+                     f'we are going to try without the icon image. {err.__class__}')
+
+        await matcher.finish(construct_message_chain(
+            MessageSegment.reply(message_id), result.text))
 
 
 add_meme_cmd = on_command('加表情')
