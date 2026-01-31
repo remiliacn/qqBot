@@ -1,8 +1,6 @@
-from typing import Union, List
+from typing import Iterable, Union, List
 
 from nonebot.adapters.onebot.v11 import Message, MessageSegment
-
-from awesome.adminControl import group_control
 
 HHSHMEANING = 'meaning'
 FURIGANAFUNCTION = 'furigana'
@@ -10,6 +8,8 @@ WIKIPEDIA = 'WIKIPEDIA'
 
 
 def set_group_permission(message: str, group_id: Union[str, int], tag: str) -> bool:
+    from awesome.adminControl import group_control
+
     group_id = str(group_id)
     if '开' in message:
         group_control.set_group_permission(group_id=group_id, tag=tag, stat=True)
@@ -29,49 +29,80 @@ def ark_helper(args: list) -> str:
     return ''
 
 
-def construct_message_chain(*args: [str, MessageSegment, Message, List[MessageSegment], None]) -> Message:
+MessageChainItem = Union[str, MessageSegment, Message, Iterable[MessageSegment], None]
+
+
+def construct_message_chain(*args: MessageChainItem) -> Message:
     message_list: List[MessageSegment] = []
+
     for arg in args:
         if arg is None:
             continue
 
         if isinstance(arg, str):
-            if arg:
-                message_list.append(MessageSegment.text(arg))
-        elif isinstance(arg, Message):
-            message_list += [x for x in arg]
-        elif isinstance(arg, list):
-            message_list += arg
-        else:
+            text = arg
+            if text and not text.endswith("\n"):
+                text += "\n"
+
+            if text:
+                message_list.append(MessageSegment.text(text))
+            continue
+
+        if isinstance(arg, MessageSegment):
             message_list.append(arg)
+            continue
+
+        if isinstance(arg, Message):
+            message_list.extend(list(arg))
+            continue
+
+        try:
+            for seg in arg:
+                if isinstance(seg, MessageSegment):
+                    message_list.append(seg)
+        except TypeError:
+            continue
 
     return Message(message_list)
 
 
 def anime_reverse_search_response(response_data: dict) -> Message:
-    confident_prompt = ''
-    if 'simlarity' in response_data and float(response_data["simlarity"].replace('%', '')) < 70:
-        confident_prompt = '\n\n不过我不是太有信心哦~'
-    if 'est_time' in response_data:
-        response = construct_message_chain(MessageSegment.image(response_data["thumbnail"]),
-                                           f'相似度：{response_data["simlarity"]}\n'
-                                           f'番名：{response_data["source"]}\n'
-                                           f'番剧年份：{response_data["year"]}\n'
-                                           f'集数：{response_data["part"]}\n'
-                                           f'大概出现时间：{response_data["est_time"]}', confident_prompt)
-    else:
-        if response_data['ext_url'] == '[数据删除]':
-            response = construct_message_chain(response_data['data'],
-                                               f'相似度：{response_data["simlarity"]}\n'
-                                               f'标题：{response_data["title"]}\n'
-                                               f'画师：{response_data["author"]}\n'
-                                               f'{str(response_data["ext_url"])}', confident_prompt)
-        else:
-            response = construct_message_chain(response_data['data'],
-                                               f'相似度：{response_data["simlarity"]}\n'
-                                               f'标题：{response_data["title"]}\n'
-                                               f'画师：{response_data["author"]}\n'
-                                               f'Pixiv：{response_data["pixiv_id"]}\n'
-                                               f'{str(response_data["ext_url"])}', confident_prompt)
+    similarity_raw = str(response_data.get("simlarity", ""))
+    confident_prompt = ""
+    try:
+        similarity_val = float(similarity_raw.replace("%", ""))
+    except (TypeError, ValueError):
+        similarity_val = 0.0
 
-    return response
+    if similarity_val < 70:
+        confident_prompt = "\n\n不过我不是太有信心哦~"
+
+    data = response_data.get("data")
+
+    if "est_time" in response_data:
+        thumbnail = response_data.get("thumbnail")
+        body = (
+            f"相似度：{similarity_raw}\n"
+            f"番名：{response_data.get('source', '')}\n"
+            f"番剧年份：{response_data.get('year', '')}\n"
+            f"集数：{response_data.get('part', '')}\n"
+            f"大概出现时间：{response_data.get('est_time', '')}"
+        )
+        return construct_message_chain(
+            MessageSegment.image(thumbnail) if thumbnail else None,
+            body,
+            confident_prompt,
+        )
+
+    ext_url = str(response_data.get("ext_url", ""))
+    pixiv_line = "" if ext_url == "[数据删除]" else f"Pixiv：{response_data.get('pixiv_id', '')}\n"
+
+    body = (
+        f"相似度：{similarity_raw}\n"
+        f"标题：{response_data.get('title', '')}\n"
+        f"画师：{response_data.get('author', '')}\n"
+        f"{pixiv_line}"
+        f"{ext_url}"
+    )
+
+    return construct_message_chain(data, body, confident_prompt)

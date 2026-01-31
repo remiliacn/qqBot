@@ -2,7 +2,7 @@ import sqlite3
 from os import listdir, path, remove
 from os.path import exists
 from sqlite3 import OperationalError
-from typing import Union
+from typing import Optional, Union
 
 from nonebot import logger
 from nonebot.adapters.onebot.v11 import MessageSegment
@@ -55,6 +55,20 @@ class GroupControlModule:
                 "notes" text
             )
             """
+        )
+        self.group_info_db.commit()
+
+        self.group_info_db.execute(
+            "create index if not exists idx_quotes_qq_group on quotes(qq_group)"
+        )
+        self.group_info_db.execute(
+            "create index if not exists idx_quotes_qq_group_notes on quotes(qq_group, notes)"
+        )
+        self.group_info_db.execute(
+            "create index if not exists idx_quotes_file_hash on quotes(file_hash)"
+        )
+        self.group_info_db.execute(
+            "create index if not exists idx_group_settings_group_id on group_settings(group_id)"
         )
         self.group_info_db.commit()
 
@@ -156,36 +170,30 @@ class GroupControlModule:
         )
         self.group_info_db.commit()
 
-    def get_group_quote(self, group_id: Union[int, str], notes=None) -> Status:
-        if isinstance(group_id, int):
-            group_id = str(group_id)
+    def get_group_quote(self, group_id: Union[int, str], notes: Optional[str] = None) -> Status:
+        group_id_str = str(group_id)
+        notes_str = notes.strip() if notes else ""
 
-        query = None
-        notes = notes.strip() if notes else ''
+        query_sql = (
+            "select cq_image, notes from quotes "
+            "where qq_group = ? "
+        )
+        params: list[str] = [group_id_str]
 
-        if notes:
-            data = self.group_info_db.execute(
-                f"""
-                select cq_image, notes from quotes where qq_group = ? and notes like ? order by random() limit 1;
-                """, (group_id, f'%{notes}%')
-            ).fetchone()
-            if data:
-                query, notes = data
+        if notes_str:
+            query_sql += "and notes like ? "
+            params.append(f"%{notes_str}%")
 
-        if not query:
-            data = self.group_info_db.execute(
-                f"""
-                select cq_image, notes from quotes where qq_group = ? order by random() limit 1;
-                """, (group_id,)
-            ).fetchone()
-            if data:
-                query, notes = data
+        query_sql += "order by random() limit 1;"
 
-        if not query:
+        data = self.group_info_db.execute(query_sql, tuple(params)).fetchone()
+        if not data:
             return Status(False, MessageSegment.text('该群没有语录哦'))
 
+        cq_image, notes_db = data
+
         from util.helper_util import construct_message_chain
-        return Status(True, construct_message_chain(MessageSegment.image(query), notes if notes else ''))
+        return Status(True, construct_message_chain(MessageSegment.image(cq_image), notes_db or ''))
 
     def clear_group_quote(self, group_id: Union[int, str]):
         if isinstance(group_id, int):
