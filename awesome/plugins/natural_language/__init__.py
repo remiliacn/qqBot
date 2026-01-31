@@ -43,26 +43,27 @@ async def natural_language_proc(bot: Bot, event: GroupMessageEvent, matcher: Mat
         extracted_images = extract_image_urls(event.message)
         await _extract_image_and_add_quote(event, extracted_images, group_id, matcher)
 
-    if 'md' in plain_message[:4]:
-        message_list = plain_message.split('\n')
-        if len(message_list) >= 2:
-            valid_message = '\n'.join(message_list[1:])
-            result, success = markdown_to_image(valid_message)
-            if success:
-                await matcher.finish(MessageSegment.image(result))
+    if plain_message.startswith('md'):
+        message_list = plain_message.split('\n', 1)
+        if len(message_list) == 2 and message_list[1].strip():
+            status = await markdown_to_image(message_list[1])
+            if status.is_success:
+                await matcher.finish(MessageSegment.image(status.message))
 
-    if plain_message.startswith('搜图') and event.get_message().get('image'):
-        response = await _do_soutu_operation(event.get_message())
+    if plain_message.startswith('搜图') and message.get('image'):
+        response = await _do_soutu_operation(message)
         await matcher.finish(construct_message_chain(response))
 
     reply_response = await _check_reply_keywords(event, event.reply, event.self_id, bot, matcher)
     if reply_response:
         try:
-            await bot.send_group_forward_msg(
-                group_id=group_id,
-                messages=compile_forward_message(event.self_id, reply_response)
-            )
-            await matcher.finish()
+            if isinstance(reply_response, list):
+                await bot.send_group_forward_msg(
+                    group_id=group_id,
+                    messages=compile_forward_message(event.self_id, reply_response)
+                )
+                return
+            await matcher.finish(reply_response)
         except ActionFailed:
             await matcher.finish(reply_response)
 
@@ -81,7 +82,8 @@ async def natural_language_proc(bot: Bot, event: GroupMessageEvent, matcher: Mat
 
 
 async def _extract_image_and_add_quote(
-        event: GroupMessageEvent, extracted_images: List[str], group_id: int, matcher: Matcher):
+        event: GroupMessageEvent, extracted_images: List[str],
+        group_id: int, matcher: Matcher):
     other_info = (event.get_plaintext().replace('添加语录', '')
                   .replace('!', '')
                   .replace('！', '')
@@ -151,27 +153,29 @@ def _extract_keyword_from_sentence(key_word: str) -> str:
 
 
 async def _check_reply_keywords(
-        message: GroupMessageEvent, reply: Reply, self_id: int, bot: Bot, matcher: Matcher) -> [str,
-                                                                                                List[MessageSegment]]:
+        message: GroupMessageEvent,
+        reply: Reply,
+        self_id: int,
+        bot: Bot,
+        matcher: Matcher
+) -> str | List[MessageSegment]:
     if reply:
         message_str = message.get_plaintext()
         if '搜图' in message_str:
-            response = await _do_soutu_operation(reply)
-        elif '撤' in message_str:
+            return await _do_soutu_operation(reply)
+
+        if '撤' in message_str:
             await _do_delete_msg(bot, reply, self_id)
-            response = ''
-        elif '添加语录' in message_str:
+            return ''
+
+        if '添加语录' in message_str:
             await _extract_image_and_add_quote(message, extract_image_urls(reply.message), message.group_id, matcher)
             return ''
-        else:
-            response = ''
-    else:
-        response = ''
 
-    return response.strip() if isinstance(response, str) else response
+    return ''
 
 
-async def _do_delete_msg(bot: Bot, reply: Reply, self_id: int):
+async def _do_delete_msg(bot: Bot, reply: Reply, self_id: int) -> None:
     if reply.sender.user_id != self_id:
         return
 
@@ -180,25 +184,26 @@ async def _do_delete_msg(bot: Bot, reply: Reply, self_id: int):
 
 @cached(ttl=86400, serializer=PickleSerializer())
 async def _do_soutu_operation(reply: Reply | Message) -> List[MessageSegment]:
-    response = []
     possible_image_content = extract_image_urls(reply.message if isinstance(reply, Reply) else reply)
-    if possible_image_content:
-        for idx, url in enumerate(possible_image_content):
-            logger.info(f'URL extracted: {url}')
-            try:
-                response_data = await sauce_helper(url)
-                if not response_data:
-                    response += f'图片{idx + 1}无法辨别的说！'
-                else:
-                    response += f'==={idx + 1}===\n' if len(possible_image_content) > 1 else ''
-                    response += anime_reverse_search_response(response_data)
+    if not possible_image_content:
+        return [MessageSegment.text('阿这，是我瞎了么？好像没有图片啊原文里。')]
 
-            except Exception as err:
-                logger.warning(f'soutu function error: {err}')
-                return [MessageSegment.text(f'啊这~图片{idx + 1}无法获取有效逆向数据。')]
-            finally:
-                response += '\n\n'
+    response: List[MessageSegment] = []
+    for idx, url in enumerate(possible_image_content):
+        logger.info(f'URL extracted: {url}')
+        try:
+            response_data = await sauce_helper(url)
+            if not response_data:
+                response.append(MessageSegment.text(f'图片{idx + 1}无法辨别的说！'))
+            else:
+                if len(possible_image_content) > 1:
+                    response.append(MessageSegment.text(f'==={idx + 1}===\n'))
 
-        return response
+                response.extend(anime_reverse_search_response(response_data))
+        except Exception as err:
+            logger.warning(f'soutu function error: {err}')
+            return [MessageSegment.text(f'啊这~图片{idx + 1}无法获取有效逆向数据。')]
+        finally:
+            response.append(MessageSegment.text('\n\n'))
 
-    return [MessageSegment.text('阿这，是我瞎了么？好像没有图片啊原文里。')]
+    return response

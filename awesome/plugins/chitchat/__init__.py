@@ -22,7 +22,8 @@ add_more_pic_cmd = on_command('添加图片')
 @add_more_pic_cmd.handle()
 async def add_more_pic(_event: GroupMessageEvent, matcher: Matcher, args: Message = Arg()):
     if not (key_word := args.extract_plain_text()):
-        matcher.finish(ADD_PIC_PROMPT)
+        await matcher.finish(ADD_PIC_PROMPT)
+
     user_arg = key_word.split()
 
     if user_arg[0] not in CHITCHAT_PIC_TYPES:

@@ -36,11 +36,11 @@ async def markdown_text_to_image(_event: GroupMessageEvent, matcher: Matcher, ar
     if not arg:
         return
 
-    result, success = markdown_to_image(arg)
-    if success:
-        await matcher.finish(MessageSegment.image(result))
+    status = await markdown_to_image(arg)
+    if status.is_success:
+        await matcher.finish(MessageSegment.image(status.message))
 
-    await matcher.finish(result)
+    await matcher.finish(status.message)
 
 
 global_help_cmd = on_command('help')
@@ -89,8 +89,8 @@ async def hhsh(entry: str) -> str:
     guess_url = 'https://lab.magiconch.com/api/nbnhhsh/guess'
 
     try:
-        client = HttpxHelperClient()
-        page = await client.post(guess_url, json={"text": entry}, headers=headers)
+        httpx_client = HttpxHelperClient()
+        page = await httpx_client.post(guess_url, json={"text": entry}, headers=headers)
         json_data = page.json()
 
     except Exception as e:
@@ -152,6 +152,7 @@ async def get_chatgpt_response(event: GroupMessageEvent, matcher: Matcher, args:
     except Exception as err:
         logger.error(f'Something wrong when communicating with openAI {err.__class__}')
         await matcher.finish('我现在头有点晕不想回答……')
+        return
 
     message_id = event.message_id
     reply_message = MessageSegment.reply(message_id)
@@ -163,10 +164,10 @@ async def get_chatgpt_response(event: GroupMessageEvent, matcher: Matcher, args:
                 and '[' not in chatgpt_message:
             await matcher.finish(chatgpt_message)
 
-        result, success = markdown_to_image(chatgpt_message)
-        if success:
+        status = await markdown_to_image(chatgpt_message)
+        if status.is_success:
             await matcher.finish(
-                construct_message_chain(MessageSegment.reply(message_id), MessageSegment.image(result)))
+                construct_message_chain(MessageSegment.reply(message_id), MessageSegment.image(status.message)))
         else:
             await matcher.finish(
                 construct_message_chain(reply_message, MessageSegment.image(await text_to_image(chatgpt_message))))
@@ -180,6 +181,7 @@ smash_cmd = on_command('smash')
 
 @smash_cmd.handle()
 async def get_smash_cmd(event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
+    downloaded_image = None
     group_id = event.group_id
     user_id = event.get_user_id()
 
@@ -237,6 +239,7 @@ async def get_smash_cmd(event: GroupMessageEvent, matcher: Matcher, args: Messag
         await matcher.finish('我现在头有点晕不想回答……')
 
 
+# noinspection PyTypeChecker
 async def _request_grok_ai(message: ChatGPTRequestMessage) -> Status:
     completion = client.chat.completions.create(
         model=message.model_name,

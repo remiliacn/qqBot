@@ -1,4 +1,6 @@
-from asyncio import sleep, get_running_loop
+from asyncio import sleep, get_running_loop, to_thread
+from base64 import b64encode
+from collections.abc import Mapping
 from functools import lru_cache
 from hashlib import sha1
 from math import ceil
@@ -21,6 +23,7 @@ from matplotlib import pyplot as plt, patches
 from matplotlib.colors import colorConverter
 from nonebot.adapters.onebot.v11 import Bot, PrivateMessageEvent
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageSegment, Message
+from nonebot.internal.matcher import Matcher
 from nonebot.log import logger
 from selenium import webdriver
 from selenium.common import TimeoutException
@@ -33,13 +36,15 @@ from tqdm import tqdm
 from webdriver_manager.chrome import ChromeDriverManager
 
 from Services.util.ctx_utility import get_user_id, get_group_id
+from Services.util.file_utils import delete_file_after
 from awesome.Constants.path_constants import BOT_RESPONSE_PATH
+from model.common_model import Status
 
 TEMP_FILE_DIRECTORY = path.join(getcwd(), 'data', 'temp')
 T = TypeVar("T")
 
 
-def chunk_string(string, length):
+def chunk_string(string: str, length: int):
     return (string[0 + i:length + i] for i in range(0, len(string), length))
 
 
@@ -66,26 +71,25 @@ def calculate_sha1(file_path: str) -> str:
 
 def base64_encode_image(file_path: str) -> str:
     with open(file_path, 'rb') as f:
-        import base64
-        return base64.b64encode(f.read()).decode('utf-8')
+        return b64encode(f.read()).decode('utf-8')
 
 
-async def slight_adjust_pic_and_get_path(input_path: str):
+async def slight_adjust_pic_and_get_path(input_path: str) -> str:
     logger.info(f'Starting to sightly adjust the image: {input_path}')
     edited_path = path.join(TEMP_FILE_DIRECTORY, f'{uuid4().hex}.{input_path.split(".")[-1]}')
     try:
-        image = Image.open(input_path)
-        draw = ImageDraw.Draw(image)
-        x, y = randint(0, image.width - 3), randint(0, image.height - 3)
-        draw.ellipse((x - 2, y - 2, x + 2, y + 2), fill='white', outline='black')
-
-        image.save(edited_path)
+        with Image.open(input_path) as image:
+            draw = ImageDraw.Draw(image)
+            x = randint(0, max(image.width - 3, 0))
+            y = randint(0, max(image.height - 3, 0))
+            draw.ellipse((x - 2, y - 2, x + 2, y + 2), fill='white', outline='black')
+            image.save(edited_path)
 
         loop = get_running_loop()
-        loop.call_later(120, lambda: remove(edited_path))
+        loop.create_task(delete_file_after(edited_path, 120))
     except Exception as err:
         logger.error(f'Failed to micro modify a pixiv pic. {err.__class__}')
-        return path
+        return input_path
 
     logger.success(f'Adjusting image successfully completed for: {input_path}')
     return edited_path
@@ -93,7 +97,7 @@ async def slight_adjust_pic_and_get_path(input_path: str):
 
 async def autorevoke_message(
         bot: Bot, group_id: int,
-        message_type_to_send: Literal['forward', 'normal'], message: Message, revoke_interval=50):
+        message_type_to_send: Literal['forward', 'normal'], message: Message, revoke_interval: int = 50) -> None:
     if message_type_to_send == 'forward':
         message_data: Dict[str, Any] = await bot.send_group_forward_msg(
             group_id=group_id,
@@ -105,12 +109,12 @@ async def autorevoke_message(
     logger.info(f'Message data before revoking: {message_data}')
     message_id: int = message_data['message_id']
     loop = get_running_loop()
-    loop.call_later(revoke_interval, lambda: loop.create_task(bot.delete_msg(message_id=message_id)))
+    loop.call_later(revoke_interval, loop.create_task, bot.delete_msg(message_id=message_id))
 
 
-async def get_general_ctx_info(ctx: GroupMessageEvent) -> (int, int, int):
-    message_id = ctx['message_id']
-    return message_id, get_user_id(ctx), get_group_id(ctx)
+async def get_general_ctx_info(ctx: GroupMessageEvent | Mapping[str, Any]) -> tuple[int, int, int]:
+    message_id = int(getattr(ctx, 'message_id', ctx.get('message_id')))
+    return message_id, int(get_user_id(ctx)), int(get_group_id(ctx))
 
 
 async def time_to_literal(time_string: int) -> str:
@@ -172,7 +176,7 @@ def find_repeated_substring(input_str: str) -> str:
     return input_str
 
 
-def get_if_has_at_and_qq(event: GroupMessageEvent | PrivateMessageEvent) -> (bool, str):
+def get_if_has_at_and_qq(event: GroupMessageEvent | PrivateMessageEvent) -> tuple[bool, str]:
     if isinstance(event, PrivateMessageEvent):
         return False, '0'
 
@@ -197,9 +201,9 @@ def is_float(content: str) -> bool:
         return False
 
 
-async def check_if_number_user_id(session: GroupMessageEvent, arg: str):
+async def check_if_number_user_id(session: Matcher, arg: str) -> str:
     if not arg.isdigit():
-        session.finish('输入非法')
+        await session.finish('输入非法')
 
     return arg
 
@@ -251,7 +255,11 @@ pre { font-size: 20px !important }
     return file_name
 
 
-def html_to_image(file_name, run_hljs=True, render_spotify_iframe='') -> str:
+def html_to_image(file_name: str, run_hljs: bool = True, render_spotify_iframe: str = '') -> str:
+    return html_to_image_sync(file_name, run_hljs=run_hljs, render_spotify_iframe=render_spotify_iframe)
+
+
+def html_to_image_sync(file_name: str, run_hljs: bool = True, render_spotify_iframe: str = '') -> str:
     file_name_png = path.join(BOT_RESPONSE_PATH, f'{file_name.split("/")[-1]}.png')
     if exists(file_name_png):
         return file_name_png
@@ -302,13 +310,18 @@ def html_to_image(file_name, run_hljs=True, render_spotify_iframe='') -> str:
     return file_name_png
 
 
-def markdown_to_image(text: str) -> (str, bool):
+async def html_to_image_async(file_name: str, run_hljs: bool = True, render_spotify_iframe: str = '') -> str:
+    return await to_thread(html_to_image_sync, file_name, run_hljs, render_spotify_iframe)
+
+
+async def markdown_to_image(text: str) -> Status:
     try:
         html_file = markdown_to_html(text)
-        return html_to_image(html_file), True
+        image_path = await html_to_image_async(html_file)
+        return Status(is_success=True, message=image_path)
     except Exception as err:
         logger.error(f'Markdown render failed {err.__class__}')
-        return '渲染出错力', False
+        return Status(is_success=False, message='渲染出错力')
 
 
 def gradient_fill(x: List[float], y: List[float] | np.ndarray, fill_color=None, ax=None, zfunc=None, **kwargs):

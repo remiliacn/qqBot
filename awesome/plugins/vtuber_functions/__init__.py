@@ -18,6 +18,7 @@ from Services.twitch_service import TwitchClipInstruction
 from Services.util.ctx_utility import get_user_id, get_group_id
 from awesome.Constants.user_permission import ADMIN
 from awesome.adminControl import user_control
+from config import SUPER_USER
 from util.helper_util import construct_message_chain
 
 global_config = get_driver().config
@@ -188,6 +189,8 @@ async def scheduled_jobs():
         logger.error(f'Something went wrong with scheduled jobs. {err.__class__}')
         logger.error(format_exc())
 
+    logger.success('Scheduled job cycle completed.')
+
 
 async def do_discord_live_fetch():
     logger.info('Automatically fetching discord info...')
@@ -245,7 +248,20 @@ async def do_bilibili_live_fetch():
 
     unpickled_danmaku_datas = live_notification.get_dumped_live_data()
     for danmaku_data in unpickled_danmaku_datas:
-        notified_group: List[str] = loads(danmaku_data.qq_group_dumped)
+        try:
+            notified_group: List[str] = loads(danmaku_data.qq_group_dumped)
+            if not isinstance(notified_group, list):
+                logger.error(f'Invalid notified_group type: {type(notified_group)}. Expected list.')
+                continue
+        except Exception as err:
+            logger.error(f'Failed to parse danmaku notified group: {err.__class__.__name__}: {err}')
+            await bot.call_api(
+                'send_private_msg',
+                user_id=SUPER_USER,
+                message=f'发送danmaku分析数据失败，错误信息：{err.__class__.__name__}: {err}\n\n'
+                        f'danmaku数据：{danmaku_data}')
+            continue
+
         for group in notified_group:
             await bot.call_api('send_group_msg',
                                group_id=int(group),
