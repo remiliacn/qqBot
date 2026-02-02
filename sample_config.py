@@ -1,12 +1,12 @@
 HOST = '127.0.0.1'  # 必填
 PORT = 5700  # 必填
-SUPER_USER = 0  # 必填
+SUPER_USER: int = 0  # 必填
 
 # 群内昵称映射（可选）
 NICKNAME = {}
 
 # 机器人主人在群里的偏好称呼（可选）
-SUPER_USER_PREFERRED_NAME = ''
+SUPER_USER_PREFERRED_NAME: str = ''
 
 # 群聊人设/系统提示词（可选，但 group_based_function 会用到）
 SYSTEM_MESSAGE = ''

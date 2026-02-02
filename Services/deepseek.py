@@ -1,3 +1,4 @@
+from random import random
 from re import split, sub
 
 from nonebot import logger, get_bot
@@ -18,6 +19,7 @@ from config import (
     SUPER_USER,
 )
 from model.common_model import Status
+from model.web_search_model import WebSearchPrejudgeResult
 from util.helper_util import construct_message_chain
 
 
@@ -54,11 +56,8 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
         )
 
     async def _invoke_chat_model(self, message: ChatGPTRequestMessage) -> str:
-        logger.info(f'is it chat? {message.is_chat}, using gpt model: {message.model_name}')
         intervals = -30
         context_data = self._construct_openai_message_context(message, intervals)
-
-        logger.info(f'chat context: {context_data}')
 
         response = await self._invoke_deepseek(context_data, message.model_name, message.group_id)
 
@@ -111,27 +110,146 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
     @staticmethod
     def _build_web_search_judge_input(history_text: str, last_user_message: str) -> str:
         return (
-            "你是一个路由器。任务：判断【用户最后一句话】是否需要联网搜索才能可靠回答。\n"
-            "重要规则：\n"
-            "- 只能根据【用户最后一句话】来决定 need_search。\n"
-            "- 上下文仅用于消歧（例如他/她/那里/这件事指代什么），不能因为上下文本身包含新闻/时效内容就触发搜索。\n"
-            "- 如果用户最后一句话是闲聊/情绪/吐槽/不涉及事实核验 => need_search=false。\n"
-            "- 只有当用户最后一句话明确要求最新信息/事实核验/数据/价格/政策/新闻/链接，或在消歧后仍需要最新信息，才 need_search=true。\n\n"
-            "仅输出严格 JSON：{\"need_search\": true/false, \"query\": \"...\"}\n\n"
-            f"[context_reference]\n{(history_text or '').strip()}\n\n"
-            f"[last_user_message]\n{(last_user_message or '').strip()}"
+            "判断用户最后一句是否必须联网搜索才能可靠回答。上下文仅用于消歧。\n"
+            "仅输出 JSON: {\"need_search\": true/false, \"query\": \"...\"}\n"
+            "need_search=true: 明确要最新/事实核验/数据价格政策新闻/链接来源，或消歧后仍需最新信息。\n"
+            "否则 need_search=false。如果消息内容莫名其妙，need_search=false\n\n"
+            f"[ctx]\n{(history_text or '').strip()}\n\n"
+            f"[last]\n{(last_user_message or '').strip()}"
         ).strip()
 
-    async def _invoke_model(self, message: ChatGPTRequestMessage) -> str:
-        if message.has_image:
-            return await self._invoke_chat_model(message)
+    @staticmethod
+    def _prejudge_need_web_search(last_user_message: str) -> WebSearchPrejudgeResult:
+        text = (last_user_message or "").strip()
+        if not text:
+            return WebSearchPrejudgeResult("no", "", "empty_message")
 
+        if len(text) <= 4:
+            return WebSearchPrejudgeResult("no", "", "too_short_message")
+
+        lower = text.lower()
+
+        force_no_keywords = (
+            "翻译",
+            "润色",
+            "改写",
+            "总结",
+            "写一段",
+            "写个",
+            "解释",
+            "证明",
+            "计算",
+            "解方程",
+            "算法",
+            "复杂度",
+            "正则",
+            "sql",
+            "代码",
+            "报错",
+            "traceback",
+            "堆栈",
+        )
+
+        code_markers = (
+            "```",
+            "def ",
+            "class ",
+            "import ",
+            "pip ",
+            "npm ",
+            "{",
+            "}",
+            ";",
+        )
+
+        if any(k in text for k in force_no_keywords):
+            return WebSearchPrejudgeResult("no", "", "contains_force_no_keyword")
+
+        if any(m in lower for m in code_markers):
+            return WebSearchPrejudgeResult("no", "", "contains_code_marker")
+
+        short_chat = (
+            "哈哈",
+            "谢谢",
+            "好耶",
+            "在吗",
+            "晚安",
+            "早安",
+            "ok",
+            "okay",
+            "good night",
+        )
+
+        if (
+                len(text) <= 12
+                and ("?" not in text and "？" not in text)
+                and any(k in lower for k in short_chat)
+        ):
+            return WebSearchPrejudgeResult("no", "", "short_chitchat")
+
+        must_use_web_search_markers = (
+            "最新",
+            "今天",
+            "现在",
+            "目前",
+            "最近",
+            "刚刚",
+            "这周",
+            "本周",
+            "今年",
+            "202",
+            "价格",
+            "报价",
+            "汇率",
+            "股价",
+            "成交价",
+            "政策",
+            "规定",
+            "公告",
+            "更新",
+            "版本",
+            "发布",
+            "新闻",
+            "热搜",
+            "辟谣",
+            "是真的吗",
+            "是否属实",
+            "来源",
+            "出处",
+            "链接",
+            "原文",
+            "官网",
+            "citation",
+            "source",
+            "link",
+            "official",
+        )
+
+        if any(k in lower for k in must_use_web_search_markers) or any(
+                k in text for k in must_use_web_search_markers
+        ):
+            return WebSearchPrejudgeResult("uncertain", "", "likely_need_web_search")
+
+        if random() < .4:
+            return WebSearchPrejudgeResult("uncertain", "", "random_uncertainty")
+
+        return WebSearchPrejudgeResult("no", "", "default_no_web_search")
+
+    async def _invoke_model(self, message: ChatGPTRequestMessage) -> str:
         if message.is_web_search_used:
             return await self._invoke_with_tavily_search(message)
 
+        prejudge = self._prejudge_need_web_search(message.message)
+        logger.info(
+            f"web_search prejudge(deepseek): decision={prejudge.decision}, reason={prejudge.reason}"
+        )
+
+        if prejudge.decision == "no":
+            return await self._invoke_chat_model(message)
+
         intervals = -5
         context_data = self._construct_openai_message_context(message, intervals)
-        system_msg, non_system_messages = self._extract_system_and_non_system(context_data)
+        _, non_system_messages = self._extract_system_and_non_system(context_data)
         history_text = self._messages_to_plain_input(non_system_messages)
         judge_input = self._build_web_search_judge_input(history_text, message.message)
 
@@ -175,6 +293,9 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
         )
 
     async def chat(self, message: ChatGPTRequestMessage) -> Status:
+        if message.has_image:
+            raise NotImplementedError("DeepSeekAPI does not support image inputs yet.")
+
         if message.should_filter:
             message_status = self._sanity_check(message)
             if not message_status.is_success:

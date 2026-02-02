@@ -3,7 +3,8 @@ import sqlite3
 from os import remove
 from os.path import exists
 from sqlite3 import OperationalError
-from typing import Union, Optional
+from time import time
+from typing import Optional, Union
 
 from nonebot import logger
 
@@ -66,10 +67,24 @@ class UserControl:
                 is_owner boolean not null default false,
                 is_admin boolean not null default false,
                 is_whitelist boolean not null default false,
-                is_banned boolean not null default false
+                is_banned       boolean not null default false,
+                banned_until_ts integer null
             )
             """
         )
+
+        try:
+            self.user_settings_db.execute(
+                """
+                alter table user_settings
+                    add column banned_until_ts integer null
+                """
+            )
+        except OperationalError as err:
+            logger.warning(
+                f'Failed to add column, but it is probably fine because it is already existed. {err.__class__}'
+            )
+
         self.user_settings_db.commit()
 
     def _import_user_privilege_from_json_if_needed(self, json_path: str):
@@ -184,6 +199,10 @@ class UserControl:
 
             value_to_set = int(bool(stat))
             set_clause = ", ".join([f"{c} = {value_to_set}" for c in columns_to_set])
+
+            if tag == 'BANNED' and not stat:
+                set_clause = f"{set_clause}, banned_until_ts = null"
+
             self.user_settings_db.execute(
                 f"""
                 update user_settings
@@ -221,6 +240,103 @@ class UserControl:
             return False
 
         return bool(result[0])
+
+    def set_temporary_ban_until(self, user_id: Union[int, str], *, banned_until_ts: int) -> None:
+        if isinstance(user_id, int):
+            user_id = str(user_id)
+
+        try:
+            self.user_settings_db.execute(
+                """
+                insert into user_settings (user_id)
+                values (?)
+                on conflict(user_id) do nothing
+                """,
+                (user_id,),
+            )
+            self.user_settings_db.execute(
+                """
+                update user_settings
+                set is_banned       = 1,
+                    banned_until_ts = ?
+                where user_id = ?
+                """,
+                (int(banned_until_ts), user_id),
+            )
+            self.user_settings_db.commit()
+        except OperationalError as err:
+            logger.error(f'Failed to set temporary ban until for user {user_id}: {err}')
+
+    def clear_temporary_ban_until(self, user_id: Union[int, str]) -> None:
+        if isinstance(user_id, int):
+            user_id = str(user_id)
+
+        try:
+            self.user_settings_db.execute(
+                """
+                update user_settings
+                set banned_until_ts = null
+                where user_id = ?
+                """,
+                (user_id,),
+            )
+            self.user_settings_db.commit()
+        except OperationalError as err:
+            logger.error(f'Failed to clear temporary ban until for user {user_id}: {err}')
+
+    def get_active_temporary_bans(self) -> list[tuple[str, int]]:
+        now = int(time())
+
+        try:
+            rows = self.user_settings_db.execute(
+                """
+                select user_id, banned_until_ts
+                from user_settings
+                where is_banned = 1
+                  and banned_until_ts is not null
+                  and banned_until_ts > ?
+                """,
+                (now,),
+            ).fetchall()
+        except OperationalError as err:
+            logger.error(f'Failed to query active temporary bans: {err}')
+            return []
+
+        results: list[tuple[str, int]] = []
+        for user_id, until_ts in rows:
+            if not user_id or not str(user_id).isdigit():
+                continue
+            if until_ts is None:
+                continue
+            results.append((str(user_id), int(until_ts)))
+
+        return results
+
+    def get_expired_temporary_bans(self) -> list[str]:
+        now = int(time())
+
+        try:
+            rows = self.user_settings_db.execute(
+                """
+                select user_id
+                from user_settings
+                where is_banned = 1
+                  and banned_until_ts is not null
+                  and banned_until_ts <= ?
+                """,
+                (now,),
+            ).fetchall()
+        except OperationalError as err:
+            logger.error(f'Failed to query expired temporary bans: {err}')
+            return []
+
+        results: list[str] = []
+        for (user_id,) in rows:
+            if not user_id or not str(user_id).isdigit():
+                continue
+            results.append(str(user_id))
+
+        return results
 
     def set_user_repeat_question(self, user_id):
         if user_id not in self.user_repeat_question_count:

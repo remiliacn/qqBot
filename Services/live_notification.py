@@ -959,12 +959,12 @@ def _start_danmaku_process_in_new_terminal(room_id: str, group_ids: str, stream_
     if os_name == 'nt':
         try:
             current_dir = getcwd()
-            return Popen(['wt', '-w', '0', 'new-tab', '-d', current_dir, 'cmd', '/k', danmaku_cmd])
+            return Popen(['wt', '-w', '0', 'new-tab', '-d', current_dir, 'cmd', '/c', danmaku_cmd])
         except OSError as err:
             logger.error(f'Failed to start danmaku process in Windows Terminal, falling back to cmd start: {err}')
 
         try:
-            return Popen(['cmd', '/c', 'start', 'Danmaku', 'cmd', '/k', danmaku_cmd])
+            return Popen(['cmd', '/c', 'start', 'Danmaku', 'cmd', '/c', danmaku_cmd])
         except OSError as err:
             logger.error(f'Failed to start danmaku process via cmd start as well: {err}')
             return None

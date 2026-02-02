@@ -1,6 +1,6 @@
 import sqlite3
 import time
-from typing import Union
+from typing import Tuple, Union
 
 from Services.util.common_util import time_to_literal
 from model.common_model import RateLimitStatus
@@ -8,7 +8,7 @@ from util.db_utils import fetch_one_or_default
 
 
 class UserLimitModifier:
-    def __init__(self, rate_limit_time: float, rate_limit_modifier: float, overwrite_global=False):
+    def __init__(self, rate_limit_time: float, rate_limit_modifier: float, overwrite_global: bool = False):
         """
         :param rate_limit_time: 时间内限流参数（单位：秒）
         :param rate_limit_modifier: 普通配置的限流是群限流参数，这里是提供一个倍数
@@ -31,6 +31,10 @@ class RateLimiter:
         self.TEMPRORARY_DISABLED = 'DISABLED'
 
         self._init_ratelimiter()
+
+    @staticmethod
+    def _now() -> int:
+        return int(time.time())
 
     def _init_ratelimiter(self):
         self.rate_limiter_db.execute(
@@ -60,18 +64,20 @@ class RateLimiter:
             insert or replace into rate_limiter_config (function_name, rate_limit) values (
                 ?, ?
             )
-            """, (function_name, rate_limit)
+            """,
+            (function_name, rate_limit),
         )
 
         self.rate_limiter_db.commit()
 
     async def reset_user_limit(self, user_id: Union[int, str]):
         self.rate_limiter_db.execute(
-            f"""
-                update rate_limiter
-                set hit = 1
-                where user_id = {user_id};
             """
+            update rate_limiter
+            set hit = 1
+            where user_id = ?;
+            """,
+            (str(user_id),),
         )
 
         self.rate_limiter_db.commit()
@@ -80,11 +86,9 @@ class RateLimiter:
         result = self.rate_limiter_db.execute(
             """
             select rate_limit from rate_limiter_config where function_name = ? limit 1;
-            """, (function_name,)
+            """,
+            (function_name,),
         ).fetchone()
-
-        if isinstance(result, int):
-            return result
 
         if result is not None and result[0] is not None:
             return result[0]
@@ -93,25 +97,59 @@ class RateLimiter:
         return 10
 
     async def get_user_last_update(self, function_name: str, user_id: Union[str, int]):
-        user_id = str(user_id)
+        user_id_str = str(user_id)
         result = self.rate_limiter_db.execute(
             """
             select last_updated from rate_limiter where user_id = ? and function_name = ? limit 1;
-            """, (user_id, function_name)
+            """,
+            (user_id_str, function_name),
         ).fetchone()
 
-        return result if isinstance(result, int) else result[0] \
-            if result is not None and result[0] is not None else int(time.time())
+        if result is None or result[0] is None:
+            return self._now()
+
+        return int(result[0])
 
     async def get_user_hit(self, function_name: str, user_id: Union[str, int]):
-        user_id = str(user_id)
+        user_id_str = str(user_id)
         result = self.rate_limiter_db.execute(
             """
             select hit from rate_limiter where function_name = ? and user_id = ? limit 1;
-            """, (function_name, user_id)
+            """,
+            (function_name, user_id_str),
         ).fetchone()
 
         return fetch_one_or_default(result, 0)
+
+    async def _get_user_state(self, function_name: str, user_id: str) -> tuple[int, int]:
+        result = self.rate_limiter_db.execute(
+            """
+            select hit, last_updated
+            from rate_limiter
+            where function_name = ?
+              and user_id = ?
+            limit 1;
+            """,
+            (function_name, user_id),
+        ).fetchone()
+
+        if not result:
+            return 0, self._now()
+
+        hit = fetch_one_or_default((result[0],), 0)
+        last_updated = int(result[1]) if result[1] is not None else self._now()
+        return hit, last_updated
+
+    def _upsert_state(self, user_id: str, function_name: str, hit: int, last_updated: int) -> None:
+        self.rate_limiter_db.execute(
+            """
+            insert or replace into rate_limiter (user_id, function_name, hit, last_updated) values (
+                ?, ?, ?, ?
+            )
+            """,
+            (user_id, function_name, hit, last_updated),
+        )
+        self.rate_limiter_db.commit()
 
     async def _query_group_permission(
             self,
@@ -119,66 +157,56 @@ class RateLimiter:
             group_id: str,
             time_period=60,
             override_function_limit=None
-    ) -> (str, int):
-        group_last_update_time = await self.get_user_last_update(function_name, group_id)
+    ) -> Tuple[str, int]:
+        now = self._now()
+        function_usage_limit = (
+            await self.get_function_limit(function_name)
+            if override_function_limit is None
+            else override_function_limit
+        )
 
-        function_usage_limit = await self.get_function_limit(function_name) \
-            if override_function_limit is None else override_function_limit
+        group_hit, group_last_update_time = await self._get_user_state(function_name, group_id)
+
         if function_usage_limit <= 0:
-            return self.TEMPRORARY_DISABLED, group_last_update_time + time_period - int(time.time())
-        group_hit = await self.get_user_hit(function_name, group_id)
+            return self.TEMPRORARY_DISABLED, group_last_update_time + time_period - now
 
-        if int(time.time()) - group_last_update_time > time_period:
+        if now - group_last_update_time > time_period:
             update_group_hit = 1
-            group_last_update_time_updated = int(time.time())
+            group_last_update_time_updated = now
         else:
             if group_hit + 1 > function_usage_limit:
-                return self.LIMIT_BY_GROUP, group_last_update_time + time_period - int(time.time())
+                return self.LIMIT_BY_GROUP, group_last_update_time + time_period - now
             update_group_hit = group_hit + 1
             group_last_update_time_updated = group_last_update_time
 
-        self.rate_limiter_db.execute(
-            """
-            insert or replace into rate_limiter (user_id, function_name, hit, last_updated) values (
-                ?, ?, ?, ?
-            )
-            """, (group_id, function_name, update_group_hit, group_last_update_time_updated)
-        )
-        self.rate_limiter_db.commit()
+        self._upsert_state(group_id, function_name, update_group_hit, group_last_update_time_updated)
         return '', -1
 
     async def _query_user_permission(self, function_name: str, user_id: str, user_modifier: UserLimitModifier):
-        user_last_update_time = await self.get_user_last_update(function_name, user_id)
+        now = self._now()
         function_usage_limit = await self.get_function_limit(function_name)
-
-        user_hit = await self.get_user_hit(function_name, user_id)
+        user_hit, user_last_update_time = await self._get_user_state(function_name, user_id)
 
         if function_usage_limit <= 0:
-            return self.TEMPRORARY_DISABLED, user_last_update_time + user_modifier.rate_limit_time - int(time.time())
+            return self.TEMPRORARY_DISABLED, int(user_last_update_time + user_modifier.rate_limit_time - now)
 
-        if int(time.time()) - user_last_update_time > user_modifier.rate_limit_time:
+        if now - user_last_update_time > user_modifier.rate_limit_time:
             update_user_hit = 1
-            user_last_update_time_updated = int(time.time())
+            user_last_update_time_updated = now
         else:
-            user_usage_limit = function_usage_limit * user_modifier.rate_limit_modifier if not \
-                user_modifier.overwrite_global else user_modifier.rate_limit_modifier
+            user_usage_limit = (
+                function_usage_limit * user_modifier.rate_limit_modifier
+                if not user_modifier.overwrite_global
+                else user_modifier.rate_limit_modifier
+            )
 
             if user_hit + 1 > user_usage_limit:
-                return self.LIMIT_BY_USER, \
-                    user_last_update_time + user_modifier.rate_limit_time - int(time.time())
+                return self.LIMIT_BY_USER, int(user_last_update_time + user_modifier.rate_limit_time - now)
 
             update_user_hit = user_hit + 1
             user_last_update_time_updated = user_last_update_time
 
-        self.rate_limiter_db.execute(
-            """
-            insert or replace into rate_limiter (user_id, function_name, hit, last_updated) values (
-                ?, ?, ?, ?
-            )
-            """, (user_id, function_name, update_user_hit, user_last_update_time_updated)
-        )
-
-        self.rate_limiter_db.commit()
+        self._upsert_state(user_id, function_name, update_user_hit, user_last_update_time_updated)
         return '', -1
 
     async def _query_permission(
@@ -187,7 +215,7 @@ class RateLimiter:
             user_id: str,
             group_id: str,
             user_limit_modifier: UserLimitModifier
-    ) -> (str, int):
+    ) -> Tuple[str, int]:
         query_group_prompt, wait_time = await self._query_group_permission(function_name, group_id)
         if query_group_prompt:
             return query_group_prompt, wait_time
@@ -198,7 +226,9 @@ class RateLimiter:
     async def _assemble_limit_prompt(self, prompt, wait_time) -> RateLimitStatus:
         if prompt == self.LIMIT_BY_USER:
             return RateLimitStatus(
-                True, f'别玩啦，过{await time_to_literal(wait_time if wait_time > 0 else 1)}再回来玩好不好？')
+                True,
+                f'别玩啦，过{await time_to_literal(wait_time if wait_time > 0 else 1)}再回来玩好不好？',
+            )
         elif prompt == self.LIMIT_BY_GROUP:
             return RateLimitStatus(True, f'群使用已到达允许上限，请稍等{await time_to_literal(wait_time)}重试')
         elif prompt == self.TEMPRORARY_DISABLED:

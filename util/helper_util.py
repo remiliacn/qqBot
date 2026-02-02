@@ -1,3 +1,4 @@
+from re import fullmatch
 from typing import Iterable, Union, List
 
 from nonebot.adapters.onebot.v11 import Message, MessageSegment
@@ -41,7 +42,7 @@ def construct_message_chain(*args: MessageChainItem) -> Message:
 
         if isinstance(arg, str):
             text = arg
-            if text and not text.endswith("\n"):
+            if text and not (text.endswith("\n") or fullmatch(r'[\s\r]*', text)):
                 text += "\n"
 
             if text:

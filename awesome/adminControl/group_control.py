@@ -42,7 +42,8 @@ class GroupControlModule:
                 is_enabled boolean default true,
                 allow_r18 boolean default false,
                 recall_catch boolean default false,
-                nlp_process boolean default true
+                nlp_process    boolean default true,
+                memory_enabled boolean default false
             )
             """
         )

@@ -30,6 +30,7 @@ TWENTY_FIVE_MINUTES = 60 * 25
 TOP_TIMESTAMP_LIMIT = randint(5, 7)
 
 _GRAPH_BUCKET_SECONDS = 60
+_RAW_EVENT_BUCKET_SECONDS = 1
 
 _DANMAKU_SPLIT_PATTERN = re.compile(r'[\s+,，。、?？！!]+')
 _DANMAKU_ONLY_SEPARATORS_PATTERN = re.compile(r'^[\s+,，。、?？！!]+$')
@@ -60,6 +61,47 @@ def _get_log_filename() -> str:
 
 logger.add(f'./logs/{_get_log_filename()}', level='INFO', colorize=False, backtrace=True, diagnose=True,
            rotation='50MB', retention='3 days')
+
+
+def choose_time_bucket_seconds(duration_seconds: float) -> int:
+    if duration_seconds <= 0:
+        return _GRAPH_BUCKET_SECONDS
+
+    target_points = 140
+    chosen = int(max(_GRAPH_BUCKET_SECONDS, round(duration_seconds / target_points)))
+
+    candidates = [
+        10,
+        15,
+        30,
+        60,
+        120,
+        300,
+        600,
+        900,
+        1800,
+        3600,
+    ]
+
+    for candidate in candidates:
+        if candidate >= chosen:
+            return int(candidate)
+
+    return int(candidates[-1])
+
+
+def rebucket_counts(bucket_counts: Dict[float, int], bucket_seconds: int) -> Dict[float, int]:
+    if bucket_seconds <= 0:
+        return dict(bucket_counts)
+
+    rebucketed: Dict[float, int] = {}
+    for seconds, count in bucket_counts.items():
+        if count <= 0:
+            continue
+        bucket = float(int(float(seconds) // bucket_seconds) * bucket_seconds)
+        rebucketed[bucket] = rebucketed.get(bucket, 0) + int(count)
+
+    return rebucketed
 
 
 class MyDanmakuHandler(BaseHandler):
@@ -110,7 +152,7 @@ class MyDanmakuHandler(BaseHandler):
 
         time_elapsed_time = time.time() - self.stream_start_time
         if time_elapsed_time > FIVE_MINUTES:
-            bucket = float(int(time_elapsed_time // _GRAPH_BUCKET_SECONDS) * _GRAPH_BUCKET_SECONDS)
+            bucket = float(int(time_elapsed_time // _RAW_EVENT_BUCKET_SECONDS) * _RAW_EVENT_BUCKET_SECONDS)
             self.stream_danmaku_bucket_counts[bucket] = self.stream_danmaku_bucket_counts.get(bucket, 0) + 1
 
         if _DANMAKU_ONLY_SEPARATORS_PATTERN.fullmatch(msg) is not None:
@@ -188,7 +230,7 @@ class MyDanmakuHandler(BaseHandler):
         self.new_captains += captain_count
         if captain_count > 0:
             time_elapsed_time = time.time() - self.stream_start_time
-            bucket = float(int(time_elapsed_time // _GRAPH_BUCKET_SECONDS) * _GRAPH_BUCKET_SECONDS)
+            bucket = float(int(time_elapsed_time // _RAW_EVENT_BUCKET_SECONDS) * _RAW_EVENT_BUCKET_SECONDS)
             self.captain_purchase_bucket_counts[bucket] = (
                     self.captain_purchase_bucket_counts.get(bucket, 0) + captain_count
             )
@@ -210,18 +252,26 @@ class MyDanmakuHandler(BaseHandler):
             logger.success(f'Livestream is not going anymore for room id: {self.room_id},'
                            f' dumping the data. Total gift value: {self.gift_price}')
 
+            stream_duration_seconds = max(0.0, float(time.time() - self.stream_start_time))
+            graph_bucket_seconds = choose_time_bucket_seconds(stream_duration_seconds)
+
+            danmaku_bucket_counts = rebucket_counts(self.stream_danmaku_bucket_counts, graph_bucket_seconds)
+            captain_bucket_counts = rebucket_counts(self.captain_purchase_bucket_counts, graph_bucket_seconds)
+
             try:
-                hotspot_timestamp_data = get_sorted_timestamp_hotspot(
-                    self.stream_danmaku_bucket_counts, TWENTY_FIVE_MINUTES)
+                hotspot_timestamp_data = get_sorted_timestamp_hotspot(danmaku_bucket_counts, graph_bucket_seconds)
             except (ValueError, TypeError):
                 logger.exception('Failed to get hotspot data')
                 hotspot_timestamp_data = []
 
             try:
-                danmaku_graph_hotspot = _get_sorted_hotspot_time_to_frequency(self.stream_danmaku_bucket_counts)
-                captain_graph_hotspot = dict(self.captain_purchase_bucket_counts)
+                danmaku_graph_hotspot = _get_sorted_hotspot_time_to_frequency(danmaku_bucket_counts)
                 logger.info(f'Danmaku graph hotspot list: {danmaku_graph_hotspot}')
-                file_name = _draw_danmaku_frequency_graph(danmaku_graph_hotspot, captain_graph_hotspot)
+                file_name = _draw_danmaku_frequency_graph(
+                    danmaku_graph_hotspot,
+                    captain_bucket_counts,
+                    data_bucket_seconds=graph_bucket_seconds,
+                )
             except (OSError, RuntimeError, ValueError):
                 logger.exception('Failed to get danmaku graph data')
                 file_name = ''
@@ -332,6 +382,7 @@ def seconds_to_hms(x: float, _pos: object) -> str:
 def _draw_danmaku_frequency_graph(
         data_tuple: Tuple[List[float], List[float]],
         captain_bucket_counts: Optional[Dict[float, int]] = None,
+        data_bucket_seconds: int = _GRAPH_BUCKET_SECONDS,
 ) -> str:
     import matplotlib.pyplot as plt
     from scipy.ndimage import gaussian_filter1d
@@ -388,7 +439,10 @@ def _draw_danmaku_frequency_graph(
 
     y_array = np.asarray(y_axis_data, dtype=float)
 
-    # When drawing on a linear axis, we can smooth directly.
+    bucket_minutes = max(1.0, float(data_bucket_seconds) / 60.0)
+    if bucket_minutes > 1.0:
+        y_array = y_array / bucket_minutes
+
     smoothed_y_axis_data: np.ndarray = gaussian_filter1d(y_array, sigma=2)
 
     # Main curve: crisp line + soft glow + gradient fill under the curve.
@@ -412,15 +466,22 @@ def _draw_danmaku_frequency_graph(
     ax.tick_params(axis='both', which='major', length=0)
 
     ax.set_title('弹幕活跃趋势', fontsize=18, fontweight='bold', pad=16)
-    ax.set_xlabel('直播时间（误差±1分钟）', labelpad=10)
+
+    if bucket_minutes <= 1.0:
+        x_label = '直播时间（1分钟）'
+    else:
+        x_label = f'直播时间（{bucket_minutes:,.0f}分钟）'
+    ax.set_xlabel(x_label, labelpad=10)
+
     ax.set_ylabel('弹幕量 / 分钟', labelpad=10)
 
     x_min = float(x_axis_data[0])
     x_max = float(x_axis_data[-1])
     duration_seconds = max(0.0, x_max - x_min)
 
-    total_messages = int(np.nansum(y_array))
+    total_messages = int(np.nansum(np.asarray(y_axis_data, dtype=float)))
     mean_per_min = float(np.nanmean(y_array)) if len(y_array) else 0.0
+    mean_line = f"均值  {mean_per_min:,.0f}/分"
 
     captain_total = 0
     if captain_bucket_counts:
@@ -466,7 +527,7 @@ def _draw_danmaku_frequency_graph(
     stats_lines = [
         f"时长  {seconds_to_hms(duration_seconds, None)}",
         f"弹幕  {total_messages:,}",
-        f"均值  {mean_per_min:,.0f}/分",
+        mean_line,
     ]
     if captain_total > 0:
         stats_lines.append(f"上舰  {captain_total:,}")
@@ -494,8 +555,8 @@ def _draw_danmaku_frequency_graph(
 
     ax.margins(x=0)
 
-    # Captain overlay: captain_bucket_counts is already aggregated by minute bucket.
-    # We place markers directly on the smoothed curve for the same bucket timestamp.
+    # Captain overlay: captain_bucket_counts uses the same data bucket size as the main curve.
+    # We place markers directly on the smoothed curve by snapping to the closest x.
     if captain_bucket_counts:
         duration_minutes = (x_max - x_min) / 60.0
 
@@ -516,8 +577,8 @@ def _draw_danmaku_frequency_graph(
         for bucket_seconds, count in captain_bucket_counts.items():
             if count <= 0:
                 continue
-            minute_bucket = float(int(float(bucket_seconds) // _GRAPH_BUCKET_SECONDS) * _GRAPH_BUCKET_SECONDS)
-            agg_bucket = float(int(minute_bucket // aggregation_seconds) * aggregation_seconds)
+            base_bucket = float(int(float(bucket_seconds) // data_bucket_seconds) * data_bucket_seconds)
+            agg_bucket = float(int(base_bucket // aggregation_seconds) * aggregation_seconds)
             aggregated_captain_counts[agg_bucket] = aggregated_captain_counts.get(agg_bucket, 0) + int(count)
 
         x_to_index: Dict[float, int] = {float(x): i for i, x in enumerate(x_axis_data)}
