@@ -1,4 +1,4 @@
-from .BotSpotify import BotSpotify
+from .BotYouTubeMusic import BotYouTubeMusic
 from .chatgpt import ChatGPTBaseAPI
 from .deepseek import DeepSeekAPI
 from .discord_service import DiscordService
@@ -15,4 +15,4 @@ twitch_clipping = TwitchClippingService()
 discord_notification = DiscordService()
 chatgpt_api = ChatGPTBaseAPI()
 deepseek_api = DeepSeekAPI()
-spotify_main_api = BotSpotify()
+youtube_music_main_api = BotYouTubeMusic()

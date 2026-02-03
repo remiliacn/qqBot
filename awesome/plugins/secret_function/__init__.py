@@ -9,6 +9,7 @@ from nonebot.log import logger
 from nonebot.params import CommandArg
 
 from Services import global_rate_limiter, sail_data
+from Services import youtube_music_main_api
 from Services.deepinfra import DeepInfraAPI
 from Services.live_notification import GuardCheckResult
 from Services.rate_limiter import UserLimitModifier
@@ -97,3 +98,46 @@ async def lingye_sing(event: GroupMessageEvent, matcher: Matcher, args: Message 
 
     await matcher.send(f'那就唱一首{file.split(".")[0]}')
     await matcher.finish(MessageSegment.record(file=path.join(getcwd(), 'data', 'sing', file)))
+
+
+ytm_now_playing_cmd = on_command('在听啥')
+
+
+@ytm_now_playing_cmd.handle()
+async def ytm_now_playing(event: GroupMessageEvent, matcher: Matcher):
+    message_id = event.message_id
+    result = await youtube_music_main_api.what_ya_listening()
+    if result.is_success:
+        await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), result.message))
+
+    await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), str(result.message)))
+
+
+yt_next_cmd = on_command('切歌')
+
+
+@yt_next_cmd.handle()
+async def ytm_next_song(event: GroupMessageEvent, matcher: Matcher):
+    message_id = event.message_id
+    result = await youtube_music_main_api.cut_song()
+    if result.is_success:
+        await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), result.message))
+
+    await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), str(result.message)))
+
+
+yt_pick_cmd = on_command('点歌')
+
+
+@yt_pick_cmd.handle()
+async def ytm_pick_song(event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
+    message_id = event.message_id
+    search_term = args.extract_plain_text().strip()
+    if not search_term:
+        await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), '请输入歌名'))
+
+    result = await youtube_music_main_api.search_and_add_to_next_queue(search_term)
+    if result.is_success:
+        await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), result.message))
+
+    await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), str(result.message)))

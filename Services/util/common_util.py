@@ -1,4 +1,4 @@
-from asyncio import sleep, get_running_loop, to_thread
+from asyncio import sleep, get_running_loop
 from base64 import b64encode
 from collections.abc import Mapping
 from functools import lru_cache
@@ -25,15 +25,8 @@ from nonebot.adapters.onebot.v11 import Bot, PrivateMessageEvent
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageSegment, Message
 from nonebot.internal.matcher import Matcher
 from nonebot.log import logger
-from selenium import webdriver
-from selenium.common import TimeoutException
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as exp_con
-from selenium.webdriver.support.wait import WebDriverWait
+from playwright.async_api import async_playwright
 from tqdm import tqdm
-from webdriver_manager.chrome import ChromeDriverManager
 
 from Services.util.ctx_utility import get_user_id, get_group_id
 from Services.util.file_utils import delete_file_after
@@ -255,63 +248,66 @@ pre { font-size: 20px !important }
     return file_name
 
 
-def html_to_image(file_name: str, run_hljs: bool = True, render_spotify_iframe: str = '') -> str:
-    return html_to_image_sync(file_name, run_hljs=run_hljs, render_spotify_iframe=render_spotify_iframe)
-
-
-def html_to_image_sync(file_name: str, run_hljs: bool = True, render_spotify_iframe: str = '') -> str:
+async def html_to_image_async(file_name: str, run_hljs: bool = False, render_spotify_iframe: str = '') -> str:
     file_name_png = path.join(BOT_RESPONSE_PATH, f'{file_name.split("/")[-1]}.png')
     if exists(file_name_png):
         return file_name_png
 
-    options = Options()
-    options.add_argument('--headless')
-    options.add_argument("--force-device-scale-factor=3.0")
-    options.add_argument("--disable-gpu")
-    services = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(options=options, service=services)
-    driver.set_page_load_timeout(10)
-    driver.get(f'file:///{file_name}')
-    if run_hljs:
-        driver.execute_script("hljs.highlightAll();")
-        try:
-            WebDriverWait(driver, 5, poll_frequency=1) \
-                .until(
-                exp_con.presence_of_element_located(
-                    (By.XPATH, "//*[@id='MathJax_Message'][contains(@style, 'display: none')]")))
-        except TimeoutException:
-            logger.warning('Render markdown exceeded time limit.')
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page(device_scale_factor=3.0)
 
-    if render_spotify_iframe:
-        try:
-            logger.info('Trying to switch to iframe')
-            WebDriverWait(driver, 5, poll_frequency=1).until(
-                exp_con.frame_to_be_available_and_switch_to_it((By.ID, render_spotify_iframe))
-            )
-            logger.info('Trying to find the button.')
-            WebDriverWait(driver, 8, poll_frequency=1) \
-                .until(
-                exp_con.presence_of_element_located((By.XPATH, "//button")))
-        except TimeoutException:
-            logger.warning('Render iframe exceeded time limit.')
+            await page.goto(f'file:///{file_name}', wait_until='networkidle', timeout=10000)
 
-    required_width = driver.execute_script('return document.body.parentNode.scrollWidth')
-    required_height = driver.execute_script('return document.body.parentNode.scrollHeight')
+            if run_hljs:
+                await page.evaluate("hljs.highlightAll();")
+                try:
+                    await page.wait_for_selector(
+                        "#MathJax_Message[style*='display: none']",
+                        timeout=5000
+                    )
+                except Exception:
+                    logger.warning('Render markdown exceeded time limit.')
 
-    if render_spotify_iframe:
-        driver.switch_to.default_content()
+            if render_spotify_iframe:
+                try:
+                    logger.info('Trying to switch to iframe')
+                    frame = page.frame_locator(f"#{render_spotify_iframe}")
+                    await frame.locator("button").wait_for(timeout=8000)
+                except Exception:
+                    logger.warning('Render iframe exceeded time limit.')
 
-    element = driver.find_element(by=By.CLASS_NAME, value='container')
-    driver.set_window_size(required_width, required_height + 2000)
-    element.screenshot(file_name_png)
+            await page.wait_for_function(
+                """
+                () => {
+                    const images = document.getElementsByTagName('img');
+                    if (images.length === 0) return true;
+                    for (let img of images) {
+                        if (!img.complete || img.naturalHeight === 0) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+                """, timeout=30000)
+            logger.info('All images loaded successfully.')
 
-    driver.quit()
-    remove(file_name)
-    return file_name_png
+            element = await page.query_selector('.container')
+            if element:
+                await element.screenshot(path=file_name_png, type='png')
+            else:
+                await page.screenshot(path=file_name_png, type='png', full_page=True)
 
+            await browser.close()
 
-async def html_to_image_async(file_name: str, run_hljs: bool = True, render_spotify_iframe: str = '') -> str:
-    return await to_thread(html_to_image_sync, file_name, run_hljs, render_spotify_iframe)
+        if exists(file_name):
+            remove(file_name)
+
+        return file_name_png
+    except Exception as err:
+        logger.error(f"Playwright rendering failed ({err.__class__.__name__}): {err}")
+        raise
 
 
 async def markdown_to_image(text: str) -> Status:

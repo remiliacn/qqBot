@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import Optional, List, Any
 
 from nonebot.adapters.onebot.v11 import MessageSegment, Message
 
@@ -7,7 +7,7 @@ from nonebot.adapters.onebot.v11 import MessageSegment, Message
 @dataclass
 class Status:
     is_success: bool
-    message: any
+    message: Any
 
 
 @dataclass

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Now Playing - {title}</title>
+    <style>
+        * {
+        {
+            box-sizing: border-box;
+        }
+        }
+
+        body {
+        {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        }
+
+        .container {
+        {
+            perspective: 1000px;
+        }
+        }
+
+        .card {
+        {
+            width: 800px;
+            max-width: 95vw;
+            padding: 40px;
+            color: #ffffff;
+            background: linear-gradient(145deg, #1e1e2f 0%, #2a2a3e 100%);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4),
+            0 8px 32px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            animation: cardAppear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-style: preserve-3d;
+        }
+        }
+
+        @keyframes cardAppear {
+
+        {
+        from {
+        {
+            opacity: 0;
+            transform: translateY(30px) scale(0.95);
+        }
+        }
+
+        to {
+        {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        }
+
+        }
+        }
+
+        .row {
+        {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+        }
+        }
+
+        .cover-container {
+        {
+            position: relative;
+            flex-shrink: 0;
+        }
+        }
+
+        .cover {
+        {
+            width: 200px;
+            height: 200px;
+            border-radius: 20px;
+            background: linear-gradient(145deg, #2a2a2a, #404040);
+            object-fit: cover;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5),
+            0 4px 20px rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            animation: coverFloat 3s ease-in-out infinite;
+            transition: transform 0.3s ease;
+        }
+        }
+
+        .cover:hover {
+        {
+            transform: scale(1.05) rotateY(5deg);
+        }
+        }
+
+        @keyframes coverFloat {
+
+        {
+        0%, 100% {
+        {
+            transform: translateY(0px) rotate(0deg);
+        }
+        }
+
+        50% {
+        {
+            transform: translateY(-8px) rotate(1deg);
+        }
+        }
+
+        }
+        }
+
+        .cover-glow {
+        {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200px;
+            height: 200px;
+            border-radius: 20px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+            opacity: 0.3;
+            filter: blur(20px);
+            z-index: -1;
+            animation: glowPulse 4s ease-in-out infinite;
+        }
+        }
+
+        @keyframes glowPulse {
+
+        {
+        0%, 100% {
+        {
+            opacity: 0.2;
+            transform: scale(1);
+        }
+        }
+
+        50% {
+        {
+            opacity: 0.4;
+            transform: scale(1.1);
+        }
+        }
+
+        }
+        }
+
+        .meta {
+        {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 8px;
+        }
+        }
+
+        .title {
+        {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+            animation: titleGlow 2s ease-in-out infinite alternate;
+        }
+        }
+
+        @keyframes titleGlow {
+
+        {
+        from {
+        {
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
+        }
+        }
+
+        to {
+        {
+            filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.3));
+        }
+        }
+
+        }
+        }
+
+        .subtitle {
+        {
+            font-size: 20px;
+            font-weight: 500;
+            color: #c0c0c0;
+            line-height: 1.4;
+            margin-bottom: 4px;
+            opacity: 0.9;
+        }
+        }
+
+        .album {
+        {
+            font-size: 18px;
+            color: #a0a0a0;
+            font-style: italic;
+        }
+        }
+
+        .progress-container {
+        {
+            margin-top: 20px;
+            width: 100%;
+        }
+        }
+
+        .progress-bar {
+        {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        }
+
+        .progress-fill {
+        {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b 0%, #4ecdc4 50%, #45b7d1 100%);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(69, 183, 209, 0.5);
+        }
+        }
+
+        .time-labels {
+        {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 14px;
+            color: #a0a0a0;
+            font-weight: 500;
+        }
+        }
+
+        @media (max-width: 768px) { {
+            .card {
+            {
+                padding: 24px;
+                margin: 10px;
+            }
+            }
+
+            .row {
+            {
+                flex-direction: column;
+                text-align: center;
+                gap: 24px;
+            }
+            }
+
+            .cover {
+            {
+                width: 160px;
+                height: 160px;
+            }
+            }
+
+            .cover-glow {
+            {
+                width: 160px;
+                height: 160px;
+            }
+            }
+
+            .title {
+            {
+                font-size: 28px;
+            }
+            }
+
+            .subtitle {
+            {
+                font-size: 18px;
+            }
+            }
+        }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <div class="row">
+            <div class="cover-container">
+                <div class="cover-glow"></div>
+                <img class="cover" src="{artwork_url}" alt="Album Cover"/>
+            </div>
+            <div class="meta">
+                <div class="title">{title}</div>
+                <div class="subtitle">{artists}</div>
+                {album_html}
+                {progress_html}
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
