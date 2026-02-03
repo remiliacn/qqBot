@@ -205,9 +205,10 @@ async def do_discord_live_fetch():
 
     for data in data_list:
         logger.info(f'New data found for {data.channel_name} for discord')
-        notify_group = loads(discord_notification.get_group_ids_for_notification(data.channel_id))
-        if notify_group is None:
+        notify_group_raw = await discord_notification.get_group_ids_for_notification(data.channel_id)
+        if not notify_group_raw:
             continue
+        notify_group = loads(notify_group_raw)
         for group in notify_group:
             if data.is_success and group in group_set:
                 await bot.call_api(

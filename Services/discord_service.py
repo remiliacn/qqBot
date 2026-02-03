@@ -1,17 +1,16 @@
-import sqlite3
 from datetime import datetime
-from json import dumps, loads
+from json import JSONDecodeError, dumps, loads
 from os import path
 from re import findall, sub
-from typing import List, Optional
+from typing import Any, List, Optional
 
+import aiosqlite
 from loguru import logger
 from nonebot.adapters.onebot.v11 import MessageSegment
 from youtube_dl.utils import sanitize_filename
 
 from Services.util.common_util import HttpxHelperClient
 from awesome.Constants.path_constants import BILIBILI_PIC_PATH, DB_PATH
-from awesome.Constants.vtuber_function_constants import GPT_4_MODEL_NAME
 from config import DISCORD_AUTH
 from model.common_model import DiscordMessageStatus, DiscordGroupNotification
 from util.db_utils import fetch_one_or_default
@@ -19,19 +18,28 @@ from util.helper_util import construct_message_chain
 
 
 class DiscordService:
-    def __init__(self):
+    def __init__(self) -> None:
         self.headers = {
             'Authorization': DISCORD_AUTH,
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
                           ' AppleWebKit/537.36 (KHTML, like Gecko)'
                           ' Chrome/126.0.0.0 Safari/537.36'
         }
-        self.database = sqlite3.connect(path.join(DB_PATH, 'live_notification_data.db'))
-        self._init_database()
+        self.db_file_path = path.join(DB_PATH, 'live_notification_data.db')
+        self.database: Optional[aiosqlite.Connection] = None
         self.client = HttpxHelperClient()
 
-    def _init_database(self):
-        self.database.execute(
+    async def _ensure_database(self) -> aiosqlite.Connection:
+        if self.database is not None:
+            return self.database
+
+        self.database = await aiosqlite.connect(self.db_file_path)
+        await self._init_database()
+        return self.database
+
+    async def _init_database(self) -> None:
+        database = await self._ensure_database()
+        await database.execute(
             """
             create table if not exists discord_notification (
                 channel_id varchar(200) unique on conflict ignore,
@@ -42,59 +50,94 @@ class DiscordService:
             )
             """
         )
-        self.database.commit()
+        await database.commit()
 
-    def _retrieve_all_record_in_db(self):
-        result = self.database.execute(
+    async def _fetchone(self, sql: str, params: tuple[Any, ...]) -> Optional[tuple[Any, ...]]:
+        database = await self._ensure_database()
+        async with database.execute(sql, params) as cursor:
+            return await cursor.fetchone()
+
+    async def _fetchall(self, sql: str, params: tuple[Any, ...] = ()) -> list[tuple[Any, ...]]:
+        database = await self._ensure_database()
+        async with database.execute(sql, params) as cursor:
+            rows = await cursor.fetchall()
+
+        return rows or []
+
+    async def _execute(self, sql: str, params: tuple[Any, ...]) -> None:
+        database = await self._ensure_database()
+        await database.execute(sql, params)
+        await database.commit()
+
+    async def _retrieve_all_record_in_db(self) -> list[tuple[Any, ...]]:
+        return await self._fetchall(
             """
             select * from discord_notification
             """
-        ).fetchall()
-        if result is None:
-            return []
+        )
 
-        return result
-
-    def get_group_ids_for_notification(self, channel_id: str):
-        data = self.database.execute(
+    async def _get_group_ids_for_notification_by_channel_id(self, channel_id: str) -> Optional[str]:
+        data = await self._fetchone(
             """
             select group_to_notify from discord_notification where channel_id = ?
             """, (channel_id,)
-        ).fetchone()
+        )
 
         if data is None:
             return None
 
         return data if not isinstance(data, tuple) else data[0]
 
-    async def _get_one_notification_data_from_db(self, streamer_name: str):
-        data = self.database.execute(
+    async def _get_group_ids_for_notification_by_channel_name(self, channel_name: str) -> Optional[str]:
+        data = await self._fetchone(
+            """
+            select group_to_notify
+            from discord_notification
+            where channel_name = ?
+            """, (channel_name,)
+        )
+
+        if data is None:
+            return None
+
+        return data if not isinstance(data, tuple) else data[0]
+
+    async def _get_one_notification_data_from_db(self, streamer_name: str) -> Optional[tuple[Any, ...]]:
+        return await self._fetchone(
             """
             select * from discord_notification where channel_name = ?
             """, (streamer_name,)
-        ).fetchone()
+        )
 
-        return data
-
-    async def _check_if_notification_exist_in_db(self, streamer_name) -> bool:
+    async def _check_if_notification_exist_in_db(self, streamer_name: str) -> bool:
         data = await self._get_one_notification_data_from_db(streamer_name)
         return data is not None
 
-    async def add_discord_follows_to_db(self, channel_id: str, name: str, group_id: str, last_updated_time=0):
-        notification_group = self.get_group_ids_for_notification(name)
+    async def add_discord_follows_to_db(
+            self,
+            channel_id: str,
+            name: str,
+            group_id: str,
+            last_updated_time: int = 0,
+    ) -> None:
+        notification_group = await self._get_group_ids_for_notification_by_channel_name(name)
 
         if await self._check_if_notification_exist_in_db(name):
             await self.update_streamer_data(name, channel_id, group_id)
             return
 
         if notification_group is not None:
-            streamer_group_list = loads(notification_group)
+            try:
+                streamer_group_list = loads(notification_group)
+            except (JSONDecodeError, TypeError) as err:
+                logger.error(f'Loads group id list from db failed. {err.__class__}')
+                streamer_group_list = []
         else:
             streamer_group_list = []
 
         streamer_group_list.append(group_id)
         streamer_group_list = list(set(streamer_group_list))
-        self.database.execute(
+        await self._execute(
             """
             insert or replace into discord_notification
                 (channel_name, is_enabled, channel_id, last_updated_time, group_to_notify)
@@ -102,52 +145,62 @@ class DiscordService:
             """, (name, True, channel_id, last_updated_time, dumps(streamer_group_list))
         )
 
-        self.database.commit()
-
-    async def _get_the_latest_existing_discord_message(self, channel_id):
-        data = self.database.execute(
-            """
-            select last_updated_time from discord_notification where channel_id = ?
-            """, (channel_id,)
-        ).fetchone()
-
-        return fetch_one_or_default(data, 0)
-
     async def check_discord_updates(self) -> List[DiscordGroupNotification]:
-        notification_list = self._retrieve_all_record_in_db()
-        statuses = []
+        notification_list = await self._retrieve_all_record_in_db()
+        statuses: List[DiscordGroupNotification] = []
         for item in notification_list:
-            # is enabled.
-            if not item[1]:
+            channel_id = item[0]
+            is_enabled = item[1]
+            channel_name = item[2]
+            last_updated_time = item[3]
+            group_to_notify = item[4]
+
+            if not is_enabled:
                 continue
-            discord_status = await self._retrieve_latest_discord_channel_message(item[0])
+
+            discord_status = await self._retrieve_latest_discord_channel_message(
+                channel_id,
+                latest_timestamp=fetch_one_or_default((last_updated_time,), 0),
+                group_to_notify=group_to_notify,
+            )
             if discord_status.has_update:
                 try:
                     chatgpt_message = await self._get_machine_translation_result(discord_status)
                     if not chatgpt_message:
-                        raise ConnectionError
+                        raise ConnectionError('Translation service returned empty result')
 
                     final_message = construct_message_chain(
-                        f'\n', discord_status.message, '\n粗翻：\n', chatgpt_message)
+                        '\n', discord_status.message, '\n粗翻：\n', chatgpt_message)
                     statuses.append(DiscordGroupNotification(
                         is_success=discord_status.is_success,
                         message=final_message,
                         has_update=discord_status.has_update,
                         group_to_notify=discord_status.group_to_notify,
-                        channel_name=item[2],
+                        channel_name=channel_name,
                         is_edit=discord_status.is_edit,
-                        channel_id=item[0]
+                        channel_id=channel_id
                     ))
-                except Exception as err:
+                except ConnectionError:
+                    logger.error('Failed to machine translate due to connection error.')
+                    statuses.append(DiscordGroupNotification(
+                        is_success=discord_status.is_success,
+                        message=construct_message_chain(discord_status.message),
+                        has_update=discord_status.has_update,
+                        group_to_notify=discord_status.group_to_notify,
+                        channel_name=channel_name,
+                        is_edit=discord_status.is_edit,
+                        channel_id=channel_id
+                    ))
+                except (KeyError, ValueError, TypeError) as err:
                     logger.error(f'Failed to machine translate. {err.__class__}')
                     statuses.append(DiscordGroupNotification(
                         is_success=discord_status.is_success,
                         message=construct_message_chain(discord_status.message),
                         has_update=discord_status.has_update,
                         group_to_notify=discord_status.group_to_notify,
-                        channel_name=item[2],
+                        channel_name=channel_name,
                         is_edit=discord_status.is_edit,
-                        channel_id=item[0]
+                        channel_id=channel_id
                     ))
 
         return statuses
@@ -163,12 +216,13 @@ class DiscordService:
             ChatGPTRequestMessage(
                 message='\n'.join([sub(r'\[CQ:.*?]', '', x.__str__()) for x in discord_status.message]),
                 is_chat=False,
-                model_name=GPT_4_MODEL_NAME,
+                model_name='gpt-5-nano',
+                force_no_web_search=True,
                 context='Please help to translate the following message to Chinese, While translating,'
                         'please ignore and remove messges that in this pattern: `[CQ:.*?]` '
                         'in your response and only response with the result of the translation. '
                         'Do not translate names, and translate "stream" to 直播: \n\n.'
-                        " Do not translate markdown and timestamp in ISO 8601 format."
+                        ' Do not translate markdown and timestamp in ISO 8601 format.'
             ))
 
         if chatgpt_message.is_success:
@@ -177,11 +231,28 @@ class DiscordService:
         return None
 
     @staticmethod
-    async def group_notification_to_literal_string(data: DiscordGroupNotification):
+    async def group_notification_to_literal_string(data: DiscordGroupNotification) -> str:
         return (f'刚刚{data.channel_name}{"发布了" if not data.is_edit else "更新了"}最新动态！\n'
                 f'{data.message}')
 
-    async def _retrieve_latest_discord_channel_message(self, channel_id: str) -> DiscordMessageStatus:
+    @staticmethod
+    def _parse_discord_iso_ts(raw_ts: Optional[str]) -> int:
+        if not raw_ts:
+            return 0
+
+        normalized = raw_ts.replace('Z', '+00:00')
+        try:
+            return int(datetime.fromisoformat(normalized).timestamp())
+        except ValueError as err:
+            logger.error(f'Failed to parse discord timestamp. {err.__class__}')
+            return 0
+
+    async def _retrieve_latest_discord_channel_message(
+            self,
+            channel_id: str,
+            latest_timestamp: Optional[int] = None,
+            group_to_notify: Optional[str] = None,
+    ) -> DiscordMessageStatus:
         if not channel_id.isdigit():
             return DiscordMessageStatus(False, [MessageSegment.text('Channel ID should be digit.')])
 
@@ -194,26 +265,31 @@ class DiscordService:
 
         final_message_segments: List[MessageSegment] = []
 
-        discord_msg_result_all = result.json()[::-1]
+        try:
+            discord_msg_result_all = result.json()[::-1]
+        except (ValueError, TypeError) as err:
+            logger.error(f'Failed to parse discord api response. {err.__class__}')
+            return DiscordMessageStatus(False)
+
         is_edit = False
 
-        latest_timestamp = await self._get_the_latest_existing_discord_message(channel_id)
+        resolved_latest_timestamp = (
+            latest_timestamp
+            if latest_timestamp is not None
+            else await self._get_the_latest_existing_discord_message(channel_id)
+        )
+
         for discord_msg_result in discord_msg_result_all:
-            latest_msg_timestamp = discord_msg_result['timestamp']
-            latest_msg_timestamp = int(datetime.fromisoformat(latest_msg_timestamp).timestamp())
+            latest_msg_timestamp = self._parse_discord_iso_ts(discord_msg_result.get('timestamp'))
+            edited_msg_timestamp = self._parse_discord_iso_ts(discord_msg_result.get('edited_timestamp'))
 
-            edited_msg_timestamp = discord_msg_result['edited_timestamp']
-            edited_msg_timestamp = 0 if edited_msg_timestamp is None else int(
-                datetime.fromisoformat(edited_msg_timestamp).timestamp())
+            author_object = discord_msg_result.get('author') or {}
+            poster_name = author_object.get('username') or author_object.get('global_name') or '??'
 
-            author_object = discord_msg_result['author']
-            poster_name = author_object['username'] if 'username' in author_object else \
-                (author_object['global_name'] if 'global_name' in author_object else '??')
-
-            if edited_msg_timestamp > latest_timestamp and edited_msg_timestamp > latest_msg_timestamp:
-                discord_msg_parsed_result = await self._analyze_discord_message(discord_msg_result['content'])
+            if edited_msg_timestamp > resolved_latest_timestamp and edited_msg_timestamp > latest_msg_timestamp:
+                discord_msg_parsed_result = await self._analyze_discord_message(discord_msg_result.get('content', ''))
                 attachment_msg_parsed_result = await self._analyze_discord_attachments(
-                    discord_msg_result['attachments'])
+                    discord_msg_result.get('attachments') or [])
 
                 final_message_segments.append(MessageSegment.text(poster_name + ':\n'))
                 final_message_segments += discord_msg_parsed_result
@@ -221,40 +297,55 @@ class DiscordService:
                 final_message_segments += attachment_msg_parsed_result
                 is_edit = True
                 await self._update_previous_timestamp(channel_id, edited_msg_timestamp)
+                resolved_latest_timestamp = max(resolved_latest_timestamp, edited_msg_timestamp)
 
-            elif latest_msg_timestamp > latest_timestamp:
-                discord_msg_parsed_result = await self._analyze_discord_message(discord_msg_result['content'])
+            elif latest_msg_timestamp > resolved_latest_timestamp:
+                discord_msg_parsed_result = await self._analyze_discord_message(discord_msg_result.get('content', ''))
                 attachment_msg_parsed_result = await self._analyze_discord_attachments(
-                    discord_msg_result['attachments'])
+                    discord_msg_result.get('attachments') or [])
 
                 final_message_segments.append(MessageSegment.text(poster_name + ':\n'))
                 final_message_segments += discord_msg_parsed_result
                 final_message_segments.append(MessageSegment.text('\n'))
                 final_message_segments += attachment_msg_parsed_result
                 await self._update_previous_timestamp(channel_id, latest_msg_timestamp)
+                resolved_latest_timestamp = max(resolved_latest_timestamp, latest_msg_timestamp)
 
-        group_to_notify = self.get_group_ids_for_notification(channel_id)
+        resolved_group_to_notify = (
+            group_to_notify
+            if group_to_notify is not None
+            else await self._get_group_ids_for_notification_by_channel_id(channel_id)
+        )
+
         return DiscordMessageStatus(
-            True, final_message_segments, group_to_notify,
+            True, final_message_segments, resolved_group_to_notify,
             True if final_message_segments else False, is_edit=is_edit)
 
-    async def update_streamer_data(self, channel_name: str, channel_id: str, group_id: str, is_enabled=True):
-        group_ids = self.get_group_ids_for_notification(channel_name)
+    async def update_streamer_data(
+            self,
+            channel_name: str,
+            channel_id: str,
+            group_id: str,
+            is_enabled: bool = True,
+    ) -> None:
+        group_ids = await self._get_group_ids_for_notification_by_channel_name(channel_name)
+        group_id_list: list[str]
         if group_ids is not None:
             try:
-                group_ids = loads(group_ids)
-            except Exception as err:
+                group_id_list = loads(group_ids)
+            except (JSONDecodeError, TypeError) as err:
                 logger.error(f'Loads group id list from db failed. {err.__class__}')
-                group_ids = []
+                group_id_list = []
+        else:
+            group_id_list = []
 
-        group_ids.append(group_id)
-        group_ids = dumps(list(set(group_ids)))
-        self.database.execute(
+        group_id_list.append(group_id)
+        unique_group_ids = dumps(list(set(group_id_list)))
+        await self._execute(
             """
             update discord_notification set channel_id = ?, group_to_notify = ?, is_enabled = ? where channel_name = ?
-            """, (channel_id, group_ids, is_enabled, channel_name)
+            """, (channel_id, unique_group_ids, is_enabled, channel_name)
         )
-        self.database.commit()
 
     @staticmethod
     async def _analyze_discord_message(discord_msg_result: str) -> List[MessageSegment]:
@@ -262,7 +353,7 @@ class DiscordService:
                               .replace('])', '')
                               .replace('()', ''))
         special_message_data: List[str] = findall(r'<(.*?)>', discord_msg_result)
-        replacement_dict = {}
+        replacement_dict: dict[str, str] = {}
 
         for message in special_message_data:
             if message.startswith('t') and message.endswith('F'):
@@ -279,23 +370,54 @@ class DiscordService:
 
         return [MessageSegment.text(discord_msg_result)]
 
-    async def _analyze_discord_attachments(self, attachments: List[dict]) -> List[MessageSegment]:
-        orig_text = []
+    async def _analyze_discord_attachments(self, attachments: List[dict[str, Any]]) -> List[MessageSegment]:
+        orig_text: List[MessageSegment] = []
         for attachment in attachments:
-            file_type, file_extension = attachment['content_type'].split('/')
-            placeholder_name = sanitize_filename(attachment['placeholder'])
-            if file_type == 'image':
-                file_name = path.join(BILIBILI_PIC_PATH, placeholder_name)
+            content_type = attachment.get('content_type')
+            if not content_type or '/' not in content_type:
+                continue
 
-                file_name = await self.client.download(attachment['url'], file_name, headers=self.headers)
-                orig_text += [MessageSegment.image(file_name)]
+            file_type, _ = content_type.split('/', 1)
+            if file_type != 'image':
+                continue
+
+            placeholder = attachment.get('placeholder') or attachment.get('filename') or 'image'
+            placeholder_name = sanitize_filename(placeholder)
+            file_name = path.join(BILIBILI_PIC_PATH, placeholder_name)
+
+            url = attachment.get('url')
+            if not url:
+                continue
+
+            file_name = await self.client.download(url, file_name, headers=self.headers)
+            orig_text.append(MessageSegment.image(file_name))
 
         return orig_text
 
-    async def _update_previous_timestamp(self, channel_id: str, latest_msg_timestamp: int):
-        self.database.execute(
+    async def _get_the_latest_existing_discord_message(self, channel_id: str) -> int:
+        data = await self._fetchone(
+            """
+            select last_updated_time
+            from discord_notification
+            where channel_id = ?
+            """, (channel_id,)
+        )
+
+        return fetch_one_or_default(data, 0)
+
+    async def _update_previous_timestamp(self, channel_id: str, latest_msg_timestamp: int) -> None:
+        await self._execute(
             """
             update discord_notification set last_updated_time = ? where channel_id = ?
             """, (latest_msg_timestamp, channel_id)
         )
-        self.database.commit()
+
+    async def close(self) -> None:
+        if self.database is None:
+            return
+
+        await self.database.close()
+        self.database = None
+
+    async def get_group_ids_for_notification(self, channel_id: str) -> Optional[str]:
+        return await self._get_group_ids_for_notification_by_channel_id(channel_id)

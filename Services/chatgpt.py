@@ -24,6 +24,7 @@ class ChatGPTRequestMessage:
     has_image: bool = False
     image_path: str = ""
     is_web_search_used: bool = False
+    force_no_web_search: bool = False
 
 
 class ChatGPTBaseAPI(WebSearchJudgeMixin):
@@ -264,6 +265,11 @@ class ChatGPTBaseAPI(WebSearchJudgeMixin):
 
         intervals = -10
         context_data = self._construct_openai_message_context(message, intervals)
+
+        if message.force_no_web_search:
+            logger.info("Web search is forcibly disabled for this message.")
+            return await self._invoke_chat_completions(message)
+
         judge_input = self._format_judge_input_with_context(context_data, message.message)
 
         need_search, query = await self.judge_need_web_search(judge_input)
