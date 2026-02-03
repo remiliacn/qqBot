@@ -1,10 +1,69 @@
 import sqlite3
 import time
-from typing import Tuple, Union
+from dataclasses import dataclass
+from functools import wraps
+from inspect import signature
+from typing import Any, Callable, Tuple, Union, Optional, Iterable
+
+from nonebot.internal.matcher import Matcher
 
 from Services.util.common_util import time_to_literal
 from model.common_model import RateLimitStatus
 from util.db_utils import fetch_one_or_default
+
+
+@dataclass
+class RateLimitConfig:
+    """
+    速率限制配置，支持可选的渐进式/指数退避。
+
+    标准速率限制参数：
+        user_time_period: 同一用户连续使用之间的基础延迟时间（秒）。
+        user_function_limit: 在时间周期内每个用户允许使用的次数。
+        allowlist_can_bypass: 如果为True，白名单用户可以绕过用户级速率限制。
+        group_time_period: 同一群组内连续使用之间的延迟时间（秒）。
+        group_function_limit: 在时间周期内每个群组允许使用的次数。
+        apply_group_limit: 如果为True，在用户限制之外还应用群组级速率限制。
+
+    渐进式速率限制（指数退避）参数：
+        enable_progressive_limit: 如果为True，对群组内重复使用启用指数退避。
+                                  每次连续使用会使延迟时间呈指数级增长。
+                                  仅适用于群聊，不适用于私聊。
+                                  前两次使用保持基础延迟，从第3次开始递增。
+        progressive_multiplier: 每次连续使用时应用的倍数。
+                                例如：基础时间=20秒，倍数=1.5时：
+                                第1次：20秒，第2次：20秒，第3次：30秒，第4次：45秒，第5次：67.5秒
+        progressive_max_period: 最大延迟时间上限（秒），防止极端锁定。
+                                达到上限后，延迟时间不再增加。
+        progressive_reset_after: 不活跃期限（秒），超过此时间后渐进式状态将重置。
+                                 如果用户等待时间超过此值，延迟将重置为基础时间。
+
+    示例：
+        标准速率限制（无渐进）：
+        >>> config = RateLimitConfig(user_time_period=30.0, enable_progressive_limit=False)
+
+        渐进式速率限制（指数退避）：
+        >>> config = RateLimitConfig(
+        ...     user_time_period=20.0,
+        ...     enable_progressive_limit=True,
+        ...     progressive_multiplier=1.5,
+        ...     progressive_max_period=300.0,
+        ...     progressive_reset_after=120.0
+        ... )
+        # 用户延迟递增：20秒 → 20秒 → 30秒 → 45秒 → 67.5秒 → ... → 300秒（达到上限）
+        # 前两次使用保持基础延迟，从第3次开始递增
+        # 在不活跃120秒后重置为20秒
+    """
+    user_time_period: float = 30.0
+    user_function_limit: float = 1.0
+    allowlist_can_bypass: bool = True
+    group_time_period: int = 20
+    group_function_limit: int = 1
+    apply_group_limit: bool = True
+    enable_progressive_limit: bool = False
+    progressive_multiplier: float = 2.0
+    progressive_max_period: float = 320.0
+    progressive_reset_after: float = 120.0
 
 
 class UserLimitModifier:
@@ -29,6 +88,7 @@ class RateLimiter:
         self.LIMIT_BY_GROUP = 'GROUP'
         self.LIMIT_BY_USER = 'USER'
         self.TEMPRORARY_DISABLED = 'DISABLED'
+        self._progressive_state: dict[str, dict[str, Union[float, int]]] = {}
 
         self._init_ratelimiter()
 
@@ -39,7 +99,8 @@ class RateLimiter:
     def _init_ratelimiter(self):
         self.rate_limiter_db.execute(
             """
-            create table if not exists rate_limiter_config (
+            create table if not exists rate_limiter_config
+            (
                 function_name varchar(255) unique on conflict ignore primary key,
                 rate_limit integer
             )
@@ -47,10 +108,11 @@ class RateLimiter:
         )
         self.rate_limiter_db.execute(
             """
-            create table if not exists rate_limiter (
-                user_id varchar(30),
+            create table if not exists rate_limiter
+            (
+                user_id      varchar(30),
                 function_name varchar(255),
-                hit integer,
+                hit          integer,
                 last_updated integer,
                 unique (user_id, function_name) on conflict ignore
             )
@@ -85,7 +147,10 @@ class RateLimiter:
     async def get_function_limit(self, function_name: str):
         result = self.rate_limiter_db.execute(
             """
-            select rate_limit from rate_limiter_config where function_name = ? limit 1;
+            select rate_limit
+            from rate_limiter_config
+            where function_name = ?
+            limit 1;
             """,
             (function_name,),
         ).fetchone()
@@ -100,7 +165,11 @@ class RateLimiter:
         user_id_str = str(user_id)
         result = self.rate_limiter_db.execute(
             """
-            select last_updated from rate_limiter where user_id = ? and function_name = ? limit 1;
+            select last_updated
+            from rate_limiter
+            where user_id = ?
+              and function_name = ?
+            limit 1;
             """,
             (user_id_str, function_name),
         ).fetchone()
@@ -114,7 +183,11 @@ class RateLimiter:
         user_id_str = str(user_id)
         result = self.rate_limiter_db.execute(
             """
-            select hit from rate_limiter where function_name = ? and user_id = ? limit 1;
+            select hit
+            from rate_limiter
+            where function_name = ?
+              and user_id = ?
+            limit 1;
             """,
             (function_name, user_id_str),
         ).fetchone()
@@ -274,3 +347,180 @@ class RateLimiter:
             override_function_limit=function_limit
         )
         return await self._assemble_limit_prompt(query_result, wait_time)
+
+    async def check_rate_limits_with_config(
+            self,
+            function_name: str,
+            user_id: Union[str, int],
+            group_id: Union[str, int],
+            config: RateLimitConfig
+    ) -> RateLimitStatus:
+        user_id_str = str(user_id)
+        group_id_str = str(group_id)
+
+        if config.enable_progressive_limit and group_id != -1:
+            key = f"{function_name}:{group_id_str}:{user_id_str}"
+            current_time = time.time()
+
+            if key not in self._progressive_state:
+                self._progressive_state[key] = {
+                    "consecutive_uses": 0,
+                    "last_use_time": 0,
+                    "current_period": config.user_time_period
+                }
+
+            state = self._progressive_state[key]
+            time_since_last = current_time - state["last_use_time"]
+
+            if time_since_last > config.progressive_reset_after:
+                state["consecutive_uses"] = 0
+                state["current_period"] = config.user_time_period
+
+            adjusted_period = state["current_period"]
+            user_limit = UserLimitModifier(
+                adjusted_period,
+                config.user_function_limit,
+                config.allowlist_can_bypass
+            )
+        else:
+            user_limit = UserLimitModifier(
+                config.user_time_period,
+                config.user_function_limit,
+                config.allowlist_can_bypass
+            )
+
+        user_check = await self.user_limit_check(function_name, user_id, user_limit)
+        if user_check.is_limited:
+            return user_check
+
+        if config.enable_progressive_limit and group_id != -1:
+            key = f"{function_name}:{group_id_str}:{user_id_str}"
+            state = self._progressive_state[key]
+            state["consecutive_uses"] += 1
+            state["last_use_time"] = time.time()
+
+            exponent = max(0, state["consecutive_uses"] - 2)
+            new_period = min(
+                config.user_time_period * (config.progressive_multiplier ** exponent),
+                config.progressive_max_period
+            )
+            state["current_period"] = new_period
+
+        if config.apply_group_limit and group_id != -1:
+            group_check = await self.group_limit_check(
+                function_name,
+                group_id,
+                time_period=config.group_time_period,
+                function_limit=config.group_function_limit
+            )
+            if group_check.is_limited:
+                return group_check
+
+        return RateLimitStatus(False, None)
+
+    @staticmethod
+    def _extract_ids_from_args(func: Callable, args: tuple, kwargs: dict) -> tuple[Optional[str], Optional[str], Any]:
+        sig = signature(func)
+        bound_args = sig.bind(*args, **kwargs)
+        bound_args.apply_defaults()
+
+        user_id = None
+        group_id = None
+        matcher = bound_args.arguments.get('matcher')
+
+        if 'event' in bound_args.arguments:
+            event = bound_args.arguments['event']
+            if hasattr(event, 'get_user_id') and callable(event.get_user_id):
+                user_id = event.get_user_id()
+            elif hasattr(event, 'user_id'):
+                user_id = event.user_id
+
+            group_id = getattr(event, 'group_id', -1)
+
+        if user_id is None and 'user_id' in bound_args.arguments:
+            user_id = bound_args.arguments['user_id']
+
+        if group_id is None and 'group_id' in bound_args.arguments:
+            group_id = bound_args.arguments['group_id']
+
+        if group_id is None:
+            group_id = -1
+
+        return user_id, group_id, matcher
+
+    async def _handle_rate_limit_check(
+            self,
+            function_name: str | Iterable[str],
+            user_id: str,
+            group_id: str | int,
+            config: RateLimitConfig,
+            matcher: Matcher,
+            show_prompt: bool
+    ) -> Optional[RateLimitStatus]:
+        function_names = [function_name] if isinstance(function_name, str) else list(function_name)
+
+        for func_name in function_names:
+            rate_limit_status = await self.check_rate_limits_with_config(
+                func_name,
+                user_id,
+                group_id,
+                config
+            )
+
+            if rate_limit_status.is_limited:
+                if matcher is not None:
+                    if show_prompt and rate_limit_status.prompt:
+                        await matcher.finish(rate_limit_status.prompt)
+                    else:
+                        await matcher.finish()
+                return rate_limit_status
+
+        return None
+
+    def rate_limit(self, function_name: str | Iterable[str], config: RateLimitConfig, show_prompt: bool = False):
+        """
+        Decorator for rate limit
+
+        Args:
+            function_name: function key
+            config: RateLimitConfig object.
+            show_prompt: If True, shows rate limit message; if False, silent finish
+
+        Returns:
+            Decorator that wraps async functions with rate limiting
+
+        Behavior:
+            - If rate limit is exceeded: calls matcher.finish() or matcher.finish(prompt)
+            - If rate limit is not exceeded: returns the original function result
+            - FinishedException is raised and should be caught by nonebot handler
+        """
+
+        def decorator(func: Callable) -> Callable:
+            @wraps(func)
+            async def wrapper(*args: Any, **kwargs: Any) -> Any:
+                user_id, group_id, matcher = self._extract_ids_from_args(func, args, kwargs)
+
+                if user_id is None:
+                    raise ValueError(
+                        f"Could not extract user_id from function {func.__name__}. "
+                        "Function must have 'event' parameter (GroupMessageEvent/PrivateMessageEvent) "
+                        "or 'user_id' parameter."
+                    )
+
+                limited_status = await self._handle_rate_limit_check(
+                    function_name,
+                    user_id,
+                    group_id,
+                    config,
+                    matcher,
+                    show_prompt
+                )
+
+                if limited_status is not None:
+                    return limited_status
+
+                return await func(*args, **kwargs)
+
+            return wrapper
+
+        return decorator

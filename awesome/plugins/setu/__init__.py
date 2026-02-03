@@ -1,6 +1,6 @@
 from os import path
-from random import choice, randint
-from re import split, findall
+from random import choice
+from re import split
 from time import time
 from typing import Union, List
 
@@ -9,30 +9,30 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message, PrivateMessa
 from nonebot.internal.matcher import Matcher
 from nonebot.log import logger
 from nonebot.params import CommandArg
-from pixivpy3 import PixivError, AppPixivAPI
+from pixivpy3 import PixivError
 from pixivpy3.utils import ParsedJson
 
 from Services import global_rate_limiter
 from Services.pixiv_word_cloud import get_word_cloud_img
-from Services.rate_limiter import UserLimitModifier
 from Services.util.common_util import compile_forward_message, autorevoke_message, get_if_has_at_and_qq, \
     slight_adjust_pic_and_get_path
 from Services.util.ctx_utility import get_group_id, get_user_id, get_nickname
 from Services.util.download_helper import download_image
 from Services.util.sauce_nao_helper import sauce_helper
 from awesome.Constants import user_permission as perm, group_permission
-from awesome.Constants.function_key import SETU, TRIGGER_BLACKLIST_WORD, HIT_XP
+from awesome.Constants.function_key import SETU, TRIGGER_BLACKLIST_WORD, HIT_XP, WORDCLOUD
 from awesome.Constants.path_constants import DL_PATH, PIXIV_PIC_PATH
 from awesome.Constants.plugins_command_constants import PROMPT_FOR_KEYWORD
 from awesome.adminControl import setu_function_control, get_privilege, group_control, user_control
+from awesome.plugins.setu.pixiv_service import pixiv_service
+from awesome.plugins.setu.rate_limit_helper import SETU_RATE_LIMIT, XP_CHECK_RATE_LIMIT, \
+    WORDCLOUD_RATE_LIMIT
 from awesome.plugins.setu.setu_utilties import download_gif
 from awesome.plugins.setu.setuconfig import SetuConfig
-from config import SUPER_USER, PIXIV_REFRESH_TOKEN
+from config import SUPER_USER
 from util.helper_util import anime_reverse_search_response, set_group_permission, construct_message_chain
 
 config = get_plugin_config(SetuConfig)
-
-pixiv_api = AppPixivAPI()
 
 FRIENDLY_REMINDER = '\n你知道么~你可以使用你的p站uid丢人了（不是w\n' \
                     '使用方式：!设置P站 P站数字ID \n' \
@@ -156,25 +156,20 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
         if group_control.get_group_permission(group_id, group_permission.BANNED):
             await matcher.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
 
-    # 限流5秒单用户只能请求一次。
-    user_limit = UserLimitModifier(5.0, 1.0, True)
-    rate_limiter_check = await global_rate_limiter.user_limit_check(SETU, user_id, user_limit)
-    if rate_limiter_check.is_limited:
-        await matcher.finish(
-            construct_message_chain(MessageSegment.reply(message_id), rate_limiter_check.prompt))
+    rate_limit_result = await global_rate_limiter.check_rate_limits_with_config(SETU, user_id, group_id,
+                                                                                SETU_RATE_LIMIT)
+    if rate_limit_result.is_limited:
+        if rate_limit_result.prompt:
+            await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), rate_limit_result.prompt))
+        return
 
     monitored = False
 
     if group_id == -1 and not get_privilege(user_id, perm.WHITELIST):
         await matcher.finish('我主人还没有添加你到信任名单哦。请找BOT制作者要私聊使用权限~')
 
-    if not group_control.get_if_authed():
-        pixiv_api.set_auth(
-            access_token=group_control.get_access_token(),
-            refresh_token=PIXIV_REFRESH_TOKEN
-        )
-        pixiv_api.auth(refresh_token=PIXIV_REFRESH_TOKEN)
-        group_control.set_if_authed(True)
+    if not pixiv_service.ensure_auth():
+        await matcher.finish('Pixiv认证失败，请稍后再试')
 
     if not (key_word := args.extract_plain_text()):
         await matcher.finish(PROMPT_FOR_KEYWORD)
@@ -192,29 +187,21 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
 
     await _handle_special_keyword(key_word, matcher)
 
-    try:
-        if '最新' in key_word:
-            json_result = pixiv_api.illust_ranking('week')
-        else:
-            json_result = pixiv_api.search_illust(
-                word=key_word,
-                sort="popular_desc"
-            )
-
-    except PixivError:
+    json_result = await pixiv_service.search_illust(key_word)
+    if json_result is None:
         await matcher.finish('pixiv连接出错了！')
 
-    except Exception as err:
-        logger.warning(f'pixiv search error: {err}')
-        await matcher.finish(f'发现未知错误')
-
-    # 看一下access token是否过期
     if 'error' in json_result:
-        if not set_function_auth():
-            return
+        if not pixiv_service.reset_auth():
+            await matcher.finish('pixiv认证失败，请稍后再试')
+        json_result = await pixiv_service.search_illust(key_word)
+        if json_result is None:
+            await matcher.finish('pixiv连接出错了！')
 
     if key_word.isdigit():
-        illust = pixiv_api.illust_detail(key_word).illust
+        illust = pixiv_service.get_illust_detail(key_word)
+        if illust is None:
+            await matcher.finish('获取图片详情失败')
         json_result = None
     else:
         json_result, key_word = await _setu_analyze_user_input(key_word, matcher)
@@ -297,14 +284,16 @@ async def _attempt_to_extract_sfw_pixiv_img(
     return illust, is_work_r18
 
 
-async def _setu_analyze_user_input(key_word: str, matcher: Matcher) -> (str, str):
+async def _setu_analyze_user_input(key_word: str, matcher: Matcher) -> tuple[ParsedJson, str]:
     if 'user=' in key_word:
-        json_result, key_word = _get_image_data_from_username(key_word)
+        json_result, key_word = pixiv_service.search_by_username(key_word)
         if isinstance(json_result, str):
             await matcher.finish(json_result)
-
     else:
-        json_result = pixiv_api.search_illust(word=key_word, sort="popular_desc")
+        json_result = await pixiv_service.search_illust(key_word)
+        if json_result is None:
+            await matcher.finish('pixiv连接出错了！')
+
     if not json_result.illusts or len(json_result.illusts) < 4:
         logger.warning(f"未找到图片, keyword = {key_word}")
         await matcher.finish(f"{key_word}无搜索结果或图片过少……")
@@ -389,23 +378,31 @@ get_user_xp_wordcloud_cmd = on_command('P站词云')
 
 @get_user_xp_wordcloud_cmd.handle()
 async def get_user_xp_wordcloud(bot: Bot, event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
-    if not group_control.get_if_authed():
-        pixiv_api.auth(
-            refresh_token=PIXIV_REFRESH_TOKEN
-        )
-        group_control.set_if_authed(True)
-
+    user_id = get_user_id(event)
     group_id = get_group_id(event)
+
+    rate_limit_result = await global_rate_limiter.check_rate_limits_with_config(WORDCLOUD, user_id, group_id,
+                                                                                WORDCLOUD_RATE_LIMIT)
+    if rate_limit_result.is_limited:
+        return
+
+    if not pixiv_service.ensure_auth():
+        await matcher.finish('Pixiv认证失败，请稍后再试')
 
     has_id, search_target_qq, pixiv_id = _validate_user_pixiv_id_exists_and_return_id(event, args)
     if not has_id:
         await matcher.finish('无法生成词云，请设置P站ID，设置方法：!设置P站 P站数字ID')
 
     await matcher.send('少女祈祷中……生成词云可能会占用大概1分钟的时间……')
+
+    cloud_img_path = ''
     try:
-        cloud_img_path = await get_word_cloud_img(pixiv_api, pixiv_id)
+        cloud_img_path = await get_word_cloud_img(pixiv_service.api, pixiv_id)
     except PixivError:
         await matcher.finish('P站请求失败！请重新使用本指令！')
+
+    if not cloud_img_path:
+        await matcher.finish('生成词云失败！')
 
     message_id = event.message_id
     messages = compile_forward_message(
@@ -422,23 +419,28 @@ check_someone_xp_cmd = on_command('看看XP', aliases={'看看xp'})
 async def get_user_xp_data_with_at(
         bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, matcher: Matcher, args: Message = CommandArg()):
     group_id = get_group_id(event)
-    if group_id != -1 and not get_privilege(get_user_id(event), perm.OWNER):
+    user_id = get_user_id(event)
+
+    if group_id != -1 and not get_privilege(user_id, perm.OWNER):
         if group_control.get_group_permission(group_id, group_permission.BANNED):
             return
 
-    requester_qq = get_user_id(event)
-    if group_id == -1 and not get_privilege(event.get_user_id(), perm.WHITELIST):
+    if group_id == -1 and not get_privilege(user_id, perm.WHITELIST):
         await matcher.finish('我主人还没有添加你到信任名单哦。请找BOT制作者要私聊使用权限~')
+
     message_id = event.message_id
+
+    rate_limit_result = await global_rate_limiter.check_rate_limits_with_config(HIT_XP, user_id, group_id,
+                                                                                XP_CHECK_RATE_LIMIT)
+    if rate_limit_result.is_limited:
+        return
 
     has_id, search_target_qq, pixiv_id = _validate_user_pixiv_id_exists_and_return_id(event, args)
     xp_result = setu_function_control.get_user_xp(search_target_qq)
     if not has_id and not xp_result:
         await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), FRIENDLY_REMINDER))
 
-    group_id = get_group_id(event)
-
-    xp_information = SetuRequester(event, has_id, pixiv_id, xp_result, requester_qq, search_target_qq)
+    xp_information = SetuRequester(event, has_id, pixiv_id, xp_result, user_id, search_target_qq)
     result = await _get_xp_information(xp_information, matcher)
 
     messages = construct_message_chain(([MessageSegment.reply(message_id)]
@@ -452,15 +454,11 @@ async def _get_xp_information(xp_information: SetuRequester, matcher: Matcher) -
     json_result = []
     try:
         if xp_information.has_id:
-            json_result = _get_user_bookmark_data(int(xp_information.pixiv_id))
+            json_result = pixiv_service.get_user_bookmark_random(int(xp_information.pixiv_id))
 
         if not json_result or not json_result.illusts:
-            json_result = pixiv_api.search_illust(
-                word=xp_information.xp_result[0],
-                sort="popular_desc"
-            )
+            json_result = await pixiv_service.search_illust(xp_information.xp_result[0])
     except PixivError:
-        _pixiv_api_do_auth()
         return [MessageSegment.text('P站抽风了，请重试。')]
 
     json_result = json_result.illusts
@@ -472,7 +470,6 @@ async def _get_xp_information(xp_information: SetuRequester, matcher: Matcher) -
     setu_file_path = await _download_pixiv_image_helper(illust)
     allow_r18 = xp_information.group_id != -1 and group_control.get_group_permission(
         xp_information.group_id, group_permission.ALLOW_R18)
-    is_r18 = illust.sanity_level == 6
 
     if not allow_r18:
         illust, is_r18 = await _attempt_to_extract_sfw_pixiv_img(illust, json_result, '', matcher)
@@ -503,65 +500,14 @@ async def _get_xp_information(xp_information: SetuRequester, matcher: Matcher) -
     return response
 
 
-def _pixiv_api_do_auth():
-    logger.info('Doing auth.')
-    pixiv_api.set_auth(
-        access_token=group_control.get_access_token(),
-        refresh_token=PIXIV_REFRESH_TOKEN
-    )
-
-
-def _get_user_bookmark_data(pixiv_id: int):
-    if not group_control.get_if_authed():
-        _pixiv_api_do_auth()
-        group_control.set_if_authed(True)
-
-    json_result_list = []
-    json_result = pixiv_api.user_bookmarks_illust(user_id=pixiv_id)
-
-    # 看一下access token是否过期
-    if 'error' in json_result:
-        if not set_function_auth():
-            return
-
-        json_result = pixiv_api.user_bookmarks_illust(user_id=pixiv_id)
-
-    json_result_list.append(json_result)
-    random_loop_time = randint(1, 30)
-    for _ in range(random_loop_time):
-        next_qs = pixiv_api.parse_qs(json_result.next_url)
-        if next_qs is None or 'max_bookmark_id' not in next_qs:
-            break
-        json_result = pixiv_api.user_bookmarks_illust(user_id=pixiv_id,
-                                                      max_bookmark_id=next_qs['max_bookmark_id'])
-        json_result_list.append(json_result)
-
-    return choice(json_result_list)
-
-
-def _get_image_data_from_username(key_word: str) -> (str, str):
-    key_word = findall(r'{user=(.*?)}', key_word)
-    logger.info(f'Searching artist: {key_word}')
-    if key_word:
-        key_word = key_word[0]
-        logger.info(f'Artist extracted: {key_word}')
-    else:
-        return '未找到该用户。', ''
-
-    json_user = pixiv_api.search_user(word=key_word, sort="popular_desc")
-    if json_user['user_previews']:
-        user_id = json_user['user_previews'][0]['user']['id']
-        json_result = pixiv_api.user_illusts(user_id)
-        return json_result, key_word
-    else:
-        return f"{key_word}无搜索结果或图片过少……", ''
-
-
 async def _download_pixiv_image_helper(illust) -> str:
     if illust.type != 'ugoira':
         return await _handle_normal_illust_download(illust)
 
-    ugoira_data = pixiv_api.ugoira_metadata(illust.id)
+    ugoira_data = pixiv_service.get_ugoira_metadata(illust.id)
+    if not ugoira_data:
+        return ''
+
     url_list = ugoira_data.ugoira_metadata.zip_urls.medium
     duration = ugoira_data.ugoira_metadata.frames[0].delay
     gif_path = await download_gif(url_list, illust.user.name + '_' + illust.title, duration)
@@ -623,19 +569,6 @@ async def reverse_image_search(_event: GroupMessageEvent, matcher: Matcher, args
         return
     else:
         await matcher.finish('¿')
-
-
-def set_function_auth() -> bool:
-    group_control.set_if_authed(False)
-    try:
-        pixiv_api.auth(refresh_token=PIXIV_REFRESH_TOKEN)
-        group_control.set_if_authed(True)
-
-    except PixivError as err:
-        logger.warning(err)
-        return False
-
-    return True
 
 
 def _get_info_for_setu(event: GroupMessageEvent):

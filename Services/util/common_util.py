@@ -21,6 +21,7 @@ from lxml import html
 from lxml.html.clean import Cleaner
 from matplotlib import pyplot as plt, patches
 from matplotlib.colors import colorConverter
+from nonebot import get_bot
 from nonebot.adapters.onebot.v11 import Bot, PrivateMessageEvent
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageSegment, Message
 from nonebot.internal.matcher import Matcher
@@ -35,6 +36,15 @@ from model.common_model import Status
 
 TEMP_FILE_DIRECTORY = path.join(getcwd(), 'data', 'temp')
 T = TypeVar("T")
+
+
+async def is_self_group_admin(group_id: str | int):
+    bot = get_bot()
+    result = await bot.get_group_member_info(group_id=int(group_id), user_id=bot.self_id)
+
+    role = result.get('role', '')
+    logger.info(f'Bot role is: {role} in group {group_id}, full payload: {result}')
+    return role in ['admin', 'owner']
 
 
 def chunk_string(string: str, length: int):
@@ -101,8 +111,16 @@ async def autorevoke_message(
 
     logger.info(f'Message data before revoking: {message_data}')
     message_id: int = message_data['message_id']
+
+    async def _revoke_later():
+        await sleep(revoke_interval)
+        try:
+            await bot.delete_msg(message_id=message_id)
+        except Exception as err:
+            logger.error(f'Failed to revoke message {message_id}: {err}')
+
     loop = get_running_loop()
-    loop.call_later(revoke_interval, loop.create_task, bot.delete_msg(message_id=message_id))
+    loop.create_task(_revoke_later())
 
 
 async def get_general_ctx_info(ctx: GroupMessageEvent | Mapping[str, Any]) -> tuple[int, int, int]:
@@ -261,22 +279,23 @@ async def html_to_image_async(file_name: str, run_hljs: bool = False, render_spo
             await page.goto(f'file:///{file_name}', wait_until='networkidle', timeout=10000)
 
             if run_hljs:
+                # noinspection JSUnresolvedReference
                 await page.evaluate("hljs.highlightAll();")
                 try:
                     await page.wait_for_selector(
                         "#MathJax_Message[style*='display: none']",
                         timeout=5000
                     )
-                except Exception:
-                    logger.warning('Render markdown exceeded time limit.')
+                except Exception as err:
+                    logger.warning(f'Render markdown exceeded time limit. {err.__class__.__name__}')
 
             if render_spotify_iframe:
                 try:
                     logger.info('Trying to switch to iframe')
                     frame = page.frame_locator(f"#{render_spotify_iframe}")
                     await frame.locator("button").wait_for(timeout=8000)
-                except Exception:
-                    logger.warning('Render iframe exceeded time limit.')
+                except Exception as err:
+                    logger.warning(f'Render iframe exceeded time limit. {err.__class__.__name__}')
 
             await page.wait_for_function(
                 """

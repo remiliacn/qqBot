@@ -1,8 +1,10 @@
+from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum, auto
 from random import randint, seed
-from re import split, findall, fullmatch
 from time import time_ns
-from typing import List
+from typing import Any, List, Optional
 
 from nonebot import get_plugin_config, on_command, get_bot, logger
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message, MessageSegment
@@ -10,12 +12,13 @@ from nonebot.exception import FinishedException
 from nonebot.internal.matcher import Matcher
 from nonebot.params import CommandArg
 
-from Services import poker_game, ru_game
+from Services import poker_game, ru_game, global_rate_limiter
+from Services.util.common_util import is_self_group_admin
 from Services.util.ctx_utility import get_group_id, get_user_id, get_nickname
 from awesome.Constants import user_permission as perm, group_permission
-from awesome.Constants.function_key import ROULETTE_GAME, POKER_GAME
+from awesome.Constants.function_key import ROULETTE_GAME, POKER_GAME, DICE
 from util.helper_util import construct_message_chain
-from .gameconfig import GameConfig
+from .game_config import GameConfig, DICE_RATE_LIMIT
 from ...adminControl import get_privilege, setu_function_control, group_control
 
 config = get_plugin_config(GameConfig)
@@ -23,54 +26,140 @@ config = get_plugin_config(GameConfig)
 
 class Storer:
     def __init__(self):
-        self.stored_result = {}
+        self.stored_result: dict[str, dict[str, Any]] = defaultdict(lambda: defaultdict(dict))
 
-    def set_store(self, function, ref, group_id: [str, int], is_global: bool, user_id='-1'):
+    def set_store(self, function: str, ref: Any, group_id: str | int, is_global: bool, user_id: str = '-1') -> None:
         group_id = str(group_id)
-        if group_id not in self.stored_result:
-            self.stored_result[group_id] = {}
-
-        if function not in self.stored_result[group_id]:
-            self.stored_result[group_id][function] = {}
-
         if is_global:
             self.stored_result[group_id][function] = ref
         else:
+            if not isinstance(self.stored_result[group_id][function], dict):
+                self.stored_result[group_id][function] = {}
             self.stored_result[group_id][function][user_id] = ref
 
-    def get_store(self, group_id, function, is_global: bool, user_id='-1', clear_after_use=True):
-        if group_id not in self.stored_result:
-            self.stored_result[group_id] = {}
-            return ''
+    def get_store(self, group_id: str | int, function: str, is_global: bool, user_id: str = '-1',
+                  clear_after_use: bool = True) -> Any:
+        group_id = str(group_id)
 
-        if function not in self.stored_result[group_id]:
-            self.stored_result[group_id][function] = ''
-            return ''
+        if group_id not in self.stored_result or function not in self.stored_result[group_id]:
+            return None
 
         if is_global:
-            temp = self.stored_result[group_id][function]
+            result = self.stored_result[group_id][function]
             if clear_after_use:
-                self.stored_result[group_id][function] = ''
-            return temp
-        else:
-            if user_id not in self.stored_result[group_id][function]:
-                return ''
+                del self.stored_result[group_id][function]
+            return result
 
-            info = self.stored_result[group_id][function][user_id]
-            if clear_after_use:
-                self.stored_result[group_id][function][user_id] = ''
-            return info
+        if not isinstance(self.stored_result[group_id][function], dict) or user_id not in self.stored_result[group_id][
+            function]:
+            return None
+
+        result = self.stored_result[group_id][function][user_id]
+        if clear_after_use:
+            del self.stored_result[group_id][function][user_id]
+        return result
 
 
 GLOBAL_STORE = Storer()
 
 
+@dataclass
 class DiceResult:
-    def __init__(self, throw_times: int, result_sum: int, max_val: int, result_list: list):
-        self.throw_times = throw_times
-        self.result_sum = result_sum
-        self.max_val = max_val
-        self.result_list = result_list
+    throw_times: int
+    result_sum: int
+    max_val: int
+    result_list: list[int]
+
+
+class CommandType(Enum):
+    MULTIPLE_DICE = auto()
+    EXPRESSION = auto()
+    BINARY_DECISION = auto()
+    NORMAL = auto()
+
+
+@dataclass
+class ParsedDiceCommand:
+    command_type: CommandType
+    content: str
+    tokens: list[str]
+
+
+class DiceParser:
+    @staticmethod
+    def parse(raw_message: str) -> ParsedDiceCommand:
+        tokens = [x.strip() for x in raw_message.replace('，', ',').split(',') if x.strip()]
+        content = raw_message.strip()
+
+        if 'OR' in content.upper():
+            return ParsedDiceCommand(CommandType.BINARY_DECISION, content, tokens)
+
+        if DiceParser._is_multiple_dice(tokens):
+            return ParsedDiceCommand(CommandType.MULTIPLE_DICE, content, tokens)
+
+        if DiceParser._is_expression(content):
+            return ParsedDiceCommand(CommandType.EXPRESSION, content, tokens)
+
+        return ParsedDiceCommand(CommandType.NORMAL, content, tokens)
+
+    @staticmethod
+    def is_dice_notation(text: str) -> bool:
+        if not text or 'D' not in text.upper():
+            return False
+
+        parts = text.upper().split('D')
+        if len(parts) != 2:
+            return False
+
+        try:
+            count = int(parts[0])
+            sides = int(parts[1])
+            return count > 0 and sides > 0
+        except (ValueError, IndexError):
+            return False
+
+    @staticmethod
+    def _is_multiple_dice(tokens: list[str]) -> bool:
+        if len(tokens) <= 1:
+            return False
+        return all(DiceParser.is_dice_notation(token) for token in tokens)
+
+    @staticmethod
+    def _is_expression(text: str) -> bool:
+        if not text:
+            return False
+
+        has_dice = 'D' in text.upper()
+        has_operator = any(op in text for op in ['+', '-', '*', '/'])
+
+        return has_dice and has_operator
+
+    @staticmethod
+    def extract_dice_notations(text: str) -> list[str]:
+        result = []
+        i = 0
+        text_upper = text.upper()
+
+        while i < len(text):
+            if text_upper[i].isdigit():
+                start = i
+                while i < len(text) and text[i].isdigit():
+                    i += 1
+
+                if i < len(text) and text_upper[i] == 'D':
+                    i += 1
+                    dice_start = start
+
+                    while i < len(text) and text[i].isdigit():
+                        i += 1
+
+                    dice_notation = text[dice_start:i]
+                    if DiceParser.is_dice_notation(dice_notation):
+                        result.append(dice_notation)
+                    continue
+            i += 1
+
+        return result
 
 
 poker = poker_game.Pokergame()
@@ -97,12 +186,27 @@ async def _dice_expr_evaluation(expression: str, result_sum: int, evaluation_tar
 
 
 async def _get_dice_result(text: str) -> DiceResult:
-    args = split(r'[dD]', text)
-    throw_times = int(args[0])
-    if throw_times > 30:
-        throw_times = 30
+    text = text.strip().upper()
 
-    max_val = int(args[1])
+    if 'D' not in text:
+        raise ValueError(f"Invalid dice format: {text}")
+
+    parts = text.split('D')
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise ValueError(f"Invalid dice format: {text}")
+
+    try:
+        throw_times = int(parts[0])
+        max_val = int(parts[1])
+    except ValueError:
+        raise ValueError(f"Invalid dice format: {text}")
+
+    if throw_times <= 0:
+        raise ValueError(f"Throw times must be positive: {throw_times}")
+    if max_val <= 0:
+        raise ValueError(f"Dice sides must be positive: {max_val}")
+
+    throw_times = min(throw_times, 30)
     result_list = [randint(1, max_val) for _ in range(throw_times)]
     result_sum = sum(result_list)
 
@@ -133,30 +237,48 @@ async def _get_normal_decision_result(text_args: list):
     return await _get_dice_result_plain_text(dice_result) + '，' + ('判定成功' if evaluation_result else '判定失败')
 
 
-async def _get_binary_decision_result(text_args: List[str]):
-    data_args = text_args[0].split('OR')
-    if len(data_args) != 2:
+async def _get_binary_decision_result(text: str) -> str:
+    text_upper = text.upper()
+    or_index = text_upper.find('OR')
+
+    if or_index == -1:
+        return '必须包含 OR 关键字'
+
+    first_part = text[:or_index].strip()
+    second_part = text[or_index + 2:].strip()
+
+    if not first_part or not second_part:
         return '必须有两个选项。'
 
-    first_data_choice = data_args[0].strip()
-    if first_data_choice.isdigit():
-        first_choice = int(first_data_choice)
-    else:
-        first_choice_await = await _get_dice_result(first_data_choice)
-        first_choice = first_choice_await.result_sum
+    first_choice, first_display = await _parse_choice(first_part)
+    if first_choice is None:
+        return '第一个选项格式错误'
 
-    second_data_choice = data_args[1].strip()
+    second_choice, second_display = await _parse_choice(second_part)
+    if second_choice is None:
+        return '第二个选项格式错误'
 
-    if second_data_choice.isdigit():
-        second_choice = int(second_data_choice)
-    else:
-        second_choice_await = await _get_dice_result(second_data_choice)
-        second_choice = second_choice_await.result_sum
+    if first_choice >= second_choice:
+        return f'第一个结果 {first_display} >= 第二个结果 {second_display}，取第一个结果：{first_choice}'
 
-    if await _dice_expr_evaluation('>=', first_choice, int(data_args[1])):
-        return f'1d100 >= {data_args[1]}成功，取第一个结果：{first_choice}'
+    return f'第一个结果 {first_display} < 第二个结果 {second_display}，取第二个结果：{second_choice}'
 
-    return f'1d100 >= {data_args[1]}失败（Roll点结果为：{first_choice}），取第二个结果：{second_choice}'
+
+async def _parse_choice(text: str) -> tuple[Optional[int], Optional[str]]:
+    text = text.strip()
+
+    if text.isdigit():
+        value = int(text)
+        return value, str(value)
+
+    if DiceParser.is_dice_notation(text):
+        try:
+            result = await _get_dice_result(text)
+            return result.result_sum, f"{text.upper()}({result.result_sum})"
+        except ValueError:
+            return None, None
+
+    return None, None
 
 
 async def _multiple_row_result(text_args: list) -> str:
@@ -165,54 +287,80 @@ async def _multiple_row_result(text_args: list) -> str:
     return '\n'.join(dice_result_text)
 
 
-async def _evaluate_dice_expression(text: str):
-    all_dice_role_evaluation = findall(r'\d+[dD]\d+', text)
-    evaluation_list_result = [(await _get_dice_result(x)) for x in all_dice_role_evaluation]
-    for idx, dice_text in enumerate(all_dice_role_evaluation):
-        text = text.replace(dice_text, str(evaluation_list_result[idx].result_sum), 1)
+async def _evaluate_dice_expression(text: str) -> str:
+    all_dice_notations = DiceParser.extract_dice_notations(text)
+
+    if not all_dice_notations:
+        return '未找到有效的骰子表达式'
+
+    evaluation_list_result = []
+    for dice_expr in all_dice_notations:
+        try:
+            result = await _get_dice_result(dice_expr)
+            evaluation_list_result.append(result)
+        except ValueError as e:
+            logger.error(f'Dice evaluation error: {e}')
+            return f'骰子表达式 {dice_expr} 格式错误'
+
+    expression_to_eval = text
+    for idx, dice_text in enumerate(all_dice_notations):
+        expression_to_eval = expression_to_eval.replace(dice_text, str(evaluation_list_result[idx].result_sum), 1)
+
+    allowed_chars = set('0123456789+-*/(). ')
+    if not all(c in allowed_chars for c in expression_to_eval):
+        return '表达式包含非法字符'
 
     try:
-        result = eval(text)
+        result = eval(expression_to_eval)
     except ZeroDivisionError:
         return '除数不能为0'
+    except Exception as e:
+        logger.error(f'Expression evaluation error: {e}')
+        return '表达式计算错误'
 
-    dice_result_plain_text_list = "\n".join([(await _get_dice_result_plain_text(x)) for x in evaluation_list_result])
-    return f'随机结果如下：\n' \
-           f'{dice_result_plain_text_list}\n' \
-           f'最后计算结果为：{result}'
+    dice_result_plain_text_list = "\n".join([await _get_dice_result_plain_text(x) for x in evaluation_list_result])
+    return f'随机结果如下：\n{dice_result_plain_text_list}\n最后计算结果为：{result}'
 
 
 dice_roll_cmd = on_command('骰娘')
 
 
 @dice_roll_cmd.handle()
+@global_rate_limiter.rate_limit(DICE, DICE_RATE_LIMIT, show_prompt=False)
 async def pao_tuan_shai_zi(event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
     raw_message = args.extract_plain_text().strip()
-    text_args = split(r'[,，\s]+', raw_message)
-    text_args = [x.strip() for x in text_args if x]
 
-    normal_decision = True
-    if all(fullmatch(r'^\d+[dD]\d+$', x) for x in text_args):
-        await matcher.finish(await _multiple_row_result(text_args))
-
-    if fullmatch(r'^\d+[dD]\d+([+\-*/]\d+([dD]\d+)?)+$', text_args[0]):
-        await matcher.finish(await _evaluate_dice_expression(text_args[0]))
-
-    if fullmatch(r'^\d+([dD]\d+)?\s*OR\s*\d+([dD]\d+)?$', raw_message):
-        normal_decision = False
-
-    message_id = event.message_id
+    if not raw_message:
+        await matcher.finish('请输入骰子指令，例如：1D100, 2D100, 1D100+1D100, 1D100 OR 1D100')
 
     try:
-        if normal_decision:
-            await matcher.finish(
-                construct_message_chain(MessageSegment.reply(message_id), await _get_normal_decision_result(text_args)))
-        else:
-            await matcher.finish(
-                construct_message_chain(MessageSegment.reply(message_id),
-                                        await _get_binary_decision_result([raw_message])))
+        message_id = event.message_id
+        parsed = DiceParser.parse(raw_message)
+
+        match parsed.command_type:
+            case CommandType.MULTIPLE_DICE:
+                await matcher.finish(await _multiple_row_result(parsed.tokens))
+
+            case CommandType.EXPRESSION:
+                await matcher.finish(await _evaluate_dice_expression(parsed.content))
+
+            case CommandType.BINARY_DECISION:
+                await matcher.finish(
+                    construct_message_chain(
+                        MessageSegment.reply(message_id),
+                        await _get_binary_decision_result(parsed.content)))
+
+            case CommandType.NORMAL:
+                await matcher.finish(
+                    construct_message_chain(
+                        MessageSegment.reply(message_id),
+                        await _get_normal_decision_result(parsed.tokens)))
+
     except FinishedException:
         pass
+    except ValueError as e:
+        logger.error(f'Dice value error: {e}')
+        await matcher.finish(f'参数错误：{e}')
     except Exception as err:
         logger.error(f'Dice result error: {err.__class__.__name__}: {err}')
         await matcher.finish('使用方式有误。')
@@ -264,7 +412,8 @@ async def russian_roulette(event: GroupMessageEvent, matcher: Matcher):
             rand_num = 60 * 60 * 6
             await matcher.send('晚安')
 
-        await bot.set_group_ban(group_id=id_num, user_id=user_id, duration=rand_num)
+        if await is_self_group_admin(get_group_id(event)):
+            await bot.set_group_ban(group_id=id_num, user_id=user_id, duration=rand_num)
 
 
 shuffle_gun_cmd = on_command('转轮')
