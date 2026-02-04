@@ -265,198 +265,212 @@ class BotYouTubeMusic:
         )
 
     def _parse_track_from_search_payload(self, payload: dict[str, Any]) -> Optional[YouTubeMusicTrack]:
-        hit = self._find_first_song_renderer(payload)
-        if hit is not None:
-            video_id = hit.get("videoId")
-            title = self._extract_title_text(hit.get("title"))
-            artists = self._extract_artists(hit)
-            artwork_url = self._extract_artwork_from_search_renderer(hit)
-            album = None
-            if not isinstance(video_id, str) or not video_id:
-                return None
+        opt = OptionalDict(payload)
+        tabs = opt.map("contents").map("tabbedSearchResultsRenderer").map("tabs").or_else(None)
 
-            title = title if title else video_id
-            return YouTubeMusicTrack(
-                video_id=video_id, title=title, artists=artists, album=album, artwork_url=artwork_url)
-
-        video_id = self._find_first_string_value(payload, "videoId")
-        title = self._find_first_string_value(payload, "title")
-        if not isinstance(video_id, str) or not video_id:
+        if not isinstance(tabs, list) or not tabs:
             return None
 
-        title = title if isinstance(title, str) and title else video_id
-        return YouTubeMusicTrack(video_id=video_id, title=title, artists=[], album=None, artwork_url=None)
-
-    def _find_all_song_renderers(self, payload: Any) -> list[dict[str, Any]]:
-        results: list[dict[str, Any]] = []
-
-        if isinstance(payload, dict):
-            opt = OptionalDict(payload)
-            renderer = opt.map("musicResponsiveListItemRenderer").or_else(None)
-
-            if isinstance(renderer, dict):
-                renderer_opt = OptionalDict(renderer)
-                playlist_data = renderer_opt.map("playlistItemData").or_else(None)
-
-                if isinstance(playlist_data, dict):
-                    video_id = OptionalDict(playlist_data).map("videoId").or_else(None)
-                    if isinstance(video_id, str):
-                        results.append({
-                            "videoId": video_id,
-                            "title": renderer_opt.map("flexColumns").or_else(None),
-                            "renderer": renderer,
-                        })
-
-            for v in payload.values():
-                results.extend(self._find_all_song_renderers(v))
-
-        elif isinstance(payload, list):
-            for item in payload:
-                results.extend(self._find_all_song_renderers(item))
-
-        return results
-
-    def _find_first_song_renderer(self, payload: Any) -> Optional[dict[str, Any]]:
-        all_renderers = self._find_all_song_renderers(payload)
-        return all_renderers[0] if all_renderers else None
-
-    def _find_most_played_song_renderer(self, payload: Any) -> Optional[dict[str, Any]]:
-        all_renderers = self._find_all_song_renderers(payload)
-        if not all_renderers:
+        first_tab = OptionalDict(tabs[0]).map("tabRenderer").or_else(None)
+        if not isinstance(first_tab, dict):
             return None
 
-        best_renderer = None
-        best_score = -1
+        section_list = OptionalDict(first_tab).map("content").map("sectionListRenderer").or_else(None)
+        if not isinstance(section_list, dict):
+            return None
 
-        for index, renderer_data in enumerate(all_renderers):
-            play_count = self._extract_play_count(renderer_data)
+        contents = OptionalDict(section_list).map("contents").or_else(None)
+        if not isinstance(contents, list):
+            return None
 
-            relevance_score = 1.0 / (index + 1)
-
-            play_count_score = play_count / 1_000_000 if play_count > 0 else 0
-
-            combined_score = (relevance_score * 0.6) + (play_count_score * 0.4)
-
-            if combined_score > best_score:
-                best_score = combined_score
-                best_renderer = renderer_data
-
-        return best_renderer if best_renderer else all_renderers[0]
-
-    @staticmethod
-    def _extract_play_count(hit: dict[str, Any]) -> int:
-        renderer_opt = OptionalDict(hit).map("renderer")
-        flex_columns = renderer_opt.map("flexColumns").or_else(None)
-
-        if not isinstance(flex_columns, list):
-            return 0
-
-        for col in flex_columns:
-            if not isinstance(col, dict):
+        for section in contents:
+            if not isinstance(section, dict):
                 continue
 
-            col_opt = OptionalDict(col)
-            flex = col_opt.map("musicResponsiveListItemFlexColumnRenderer").or_else(None)
+            card_shelf = OptionalDict(section).map("musicCardShelfRenderer").or_else(None)
+            if isinstance(card_shelf, dict):
+                track = self._extract_track_from_card_shelf(card_shelf)
+                if track is not None:
+                    return track
 
-            if not isinstance(flex, dict):
+            music_shelf = OptionalDict(section).map("musicShelfRenderer").or_else(None)
+            if not isinstance(music_shelf, dict):
                 continue
 
-            text_obj = OptionalDict(flex).map("text").or_else(None)
-            runs = OptionalDict(text_obj).map("runs").or_else(None)
-
-            if not isinstance(runs, list):
+            shelf_contents = OptionalDict(music_shelf).map("contents").or_else(None)
+            if not isinstance(shelf_contents, list) or not shelf_contents:
                 continue
 
-            for run in runs:
-                text = OptionalDict(run).map("text").or_else(None)
-                if not isinstance(text, str):
+            for item in shelf_contents:
+                if not isinstance(item, dict):
                     continue
 
-                text_lower = text.lower().strip()
-                if "view" in text_lower or "play" in text_lower or "次" in text_lower or "watching" in text_lower:
-                    from re import search
+                renderer = OptionalDict(item).map("musicResponsiveListItemRenderer").or_else(None)
+                if not isinstance(renderer, dict):
+                    continue
 
-                    match = search(r'([\d,.]+)\s*([kmb])?', text_lower)
-                    if match:
-                        try:
-                            number_str = match.group(1).replace(',', '')
-                            suffix = match.group(2)
+                playlist_data = OptionalDict(renderer).map("playlistItemData").or_else(None)
+                if not isinstance(playlist_data, dict):
+                    continue
 
-                            base_number = float(number_str)
+                video_id = OptionalDict(playlist_data).map("videoId").or_else(None)
+                if not isinstance(video_id, str) or not video_id:
+                    continue
 
-                            if suffix == 'k':
-                                return int(base_number * 1_000)
-                            elif suffix == 'm':
-                                return int(base_number * 1_000_000)
-                            elif suffix == 'b':
-                                return int(base_number * 1_000_000_000)
-                            else:
-                                return int(base_number)
-                        except (ValueError, AttributeError):
-                            pass
+                title = self._extract_title_from_flex_columns(renderer)
+                artists = self._extract_artists_from_flex_columns(renderer)
+                artwork_url = self._extract_artwork_from_thumbnail(renderer)
 
-        return 0
-
-    def _extract_title_text(self, maybe_flex_columns: Any) -> Optional[str]:
-        if not isinstance(maybe_flex_columns, list):
-            return None
-
-        for col in maybe_flex_columns:
-            if not isinstance(col, dict):
-                continue
-
-            col_opt = OptionalDict(col)
-            flex = col_opt.map("musicResponsiveListItemFlexColumnRenderer").or_else(None)
-
-            if isinstance(flex, dict):
-                text = OptionalDict(flex).map("text").or_else(None)
-                title = self._extract_runs_text(text)
-                if title:
-                    return title
+                return YouTubeMusicTrack(
+                    video_id=video_id,
+                    title=title or video_id,
+                    artists=artists,
+                    album=None,
+                    artwork_url=artwork_url
+                )
 
         return None
 
     @staticmethod
-    def _extract_runs_text(payload: Any) -> Optional[str]:
-        if not isinstance(payload, dict):
+    def _extract_track_from_card_shelf(card_shelf: dict[str, Any]) -> Optional[YouTubeMusicTrack]:
+        title_obj = OptionalDict(card_shelf).map("title").or_else(None)
+        if not isinstance(title_obj, dict):
             return None
 
-        runs = OptionalDict(payload).map("runs").or_else(None)
+        title_runs = OptionalDict(title_obj).map("runs").or_else(None)
+        if not isinstance(title_runs, list) or not title_runs:
+            return None
+
+        title_text = OptionalDict(title_runs[0]).map("text").or_else(None)
+        if not isinstance(title_text, str) or not title_text:
+            return None
+
+        nav_endpoint = OptionalDict(title_runs[0]).map("navigationEndpoint").or_else(None)
+        if not isinstance(nav_endpoint, dict):
+            return None
+
+        watch_endpoint = OptionalDict(nav_endpoint).map("watchEndpoint").or_else(None)
+        if not isinstance(watch_endpoint, dict):
+            return None
+
+        video_id = OptionalDict(watch_endpoint).map("videoId").or_else(None)
+        if not isinstance(video_id, str) or not video_id:
+            return None
+
+        subtitle_obj = OptionalDict(card_shelf).map("subtitle").or_else(None)
+        artists: list[str] = []
+        if isinstance(subtitle_obj, dict):
+            subtitle_runs = OptionalDict(subtitle_obj).map("runs").or_else(None)
+            if isinstance(subtitle_runs, list):
+                skip_keywords = {"•", "Video", "Song", "Album"}
+                for run in subtitle_runs:
+                    if not isinstance(run, dict):
+                        continue
+
+                    text = OptionalDict(run).map("text").or_else(None)
+                    if not isinstance(text, str) or not text.strip():
+                        continue
+
+                    text_clean = text.strip()
+                    if text_clean in skip_keywords:
+                        continue
+
+                    if "view" in text_clean.lower() or ":" in text_clean:
+                        continue
+
+                    has_nav = OptionalDict(run).map("navigationEndpoint").or_else(None) is not None
+                    if has_nav:
+                        artists.append(text_clean)
+
+        thumbnail_obj = OptionalDict(card_shelf).map("thumbnail").or_else(None)
+        artwork_url = None
+        if isinstance(thumbnail_obj, dict):
+            music_thumbnail = OptionalDict(thumbnail_obj).map("musicThumbnailRenderer").or_else(None)
+            if isinstance(music_thumbnail, dict):
+                thumb = OptionalDict(music_thumbnail).map("thumbnail").or_else(None)
+                if isinstance(thumb, dict):
+                    thumbnails = OptionalDict(thumb).map("thumbnails").or_else(None)
+                    if isinstance(thumbnails, list) and thumbnails:
+                        last_thumb = OptionalDict(thumbnails[-1])
+                        url = last_thumb.map("url").or_else(None)
+                        if isinstance(url, str) and url:
+                            artwork_url = url
+
+        return YouTubeMusicTrack(
+            video_id=video_id,
+            title=title_text,
+            artists=artists,
+            album=None,
+            artwork_url=artwork_url
+        )
+
+    @staticmethod
+    def _extract_title_from_flex_columns(renderer: dict[str, Any]) -> Optional[str]:
+        flex_columns = OptionalDict(renderer).map("flexColumns").or_else(None)
+        if not isinstance(flex_columns, list) or not flex_columns:
+            return None
+
+        first_column = OptionalDict(flex_columns[0]).map("musicResponsiveListItemFlexColumnRenderer").or_else(None)
+        if not isinstance(first_column, dict):
+            return None
+
+        text_obj = OptionalDict(first_column).map("text").or_else(None)
+        if not isinstance(text_obj, dict):
+            return None
+
+        runs = OptionalDict(text_obj).map("runs").or_else(None)
         if not isinstance(runs, list) or not runs:
             return None
 
         text = OptionalDict(runs[0]).map("text").or_else(None)
-        return text.strip() if isinstance(text, str) and text.strip() else None
+        return text if isinstance(text, str) and text else None
 
     @staticmethod
-    def _extract_artists(hit: dict[str, Any]) -> list[str]:
-        renderer_opt = OptionalDict(hit).map("renderer")
-        flex_columns = renderer_opt.map("flexColumns").or_else(None)
-
+    def _extract_artists_from_flex_columns(renderer: dict[str, Any]) -> list[str]:
+        flex_columns = OptionalDict(renderer).map("flexColumns").or_else(None)
         if not isinstance(flex_columns, list) or len(flex_columns) < 2:
             return []
 
-        second_column_opt = OptionalDict(flex_columns[1])
-        flex_opt = second_column_opt.map("musicResponsiveListItemFlexColumnRenderer")
-        text_opt = flex_opt.map("text")
-        runs = text_opt.map("runs").or_else(None)
+        second_column = OptionalDict(flex_columns[1]).map("musicResponsiveListItemFlexColumnRenderer").or_else(None)
+        if not isinstance(second_column, dict):
+            return []
 
+        text_obj = OptionalDict(second_column).map("text").or_else(None)
+        if not isinstance(text_obj, dict):
+            return []
+
+        runs = OptionalDict(text_obj).map("runs").or_else(None)
         if not isinstance(runs, list):
             return []
 
         artists: list[str] = []
+        skip_keywords = {"•", "Song", "Video", "Album", "Playlist"}
+
         for run in runs:
+            if not isinstance(run, dict):
+                continue
+
             text = OptionalDict(run).map("text").or_else(None)
-            if isinstance(text, str) and text.strip() and text.strip() != "•":
-                artists.append(text.strip())
+            if not isinstance(text, str) or not text.strip():
+                continue
+
+            text_clean = text.strip()
+
+            if text_clean in skip_keywords:
+                continue
+
+            if "view" in text_clean.lower() or "play" in text_clean.lower():
+                continue
+
+            has_navigation = OptionalDict(run).map("navigationEndpoint").or_else(None) is not None
+            if has_navigation:
+                artists.append(text_clean)
 
         return artists
 
     @staticmethod
-    def _extract_artwork_from_search_renderer(hit: dict[str, Any]) -> Optional[str]:
-        renderer_opt = OptionalDict(hit).map("renderer")
-        thumbnail_obj = renderer_opt.map("thumbnail").or_else(None)
-
+    def _extract_artwork_from_thumbnail(renderer: dict[str, Any]) -> Optional[str]:
+        thumbnail_obj = OptionalDict(renderer).map("thumbnail").or_else(None)
         if not isinstance(thumbnail_obj, dict):
             return None
 

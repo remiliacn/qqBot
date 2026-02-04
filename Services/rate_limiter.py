@@ -310,6 +310,7 @@ class RateLimiter:
         user_hit, user_last_update_time = await self._get_user_state(function_name, user_id)
 
         if usage_limit <= 0:
+            logger.info(f'Function {function_name} is temporarily disabled for user {user_id}.')
             return self.TEMPRORARY_DISABLED, int(user_last_update_time + time_period - now)
 
         if now - user_last_update_time > time_period:
@@ -397,6 +398,7 @@ class RateLimiter:
             if query_user_prompt:
                 user_limit_status = await self._assemble_limit_prompt(query_user_prompt, user_wait_time)
                 if user_limit_status.is_limited:
+                    logger.info(f'User {user_id_str} is rate limited for function {function_name}.')
                     return user_limit_status
 
             if config.progressive and group_id != -1:
@@ -420,6 +422,7 @@ class RateLimiter:
                 function_limit=config.group_count
             )
             if group_check.is_limited:
+                logger.info(f'Group {group_id_str} is rate limited for function {function_name}.')
                 return group_check
 
         return RateLimitStatus(False, None)
@@ -475,7 +478,6 @@ class RateLimiter:
             )
 
             if rate_limit_status.is_limited:
-                logger.warning(f'User: {user_id} is rate limited for function: {func_name}')
                 if matcher is not None:
                     if show_prompt and (override_prompt or rate_limit_status.prompt):
                         await matcher.finish(override_prompt or rate_limit_status.prompt)
