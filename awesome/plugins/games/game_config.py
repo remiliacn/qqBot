@@ -10,10 +10,15 @@ class GameConfig(BaseModel):
 
 
 DICE_RATE_LIMIT = RateLimitConfig(
-    user_time_period=15.0,
-    user_function_limit=1.0,
-    allowlist_can_bypass=True,
-    group_time_period=5,
-    group_function_limit=1,
-    apply_group_limit=True,
+    user_time=15.0,
+    user_count=1.0,
+    group_time=5,
+    group_count=1,
+)
+
+ROULETTE_RATE_LIMIT = RateLimitConfig(
+    user_time=5.0,
+    user_count=1.0,
+    group_time=10.0,
+    group_count=5.0,
 )

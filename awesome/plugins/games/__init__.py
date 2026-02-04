@@ -18,7 +18,7 @@ from Services.util.ctx_utility import get_group_id, get_user_id, get_nickname
 from awesome.Constants import user_permission as perm, group_permission
 from awesome.Constants.function_key import ROULETTE_GAME, POKER_GAME, DICE
 from util.helper_util import construct_message_chain
-from .game_config import GameConfig, DICE_RATE_LIMIT
+from .game_config import GameConfig, DICE_RATE_LIMIT, ROULETTE_RATE_LIMIT
 from ...adminControl import get_privilege, setu_function_control, group_control
 
 config = get_plugin_config(GameConfig)
@@ -326,7 +326,7 @@ dice_roll_cmd = on_command('骰娘')
 
 
 @dice_roll_cmd.handle()
-@global_rate_limiter.rate_limit(DICE, DICE_RATE_LIMIT, show_prompt=False)
+@global_rate_limiter.rate_limit(func_name=DICE, config=DICE_RATE_LIMIT, show_prompt=False)
 async def pao_tuan_shai_zi(event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
     raw_message = args.extract_plain_text().strip()
 
@@ -370,6 +370,7 @@ russia_roulette_cmd = on_command('轮盘赌')
 
 
 @russia_roulette_cmd.handle()
+@global_rate_limiter.rate_limit(func_name=ROULETTE_GAME, config=ROULETTE_RATE_LIMIT, show_prompt=False)
 async def russian_roulette(event: GroupMessageEvent, matcher: Matcher):
     id_num = event.group_id
     user_id = event.get_user_id()
@@ -420,6 +421,7 @@ shuffle_gun_cmd = on_command('转轮')
 
 
 @shuffle_gun_cmd.handle()
+@global_rate_limiter.rate_limit(func_name=ROULETTE_GAME, config=ROULETTE_RATE_LIMIT, show_prompt=False)
 async def shuffle_gun(event: GroupMessageEvent, matcher: Matcher):
     seed(time_ns())
     ru_roulette_game.reset_gun(get_group_id(event))

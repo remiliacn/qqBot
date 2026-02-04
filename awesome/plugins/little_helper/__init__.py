@@ -54,7 +54,7 @@ async def send_help(_event: GroupMessageEvent, matcher: Matcher):
     )
 
 
-hhsh_cmd = on_command('好好说话')
+hhsh_cmd = on_command(('好好说话', 'hhsh'))
 
 
 @hhsh_cmd.handle()

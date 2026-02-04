@@ -12,13 +12,14 @@ from Services import global_rate_limiter, sail_data
 from Services import youtube_music_main_api
 from Services.deepinfra import DeepInfraAPI
 from Services.live_notification import GuardCheckResult
-from Services.rate_limiter import UserLimitModifier
+from Services.rate_limiter import RateLimitConfig
 from Services.util.common_util import HttpxHelperClient
 from Services.util.ctx_utility import get_user_id
 from Services.util.download_helper import download_image
 from awesome.Constants import user_permission as perm
+from awesome.Constants.function_key import AI_SING_DAILY
 from awesome.Constants.user_permission import OWNER
-from awesome.adminControl import get_privilege, user_control
+from awesome.adminControl import get_privilege
 from util.helper_util import construct_message_chain
 
 CHUNK_SIZE = 450
@@ -76,20 +77,12 @@ sing_lingye_cmd = on_command('灵夜唱歌')
 
 
 @sing_lingye_cmd.handle()
+@global_rate_limiter.rate_limit(func_name=AI_SING_DAILY, config=RateLimitConfig(user_time=60 * 10, user_count=1))
 async def lingye_sing(event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
     user_id = event.get_user_id()
 
     if not get_privilege(user_id, perm.ADMIN):
         return
-
-    if not user_control.get_user_privilege(user_id, perm.ADMIN):
-        user_limit = UserLimitModifier(60 * 10, 1, True)
-        rate_limiter_check_temp = await global_rate_limiter.user_limit_check(
-            "AI_SING_DAILY", user_id, user_limit
-        )
-        if isinstance(rate_limiter_check_temp, str):
-            logger.warning(f'User {user_id} has hit the rate limit: {rate_limiter_check_temp}')
-            return
 
     if not args.extract_plain_text():
         file = choice(listdir(f'{getcwd()}/data/sing'))

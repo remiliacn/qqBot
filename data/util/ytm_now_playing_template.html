@@ -5,14 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Now Playing - {title}</title>
     <style>
-        * {
-        {
+        * {{
             box-sizing: border-box;
-        }
-        }
+        }}
 
-        body {
-        {
+        body {{
             margin: 0;
             padding: 20px;
             background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
@@ -21,17 +18,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-        }
+        }}
 
-        .container {
-        {
+        .container {{
             perspective: 1000px;
-        }
-        }
+        }}
 
-        .card {
-        {
+        .card {{
             width: 800px;
             max-width: 95vw;
             padding: 40px;
@@ -45,46 +38,32 @@
             backdrop-filter: blur(20px);
             animation: cardAppear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
             transform-style: preserve-3d;
-        }
-        }
+        }}
 
-        @keyframes cardAppear {
+        @keyframes cardAppear {{
+            from {{
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }}
 
-        {
-        from {
-        {
-            opacity: 0;
-            transform: translateY(30px) scale(0.95);
-        }
-        }
+            to {{
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }}
+        }}
 
-        to {
-        {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-        }
-
-        }
-        }
-
-        .row {
-        {
+        .row {{
             display: flex;
             gap: 32px;
             align-items: center;
-        }
-        }
+        }}
 
-        .cover-container {
-        {
+        .cover-container {{
             position: relative;
             flex-shrink: 0;
-        }
-        }
+        }}
 
-        .cover {
-        {
+        .cover {{
             width: 200px;
             height: 200px;
             border-radius: 20px;
@@ -95,35 +74,23 @@
             border: 2px solid rgba(255, 255, 255, 0.1);
             animation: coverFloat 3s ease-in-out infinite;
             transition: transform 0.3s ease;
-        }
-        }
+        }}
 
-        .cover:hover {
-        {
+        .cover:hover {{
             transform: scale(1.05) rotateY(5deg);
-        }
-        }
+        }}
 
-        @keyframes coverFloat {
+        @keyframes coverFloat {{
+            0%, 100% {{
+                transform: translateY(0px) rotate(0deg);
+            }}
 
-        {
-        0%, 100% {
-        {
-            transform: translateY(0px) rotate(0deg);
-        }
-        }
+            50% {{
+                transform: translateY(-8px) rotate(1deg);
+            }}
+        }}
 
-        50% {
-        {
-            transform: translateY(-8px) rotate(1deg);
-        }
-        }
-
-        }
-        }
-
-        .cover-glow {
-        {
+        .cover-glow {{
             position: absolute;
             top: 0;
             left: 0;
@@ -135,42 +102,30 @@
             filter: blur(20px);
             z-index: -1;
             animation: glowPulse 4s ease-in-out infinite;
-        }
-        }
+        }}
 
-        @keyframes glowPulse {
+        @keyframes glowPulse {{
+            0%, 100% {{
+                opacity: 0.2;
+                transform: scale(1);
+            }}
 
-        {
-        0%, 100% {
-        {
-            opacity: 0.2;
-            transform: scale(1);
-        }
-        }
-
-        50% {
-        {
-            opacity: 0.4;
-            transform: scale(1.1);
-        }
-        }
-
-        }
-        }
+            50% {{
+                opacity: 0.4;
+                transform: scale(1.1);
+            }}
+        }}
 
 
-        .meta {
-        {
+        .meta {{
             flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
             gap: 8px;
-        }
-        }
+        }}
 
-        .title {
-        {
+        .title {{
             font-size: 36px;
             font-weight: 800;
             line-height: 1.2;
@@ -181,55 +136,39 @@
             -webkit-text-fill-color: transparent;
             text-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
             animation: titleGlow 2s ease-in-out infinite alternate;
-        }
-        }
+        }}
 
-        @keyframes titleGlow {
+        @keyframes titleGlow {{
+            from {{
+                filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
+            }}
 
-        {
-        from {
-        {
-            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
-        }
-        }
+            to {{
+                filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.3));
+            }}
+        }}
 
-        to {
-        {
-            filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.3));
-        }
-        }
-
-        }
-        }
-
-        .subtitle {
-        {
+        .subtitle {{
             font-size: 20px;
             font-weight: 500;
             color: #c0c0c0;
             line-height: 1.4;
             margin-bottom: 4px;
             opacity: 0.9;
-        }
-        }
+        }}
 
-        .album {
-        {
+        .album {{
             font-size: 18px;
             color: #a0a0a0;
             font-style: italic;
-        }
-        }
+        }}
 
-        .progress-container {
-        {
+        .progress-container {{
             margin-top: 20px;
             width: 100%;
-        }
-        }
+        }}
 
-        .progress-bar {
-        {
+        .progress-bar {{
             width: 100%;
             height: 6px;
             background: rgba(255, 255, 255, 0.1);
@@ -237,73 +176,55 @@
             overflow: hidden;
             position: relative;
             box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-        }
-        }
+        }}
 
-        .progress-fill {
-        {
+        .progress-fill {{
             height: 100%;
             background: linear-gradient(90deg, #ff6b6b 0%, #4ecdc4 50%, #45b7d1 100%);
             border-radius: 3px;
             transition: width 0.3s ease;
             box-shadow: 0 0 10px rgba(69, 183, 209, 0.5);
-        }
-        }
+        }}
 
-        .time-labels {
-        {
+        .time-labels {{
             display: flex;
             justify-content: space-between;
             margin-top: 8px;
             font-size: 14px;
             color: #a0a0a0;
             font-weight: 500;
-        }
-        }
+        }}
 
-        @media (max-width: 768px) { {
-            .card {
-            {
+        @media (max-width: 768px) {{
+            .card {{
                 padding: 24px;
                 margin: 10px;
-            }
-            }
+            }}
 
-            .row {
-            {
+            .row {{
                 flex-direction: column;
                 text-align: center;
                 gap: 24px;
-            }
-            }
+            }}
 
-            .cover {
-            {
+            .cover {{
                 width: 160px;
                 height: 160px;
-            }
-            }
+            }}
 
-            .cover-glow {
-            {
+            .cover-glow {{
                 width: 160px;
                 height: 160px;
-            }
-            }
+            }}
 
-            .title {
-            {
+            .title {{
                 font-size: 28px;
-            }
-            }
+            }}
 
-            .subtitle {
-            {
+            .subtitle {{
                 font-size: 18px;
-            }
-            }
-        }
-        }
+            }}
+        }}
     </style>
 </head>
 <body>

@@ -1,10 +1,11 @@
 import sqlite3
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from functools import wraps
 from inspect import signature
-from typing import Any, Callable, Tuple, Union, Optional, Iterable
+from typing import Any, Callable, Union, Optional, Iterable
 
+from loguru import logger
 from nonebot.internal.matcher import Matcher
 
 from Services.util.common_util import time_to_literal
@@ -18,67 +19,110 @@ class RateLimitConfig:
     速率限制配置，支持可选的渐进式/指数退避。
 
     标准速率限制参数：
-        user_time_period: 同一用户连续使用之间的基础延迟时间（秒）。
-        user_function_limit: 在时间周期内每个用户允许使用的次数。
-        allowlist_can_bypass: 如果为True，白名单用户可以绕过用户级速率限制。
-        group_time_period: 同一群组内连续使用之间的延迟时间（秒）。
-        group_function_limit: 在时间周期内每个群组允许使用的次数。
+        user_time: 同一用户连续使用之间的基础延迟时间（秒）。
+        user_count: 在时间周期内每个用户允许使用的次数。
+        group_time: 同一群组内连续使用之间的延迟时间（秒）。
+        group_count: 在时间周期内每个群组允许使用的次数。
         apply_group_limit: 如果为True，在用户限制之外还应用群组级速率限制。
+                          如果group_time或group_count被设置，则自动设置为True。
 
     渐进式速率限制（指数退避）参数：
-        enable_progressive_limit: 如果为True，对群组内重复使用启用指数退避。
-                                  每次连续使用会使延迟时间呈指数级增长。
-                                  仅适用于群聊，不适用于私聊。
-                                  前两次使用保持基础延迟，从第3次开始递增。
-        progressive_multiplier: 每次连续使用时应用的倍数。
-                                例如：基础时间=20秒，倍数=1.5时：
-                                第1次：20秒，第2次：20秒，第3次：30秒，第4次：45秒，第5次：67.5秒
-        progressive_max_period: 最大延迟时间上限（秒），防止极端锁定。
-                                达到上限后，延迟时间不再增加。
-        progressive_reset_after: 不活跃期限（秒），超过此时间后渐进式状态将重置。
-                                 如果用户等待时间超过此值，延迟将重置为基础时间。
+        progressive: 如果为True，对群组内重复使用启用指数退避。
+                    每次连续使用会使延迟时间呈指数级增长。
+                    仅适用于群聊，不适用于私聊。
+                    前N次使用保持基础延迟，从第N+1次开始递增（N由tolerance定义）。
+        multiplier: 每次连续使用时应用的倍数。
+                   例如：基础时间=20秒，倍数=1.5时：
+                   第1次：20秒，第2次：20秒，第3次：30秒，第4次：45秒，第5次：67.5秒
+        max_period: 最大延迟时间上限（秒），防止极端锁定。
+                   达到上限后，延迟时间不再增加。
+        reset_after: 不活跃期限（秒），超过此时间后渐进式状态将重置。
+                    如果用户等待时间超过此值，延迟将重置为基础时间。
+        tolerance: 允许的连续命中次数，在此期间不增加延迟时间。
+
+    限制逻辑：
+        - 用户限制和群组限制独立检查
+        - 如果配置了用户限制，则检查用户是否超限
+        - 如果配置了群组限制，则检查群组是否超限
+        - 只要任一限制触发，整体判定为受限
+        - 可以只配置用户限制、只配置群组限制，或两者都配置
 
     示例：
-        标准速率限制（无渐进）：
-        >>> config = RateLimitConfig(user_time_period=30.0, enable_progressive_limit=False)
+        仅用户限制：
+        >>> config = RateLimitConfig(user_time=30.0, user_count=2)
+        # 每个用户30秒内最多使用2次
+
+        仅群组限制：
+        >>> config = RateLimitConfig(group_time=60, group_count=10)
+        # 每个群组60秒内最多使用10次
+
+        用户+群组限制：
+        >>> config = RateLimitConfig(user_time=20.0, user_count=1, group_time=60, group_count=5)
+        # 每个用户20秒内最多1次，且每个群组60秒内最多5次
 
         渐进式速率限制（指数退避）：
         >>> config = RateLimitConfig(
-        ...     user_time_period=20.0,
-        ...     enable_progressive_limit=True,
-        ...     progressive_multiplier=1.5,
-        ...     progressive_max_period=300.0,
-        ...     progressive_reset_after=120.0
+        ...     user_time=20.0,
+        ...     multiplier=1.5,
+        ...     max_period=300.0,
+        ...     reset_after=120.0
         ... )
         # 用户延迟递增：20秒 → 20秒 → 30秒 → 45秒 → 67.5秒 → ... → 300秒（达到上限）
         # 前两次使用保持基础延迟，从第3次开始递增
         # 在不活跃120秒后重置为20秒
     """
-    user_time_period: float = 30.0
-    user_function_limit: float = 1.0
-    allowlist_can_bypass: bool = True
-    group_time_period: int = 20
-    group_function_limit: int = 1
-    apply_group_limit: bool = True
-    enable_progressive_limit: bool = False
-    progressive_multiplier: float = 2.0
-    progressive_max_period: float = 320.0
-    progressive_reset_after: float = 120.0
+    user_time: Optional[float | int] = None
+    user_count: Optional[float | int] = None
+    group_time: Optional[float | int] = None
+    group_count: Optional[float | int] = None
+    apply_user_limit: bool = False
+    apply_group_limit: bool = False
+    progressive: bool = False
+    multiplier: Optional[float | int] = None
+    max_period: Optional[float | int] = None
+    reset_after: Optional[float | int] = None
+    tolerance: int = 2
 
+    def __post_init__(self):
+        numeric_fields = {
+            f.name for f in fields(self)
+            if f.type in (float, int, Optional[float], Optional[int]) or 'float' in str(f.type) or 'int' in str(f.type)
+        }
+        for field_name in numeric_fields:
+            if (val := getattr(self, field_name, None)) is not None and not isinstance(val, (int, float)):
+                raise TypeError(f"{field_name} must be int or float, got {type(val).__name__}")
 
-class UserLimitModifier:
-    def __init__(self, rate_limit_time: float, rate_limit_modifier: float, overwrite_global: bool = False):
-        """
-        :param rate_limit_time: 时间内限流参数（单位：秒）
-        :param rate_limit_modifier: 普通配置的限流是群限流参数，这里是提供一个倍数
-        :param overwrite_global: 如果为True，则覆盖群限流参数。默认为False
+        if self.user_time is not None or self.user_count is not None:
+            self.apply_user_limit = True
+            if self.user_time is None or self.user_time <= 0:
+                self.user_time = 30.0
+            if self.user_count is None or self.user_count <= 0:
+                self.user_count = 1.0
 
-        使用范例：如果我创建了一个UserLimitModifier(30.0, 2.0)，然后该功能的群限制为10，则代表单个用户在30秒，只能请求10 * 2.0次。
-        如果我创建了一个UserLimitModifier(30.0, 5.0, True)，群限制为10，则单用户30秒内只能请求5次。
-        """
-        self.rate_limit_time = rate_limit_time
-        self.rate_limit_modifier = rate_limit_modifier
-        self.overwrite_global = overwrite_global
+        if self.group_time is not None or self.group_count is not None:
+            self.apply_group_limit = True
+            if self.group_time is None or self.group_time <= 0:
+                self.group_time = 20
+            if self.group_count is None or self.group_count <= 0:
+                self.group_count = 1
+
+        if self.multiplier is not None or self.max_period is not None or self.reset_after is not None:
+            self.progressive = True
+
+            if not self.multiplier or self.multiplier <= 1.0:
+                self.multiplier = 2.0
+            if not self.max_period or self.max_period <= 0.0:
+                self.max_period = 320.0
+            if not self.reset_after or self.reset_after <= 0.0:
+                self.reset_after = 120.0
+
+        if self.tolerance < 0:
+            self.tolerance = 0
+
+        if not self.apply_user_limit and not self.apply_group_limit:
+            self.apply_user_limit = True
+            self.user_time = 30.0
+            self.user_count = 1.0
 
 
 class RateLimiter:
@@ -93,8 +137,8 @@ class RateLimiter:
         self._init_ratelimiter()
 
     @staticmethod
-    def _now() -> int:
-        return int(time.time())
+    def _now() -> float:
+        return time.time()
 
     def _init_ratelimiter(self):
         self.rate_limiter_db.execute(
@@ -194,7 +238,7 @@ class RateLimiter:
 
         return fetch_one_or_default(result, 0)
 
-    async def _get_user_state(self, function_name: str, user_id: str) -> tuple[int, int]:
+    async def _get_user_state(self, function_name: str, user_id: str) -> tuple[int, float]:
         result = self.rate_limiter_db.execute(
             """
             select hit, last_updated
@@ -213,14 +257,14 @@ class RateLimiter:
         last_updated = int(result[1]) if result[1] is not None else self._now()
         return hit, last_updated
 
-    def _upsert_state(self, user_id: str, function_name: str, hit: int, last_updated: int) -> None:
+    def _upsert_state(self, user_id: str, function_name: str, hit: int, last_updated: float) -> None:
         self.rate_limiter_db.execute(
             """
             insert or replace into rate_limiter (user_id, function_name, hit, last_updated) values (
                 ?, ?, ?, ?
             )
             """,
-            (user_id, function_name, hit, last_updated),
+            (user_id, function_name, hit, int(last_updated)),
         )
         self.rate_limiter_db.commit()
 
@@ -228,9 +272,9 @@ class RateLimiter:
             self,
             function_name: str,
             group_id: str,
-            time_period=60,
+            time_period=60.0,
             override_function_limit=None
-    ) -> Tuple[str, int]:
+    ) -> tuple[str, float] | tuple[str, int]:
         now = self._now()
         function_usage_limit = (
             await self.get_function_limit(function_name)
@@ -255,46 +299,31 @@ class RateLimiter:
         self._upsert_state(group_id, function_name, update_group_hit, group_last_update_time_updated)
         return '', -1
 
-    async def _query_user_permission(self, function_name: str, user_id: str, user_modifier: UserLimitModifier):
+    async def _query_user_permission(
+            self,
+            function_name: str,
+            user_id: str,
+            time_period: float,
+            usage_limit: float
+    ):
         now = self._now()
-        function_usage_limit = await self.get_function_limit(function_name)
         user_hit, user_last_update_time = await self._get_user_state(function_name, user_id)
 
-        if function_usage_limit <= 0:
-            return self.TEMPRORARY_DISABLED, int(user_last_update_time + user_modifier.rate_limit_time - now)
+        if usage_limit <= 0:
+            return self.TEMPRORARY_DISABLED, int(user_last_update_time + time_period - now)
 
-        if now - user_last_update_time > user_modifier.rate_limit_time:
+        if now - user_last_update_time > time_period:
             update_user_hit = 1
             user_last_update_time_updated = now
         else:
-            user_usage_limit = (
-                function_usage_limit * user_modifier.rate_limit_modifier
-                if not user_modifier.overwrite_global
-                else user_modifier.rate_limit_modifier
-            )
-
-            if user_hit + 1 > user_usage_limit:
-                return self.LIMIT_BY_USER, int(user_last_update_time + user_modifier.rate_limit_time - now)
+            if user_hit + 1 > usage_limit:
+                return self.LIMIT_BY_USER, int(user_last_update_time + time_period - now)
 
             update_user_hit = user_hit + 1
             user_last_update_time_updated = user_last_update_time
 
         self._upsert_state(user_id, function_name, update_user_hit, user_last_update_time_updated)
         return '', -1
-
-    async def _query_permission(
-            self,
-            function_name: str,
-            user_id: str,
-            group_id: str,
-            user_limit_modifier: UserLimitModifier
-    ) -> Tuple[str, int]:
-        query_group_prompt, wait_time = await self._query_group_permission(function_name, group_id)
-        if query_group_prompt:
-            return query_group_prompt, wait_time
-
-        query_user_prompt, wait_time = await self._query_user_permission(function_name, user_id, user_limit_modifier)
-        return query_user_prompt, wait_time
 
     async def _assemble_limit_prompt(self, prompt, wait_time) -> RateLimitStatus:
         if prompt == self.LIMIT_BY_USER:
@@ -309,34 +338,11 @@ class RateLimiter:
 
         return RateLimitStatus(False, None)
 
-    async def user_group_limit_check(
-            self,
-            function_name: str,
-            user_id: Union[str, int],
-            group_id: Union[str, int],
-            user_limit_modifier: UserLimitModifier
-    ) -> RateLimitStatus:
-        user_id = str(user_id)
-        group_id = str(group_id)
-
-        query_result, wait_time = await self._query_permission(function_name, user_id, group_id, user_limit_modifier)
-        return await self._assemble_limit_prompt(query_result, wait_time)
-
-    async def user_limit_check(
-            self,
-            function_name: str,
-            user_id: Union[str, int],
-            user_limit_modifier: UserLimitModifier
-    ) -> RateLimitStatus:
-        user_id = str(user_id)
-        query_result, wait_time = await self._query_user_permission(function_name, user_id, user_limit_modifier)
-        return await self._assemble_limit_prompt(query_result, wait_time)
-
     async def group_limit_check(
             self,
             function_name: str,
             group_id: Union[str, int],
-            time_period=60,
+            time_period=60.0,
             function_limit=None
     ) -> RateLimitStatus:
         group_id = str(group_id)
@@ -358,60 +364,60 @@ class RateLimiter:
         user_id_str = str(user_id)
         group_id_str = str(group_id)
 
-        if config.enable_progressive_limit and group_id != -1:
-            key = f"{function_name}:{group_id_str}:{user_id_str}"
-            current_time = time.time()
+        if config.apply_user_limit:
+            user_time_period = config.user_time
 
-            if key not in self._progressive_state:
-                self._progressive_state[key] = {
-                    "consecutive_uses": 0,
-                    "last_use_time": 0,
-                    "current_period": config.user_time_period
-                }
+            if config.progressive and group_id != -1:
+                key = f"{function_name}:{group_id_str}:{user_id_str}"
+                current_time = time.time()
 
-            state = self._progressive_state[key]
-            time_since_last = current_time - state["last_use_time"]
+                if key not in self._progressive_state:
+                    self._progressive_state[key] = {
+                        "consecutive_uses": 0,
+                        "last_use_time": 0,
+                        "current_period": config.user_time
+                    }
 
-            if time_since_last > config.progressive_reset_after:
-                state["consecutive_uses"] = 0
-                state["current_period"] = config.user_time_period
+                state = self._progressive_state[key]
+                time_since_last = current_time - state["last_use_time"]
 
-            adjusted_period = state["current_period"]
-            user_limit = UserLimitModifier(
-                adjusted_period,
-                config.user_function_limit,
-                config.allowlist_can_bypass
+                if time_since_last > config.reset_after:
+                    state["consecutive_uses"] = 0
+                    state["current_period"] = config.user_time
+
+                user_time_period = state["current_period"]
+
+            query_user_prompt, user_wait_time = await self._query_user_permission(
+                function_name,
+                user_id_str,
+                user_time_period,
+                config.user_count
             )
-        else:
-            user_limit = UserLimitModifier(
-                config.user_time_period,
-                config.user_function_limit,
-                config.allowlist_can_bypass
-            )
 
-        user_check = await self.user_limit_check(function_name, user_id, user_limit)
-        if user_check.is_limited:
-            return user_check
+            if query_user_prompt:
+                user_limit_status = await self._assemble_limit_prompt(query_user_prompt, user_wait_time)
+                if user_limit_status.is_limited:
+                    return user_limit_status
 
-        if config.enable_progressive_limit and group_id != -1:
-            key = f"{function_name}:{group_id_str}:{user_id_str}"
-            state = self._progressive_state[key]
-            state["consecutive_uses"] += 1
-            state["last_use_time"] = time.time()
+            if config.progressive and group_id != -1:
+                key = f"{function_name}:{group_id_str}:{user_id_str}"
+                state = self._progressive_state[key]
+                state["consecutive_uses"] += 1
+                state["last_use_time"] = time.time()
 
-            exponent = max(0, state["consecutive_uses"] - 2)
-            new_period = min(
-                config.user_time_period * (config.progressive_multiplier ** exponent),
-                config.progressive_max_period
-            )
-            state["current_period"] = new_period
+                exponent = max(0, state["consecutive_uses"] - config.tolerance or 0)
+                new_period = min(
+                    config.user_time * (config.multiplier ** exponent),
+                    config.max_period
+                )
+                state["current_period"] = new_period
 
         if config.apply_group_limit and group_id != -1:
             group_check = await self.group_limit_check(
                 function_name,
                 group_id,
-                time_period=config.group_time_period,
-                function_limit=config.group_function_limit
+                time_period=config.group_time,
+                function_limit=config.group_count
             )
             if group_check.is_limited:
                 return group_check
@@ -426,10 +432,10 @@ class RateLimiter:
 
         user_id = None
         group_id = None
-        matcher = bound_args.arguments.get('matcher')
 
-        if 'event' in bound_args.arguments:
-            event = bound_args.arguments['event']
+        matcher = bound_args.arguments.get('matcher') or bound_args.arguments.get('_matcher')
+        if 'event' in bound_args.arguments or '_event' in bound_args.arguments:
+            event = bound_args.arguments.get('event') or bound_args.arguments.get('_event')
             if hasattr(event, 'get_user_id') and callable(event.get_user_id):
                 user_id = event.get_user_id()
             elif hasattr(event, 'user_id'):
@@ -455,7 +461,8 @@ class RateLimiter:
             group_id: str | int,
             config: RateLimitConfig,
             matcher: Matcher,
-            show_prompt: bool
+            show_prompt: bool,
+            override_prompt: Optional[str] = None
     ) -> Optional[RateLimitStatus]:
         function_names = [function_name] if isinstance(function_name, str) else list(function_name)
 
@@ -468,23 +475,28 @@ class RateLimiter:
             )
 
             if rate_limit_status.is_limited:
+                logger.warning(f'User: {user_id} is rate limited for function: {func_name}')
                 if matcher is not None:
-                    if show_prompt and rate_limit_status.prompt:
-                        await matcher.finish(rate_limit_status.prompt)
+                    if show_prompt and (override_prompt or rate_limit_status.prompt):
+                        await matcher.finish(override_prompt or rate_limit_status.prompt)
                     else:
                         await matcher.finish()
                 return rate_limit_status
 
         return None
 
-    def rate_limit(self, function_name: str | Iterable[str], config: RateLimitConfig, show_prompt: bool = False):
+    def rate_limit(
+            self, *, func_name: str | Iterable[str],
+            config: RateLimitConfig, show_prompt: bool = True,
+            override_prompt: Optional[str] = None) -> Callable:
         """
         Decorator for rate limit
 
         Args:
-            function_name: function key
+            func_name: function key
             config: RateLimitConfig object.
             show_prompt: If True, shows rate limit message; if False, silent finish
+            override_prompt: If filled, overrides the default rate limit prompt message
 
         Returns:
             Decorator that wraps async functions with rate limiting
@@ -508,12 +520,13 @@ class RateLimiter:
                     )
 
                 limited_status = await self._handle_rate_limit_check(
-                    function_name,
+                    func_name,
                     user_id,
                     group_id,
                     config,
                     matcher,
-                    show_prompt
+                    show_prompt,
+                    override_prompt
                 )
 
                 if limited_status is not None:

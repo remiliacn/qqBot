@@ -147,6 +147,8 @@ pixiv_send_cmd = on_command('色图', aliases={'来张色图', '涩图'})
 
 
 @pixiv_send_cmd.handle()
+@global_rate_limiter.rate_limit(
+    func_name=SETU, config=SETU_RATE_LIMIT, show_prompt=True, override_prompt='别色了，休息会儿吧。')
 async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, matcher: Matcher,
                      args: Message = CommandArg()):
     nickname = get_nickname(event)
@@ -156,15 +158,7 @@ async def pixiv_send(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, m
         if group_control.get_group_permission(group_id, group_permission.BANNED):
             await matcher.finish('管理员已设置禁止该群接收色图。如果确认这是错误的话，请联系bot制作者')
 
-    rate_limit_result = await global_rate_limiter.check_rate_limits_with_config(SETU, user_id, group_id,
-                                                                                SETU_RATE_LIMIT)
-    if rate_limit_result.is_limited:
-        if rate_limit_result.prompt:
-            await matcher.finish(construct_message_chain(MessageSegment.reply(message_id), rate_limit_result.prompt))
-        return
-
     monitored = False
-
     if group_id == -1 and not get_privilege(user_id, perm.WHITELIST):
         await matcher.finish('我主人还没有添加你到信任名单哦。请找BOT制作者要私聊使用权限~')
 
@@ -377,14 +371,9 @@ get_user_xp_wordcloud_cmd = on_command('P站词云')
 
 
 @get_user_xp_wordcloud_cmd.handle()
+@global_rate_limiter.rate_limit(func_name=WORDCLOUD, config=WORDCLOUD_RATE_LIMIT, show_prompt=False)
 async def get_user_xp_wordcloud(bot: Bot, event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
-    user_id = get_user_id(event)
     group_id = get_group_id(event)
-
-    rate_limit_result = await global_rate_limiter.check_rate_limits_with_config(WORDCLOUD, user_id, group_id,
-                                                                                WORDCLOUD_RATE_LIMIT)
-    if rate_limit_result.is_limited:
-        return
 
     if not pixiv_service.ensure_auth():
         await matcher.finish('Pixiv认证失败，请稍后再试')
@@ -416,6 +405,7 @@ check_someone_xp_cmd = on_command('看看XP', aliases={'看看xp'})
 
 
 @check_someone_xp_cmd.handle()
+@global_rate_limiter.rate_limit(func_name=HIT_XP, config=XP_CHECK_RATE_LIMIT, show_prompt=False)
 async def get_user_xp_data_with_at(
         bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, matcher: Matcher, args: Message = CommandArg()):
     group_id = get_group_id(event)
@@ -429,12 +419,6 @@ async def get_user_xp_data_with_at(
         await matcher.finish('我主人还没有添加你到信任名单哦。请找BOT制作者要私聊使用权限~')
 
     message_id = event.message_id
-
-    rate_limit_result = await global_rate_limiter.check_rate_limits_with_config(HIT_XP, user_id, group_id,
-                                                                                XP_CHECK_RATE_LIMIT)
-    if rate_limit_result.is_limited:
-        return
-
     has_id, search_target_qq, pixiv_id = _validate_user_pixiv_id_exists_and_return_id(event, args)
     xp_result = setu_function_control.get_user_xp(search_target_qq)
     if not has_id and not xp_result:
