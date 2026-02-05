@@ -1,16 +1,17 @@
 from asyncio import sleep, get_running_loop
 from base64 import b64encode
 from collections.abc import Mapping
+from dataclasses import dataclass
 from functools import lru_cache
 from hashlib import sha1
 from math import ceil
 from mimetypes import guess_extension
 from os import remove, getcwd, path
 from os.path import exists
-from random import randint
+from random import randint, random
 from ssl import SSLContext
-from time import time
-from typing import List, Literal, Dict, Any, Union, TypeVar
+from time import time, monotonic
+from typing import List, Literal, Dict, Any, Union, TypeVar, Tuple
 from uuid import uuid4
 
 import markdown2
@@ -36,6 +37,70 @@ from model.common_model import Status
 
 TEMP_FILE_DIRECTORY = path.join(getcwd(), 'data', 'temp')
 T = TypeVar("T")
+
+
+@dataclass
+class _ChanceState:
+    chance: float
+    consecutive_misses: int
+    last_update_ts: float
+
+
+class RandomChanceClient:
+    def __init__(self) -> None:
+        self._state_by_group: dict[str, _ChanceState] = {}
+
+    @staticmethod
+    def _base_chance() -> float:
+        return 0.002
+
+    @staticmethod
+    def _max_chance() -> float:
+        return 0.02
+
+    @staticmethod
+    def _cooldown_seconds() -> float:
+        return 60 * 30
+
+    def _get_state(self, group_id: Union[int, str]) -> _ChanceState:
+        key = str(group_id)
+        now = monotonic()
+
+        state = self._state_by_group.get(key)
+        if state is None:
+            state = _ChanceState(chance=self._base_chance(), consecutive_misses=0, last_update_ts=now)
+            self._state_by_group[key] = state
+            return state
+
+        if now - state.last_update_ts >= self._cooldown_seconds():
+            state.chance = self._base_chance()
+            state.consecutive_misses = 0
+            state.last_update_ts = now
+
+        return state
+
+    def get_random_chance(self, group_id: Union[int, str]) -> float:
+        return self._get_state(group_id).chance
+
+    def should_reply(
+            self, group_id: Union[int, str], *, must_reply: bool) -> Tuple[bool, Literal["must_reply", "random"]]:
+        if must_reply:
+            return True, "must_reply"
+
+        chance = self.get_random_chance(group_id)
+        return random() < chance, "random"
+
+    def record_result(self, group_id: Union[int, str], *, did_reply: bool) -> None:
+        state = self._get_state(group_id)
+        state.last_update_ts = monotonic()
+
+        if did_reply:
+            state.chance = self._base_chance()
+            state.consecutive_misses = 0
+            return
+
+        state.consecutive_misses += 1
+        state.chance = min(self._max_chance(), state.chance + 0.002 * state.consecutive_misses)
 
 
 async def is_self_group_admin(group_id: str | int):
