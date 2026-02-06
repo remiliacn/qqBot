@@ -1,4 +1,3 @@
-import sqlite3
 import time
 from dataclasses import dataclass, fields
 from functools import wraps
@@ -10,7 +9,7 @@ from nonebot.internal.matcher import Matcher
 
 from Services.util.common_util import time_to_literal
 from model.common_model import RateLimitStatus
-from util.db_utils import fetch_one_or_default
+from util.db_utils import fetch_one_or_default, execute_db
 
 
 @dataclass
@@ -128,7 +127,6 @@ class RateLimitConfig:
 class RateLimiter:
     def __init__(self):
         self.rate_limiter_database_path = 'data/db/ratelimiter.db'
-        self.rate_limiter_db = sqlite3.connect(self.rate_limiter_database_path)
         self.LIMIT_BY_GROUP = 'GROUP'
         self.LIMIT_BY_USER = 'USER'
         self.TEMPRORARY_DISABLED = 'DISABLED'
@@ -141,7 +139,8 @@ class RateLimiter:
         return time.time()
 
     def _init_ratelimiter(self):
-        self.rate_limiter_db.execute(
+        execute_db(
+            self.rate_limiter_database_path,
             """
             create table if not exists rate_limiter_config
             (
@@ -150,7 +149,8 @@ class RateLimiter:
             )
             """
         )
-        self.rate_limiter_db.execute(
+        execute_db(
+            self.rate_limiter_database_path,
             """
             create table if not exists rate_limiter
             (
@@ -162,10 +162,10 @@ class RateLimiter:
             )
             """
         )
-        self.rate_limiter_db.commit()
 
     async def set_function_limit(self, function_name: str, rate_limit: int):
-        self.rate_limiter_db.execute(
+        execute_db(
+            self.rate_limiter_database_path,
             """
             insert or replace into rate_limiter_config (function_name, rate_limit) values (
                 ?, ?
@@ -174,10 +174,9 @@ class RateLimiter:
             (function_name, rate_limit),
         )
 
-        self.rate_limiter_db.commit()
-
     async def reset_user_limit(self, user_id: Union[int, str]):
-        self.rate_limiter_db.execute(
+        execute_db(
+            self.rate_limiter_database_path,
             """
             update rate_limiter
             set hit = 1
@@ -186,10 +185,9 @@ class RateLimiter:
             (str(user_id),),
         )
 
-        self.rate_limiter_db.commit()
-
     async def get_function_limit(self, function_name: str):
-        result = self.rate_limiter_db.execute(
+        result = execute_db(
+            self.rate_limiter_database_path,
             """
             select rate_limit
             from rate_limiter_config
@@ -197,7 +195,8 @@ class RateLimiter:
             limit 1;
             """,
             (function_name,),
-        ).fetchone()
+            fetch_one=True
+        )
 
         if result is not None and result[0] is not None:
             return result[0]
@@ -207,7 +206,8 @@ class RateLimiter:
 
     async def get_user_last_update(self, function_name: str, user_id: Union[str, int]):
         user_id_str = str(user_id)
-        result = self.rate_limiter_db.execute(
+        result = execute_db(
+            self.rate_limiter_database_path,
             """
             select last_updated
             from rate_limiter
@@ -216,7 +216,8 @@ class RateLimiter:
             limit 1;
             """,
             (user_id_str, function_name),
-        ).fetchone()
+            fetch_one=True
+        )
 
         if result is None or result[0] is None:
             return self._now()
@@ -225,7 +226,8 @@ class RateLimiter:
 
     async def get_user_hit(self, function_name: str, user_id: Union[str, int]):
         user_id_str = str(user_id)
-        result = self.rate_limiter_db.execute(
+        result = execute_db(
+            self.rate_limiter_database_path,
             """
             select hit
             from rate_limiter
@@ -234,12 +236,14 @@ class RateLimiter:
             limit 1;
             """,
             (function_name, user_id_str),
-        ).fetchone()
+            fetch_one=True
+        )
 
         return fetch_one_or_default(result, 0)
 
     async def _get_user_state(self, function_name: str, user_id: str) -> tuple[int, float]:
-        result = self.rate_limiter_db.execute(
+        result = execute_db(
+            self.rate_limiter_database_path,
             """
             select hit, last_updated
             from rate_limiter
@@ -248,7 +252,8 @@ class RateLimiter:
             limit 1;
             """,
             (function_name, user_id),
-        ).fetchone()
+            fetch_one=True
+        )
 
         if not result:
             return 0, self._now()
@@ -258,7 +263,8 @@ class RateLimiter:
         return hit, last_updated
 
     def _upsert_state(self, user_id: str, function_name: str, hit: int, last_updated: float) -> None:
-        self.rate_limiter_db.execute(
+        execute_db(
+            self.rate_limiter_database_path,
             """
             insert or replace into rate_limiter (user_id, function_name, hit, last_updated) values (
                 ?, ?, ?, ?
@@ -266,7 +272,6 @@ class RateLimiter:
             """,
             (user_id, function_name, hit, int(last_updated)),
         )
-        self.rate_limiter_db.commit()
 
     async def _query_group_permission(
             self,

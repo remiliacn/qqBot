@@ -1,8 +1,7 @@
-import sqlite3
 from typing import Union, List, Tuple, Optional
 
 from awesome.Constants.function_key import USER_XP
-from util.db_utils import fetch_one_or_default
+from util.db_utils import fetch_one_or_default, execute_db
 
 
 class SetuFunctionControl:
@@ -12,122 +11,137 @@ class SetuFunctionControl:
 
         self.setu_db_path = 'data/db/setu.db'
         self.stat_db_path = 'data/db/stats.db'
-        self.setu_db_connection = sqlite3.connect(self.setu_db_path)
-        self.stat_db_connection = sqlite3.connect(self.stat_db_path)
 
         self._init_stat_db()
         self._init_setu_db()
 
     def _init_stat_db(self):
-        self.stat_db_connection.execute(
+        execute_db(
+            self.stat_db_path,
             """
-create table if not exists user_activity_count
-(
-    user_id  varchar(20) not null,
-    tag      varchar(20) not null,
-    hit      integer     not null default 0,
-    nickname varchar(200),
-    unique (user_id, tag) on conflict ignore
-);
-            """
-        )
-        self.stat_db_connection.execute(
-            """
-create table if not exists group_activity_count
-(
-    group_id varchar(20) not null,
-    tag      varchar(20) not null,
-    hit      integer     not null default 0,
-    unique (group_id, tag) on conflict ignore
-);
+            create table if not exists user_activity_count
+            (
+                user_id  varchar(20) not null,
+                tag      varchar(20) not null,
+                hit      integer     not null default 0,
+                nickname varchar(200),
+                unique (user_id, tag) on conflict ignore
+            );
             """
         )
-        self.stat_db_connection.execute(
+        execute_db(
+            self.stat_db_path,
             """
-create table if not exists global_stat
-(
-    keyword varchar(150) unique on conflict ignore,
-    hit     integer not null
-);
-            """
-        )
-        self.stat_db_connection.execute(
-            """
-create table if not exists monitor_xp_data
-(
-    keyword varchar(150) unique on conflict ignore,
-    hit     integer not null default 0
-);
+            create table if not exists group_activity_count
+            (
+                group_id varchar(20) not null,
+                tag      varchar(20) not null,
+                hit      integer     not null default 0,
+                unique (group_id, tag) on conflict ignore
+            );
             """
         )
-        self.stat_db_connection.execute(
+        execute_db(
+            self.stat_db_path,
             """
-create table if not exists user_xp_count
-(
-    user_id  varchar(20)  not null,
-    keyword  varchar(150) not null,
-    hit      integer      not null default 0,
-    nickname varchar(255),
-    unique (user_id, keyword) on conflict ignore
-);
+            create table if not exists global_stat
+            (
+                keyword varchar(150) unique on conflict ignore,
+                hit     integer not null
+            );
             """
         )
-        self.stat_db_connection.commit()
+        execute_db(
+            self.stat_db_path,
+            """
+            create table if not exists monitor_xp_data
+            (
+                keyword varchar(150) unique on conflict ignore,
+                hit     integer not null default 0
+            );
+            """
+        )
+        execute_db(
+            self.stat_db_path,
+            """
+            create table if not exists user_xp_count
+            (
+                user_id  varchar(20)  not null,
+                keyword  varchar(150) not null,
+                hit      integer      not null default 0,
+                nickname varchar(255),
+                unique (user_id, keyword) on conflict ignore
+            );
+            """
+        )
 
     def _init_setu_db(self):
-        self.setu_db_connection.execute(
+        execute_db(
+            self.setu_db_path,
             """
-create table if not exists bad_words
-(
-    keyword text unique on conflict ignore,
-    penalty integer not null default 0
-);
-            """
-        )
-        self.setu_db_connection.execute(
-            """
-create table if not exists setu_group_keyword
-(
-    keyword  text unique on conflict ignore ,
-    hit      integer not null default 0,
-    group_id varchar(20)
-);
+            create table if not exists bad_words
+            (
+                keyword text unique on conflict ignore,
+                penalty integer not null default 0
+            );
             """
         )
-        self.setu_db_connection.execute(
+        execute_db(
+            self.setu_db_path,
             """
-create table if not exists setu_keyword
-(
-    keyword text unique on conflict ignore,
-    hit     integer not null default 0
-);
-            """
-        )
-        self.setu_db_connection.executescript(
-            """
-create table if not exists setu_keyword_replacer
-(
-    original_keyword varchar(255) not null constraint setu_keyword_replacer_pk primary key,
-    replaced_keyword varchar(255) not null
-);
-
-create unique index if not exists setu_keyword_replacer_original_keyword_uindex
-    on setu_keyword_replacer (original_keyword);
+            create table if not exists setu_group_keyword
+            (
+                keyword  text unique on conflict ignore,
+                hit      integer not null default 0,
+                group_id varchar(20)
+            );
             """
         )
-        self.setu_db_connection.commit()
+        execute_db(
+            self.setu_db_path,
+            """
+            create table if not exists setu_keyword
+            (
+                keyword text unique on conflict ignore,
+                hit     integer not null default 0
+            );
+            """
+        )
+        execute_db(
+            self.setu_db_path,
+            """
+            create table if not exists setu_keyword_replacer
+            (
+                original_keyword varchar(255) not null
+                    constraint setu_keyword_replacer_pk primary key,
+                replaced_keyword varchar(255) not null
+            );
+            """
+        )
+        execute_db(
+            self.setu_db_path,
+            """
+            create unique index if not exists setu_keyword_replacer_original_keyword_uindex
+                on setu_keyword_replacer (original_keyword);
+            """
+        )
 
     def get_setu_usage(self) -> int:
-        result = self.stat_db_connection.execute(
+        result = execute_db(
+            self.stat_db_path,
             """
-            select sum(hit) from group_activity_count where tag = 'setu'
-            """
-        ).fetchone()
+            select sum(hit)
+            from group_activity_count
+            where tag = 'setu'
+            """,
+            fetch_one=True
+        )
 
         return fetch_one_or_default(result, 0)
 
     def track_keyword(self, key_word: str):
-        self.setu_db_connection.execute(
+        execute_db(
+            self.setu_db_path,
             """
             insert or replace into setu_keyword values (?, 
                 coalesce(
@@ -136,36 +150,52 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             )
             """, (key_word, key_word)
         )
-        self.commit_change()
 
     def get_user_xp_by_keyword(self, key_word: str, user_id: Union[int, str]) -> List[Tuple[str, Union[None, str]]]:
         user_id = str(user_id)
-        result = self.stat_db_connection.execute(
+        result = execute_db(
+            self.stat_db_path,
             """
-            select user_id, nickname from user_xp_count 
-            where keyword like ? and user_id = ? and nickname not null order by hit limit 5;
-            """, (f'%{key_word}%', user_id)
-        ).fetchall()
+            select user_id, nickname
+            from user_xp_count
+            where keyword like ?
+              and user_id = ?
+              and nickname not null
+            order by hit
+            limit 5;
+            """, (f'%{key_word}%', user_id),
+            fetch_all=True
+        )
 
         return result
 
     def _get_user_nickname(self, user_id: str) -> Optional[str]:
-        result = self.stat_db_connection.execute(
+        result = execute_db(
+            self.stat_db_path,
             """
-            select nickname from user_activity_count where user_id = ? and nickname is not null limit 1;
-            """, (user_id,)
-        ).fetchone()
+            select nickname
+            from user_activity_count
+            where user_id = ?
+              and nickname is not null
+            limit 1;
+            """, (user_id,),
+            fetch_one=True
+        )
 
         return fetch_one_or_default(result, None)
 
     def _get_keyword_usage_expand(self, key_word: str):
-        results = self.stat_db_connection.execute(
+        results = execute_db(
+            self.stat_db_path,
             """
-            select user_id, hit from user_xp_count 
+            select user_id, hit
+            from user_xp_count
             where keyword like ?
-            order by hit desc limit 5;
-            """, (f'%{key_word}%',)
-        ).fetchall()
+            order by hit desc
+            limit 5;
+            """, (f'%{key_word}%',),
+            fetch_all=True
+        )
 
         if not results:
             return ''
@@ -189,11 +219,15 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
         return f'{key_word}被查询了{setu_stat}次~~{setu_user_stat_literal}'
 
     def _get_keyword_usage(self, key_word: str) -> int:
-        result = self.setu_db_connection.execute(
+        result = execute_db(
+            self.setu_db_path,
             """
-            select sum(hit) from setu_keyword where keyword like ?
-            """, (f'%{key_word}%',)
-        ).fetchone()
+            select sum(hit)
+            from setu_keyword
+            where keyword like ?
+            """, (f'%{key_word}%',),
+            fetch_one=True
+        )
 
         return fetch_one_or_default(result, 0)
 
@@ -202,66 +236,82 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
         return ' and '.join(result)
 
     def get_high_freq_keyword(self) -> List[Tuple[str]] | None:
-        result = self.setu_db_connection.execute(
+        result = execute_db(
+            self.setu_db_path,
             f"""
             select keyword, hit from setu_keyword
                 where {self._keyword_filter_query()}
                 order by hit desc limit 10;
-            """, self.blacklist_freq_keyword
-        ).fetchall()
+            """, self.blacklist_freq_keyword,
+            fetch_all=True
+        )
 
         return result
 
     def get_bad_word_penalty(self, keyword: str) -> int:
-        result = self.setu_db_connection.execute(
+        result = execute_db(
+            self.setu_db_path,
             """
-            select penalty from bad_words where keyword = ?
-            """, (keyword,)
-        ).fetchone()
+            select penalty
+            from bad_words
+            where keyword = ?
+            """, (keyword,),
+            fetch_one=True
+        )
 
         return fetch_one_or_default(result, -1)
 
     def add_bad_word_dict(self, key_word, multiplier):
         if multiplier == 1:
-            self.setu_db_connection.execute(
+            execute_db(
+                self.setu_db_path,
                 """
-                delete from bad_words where keyword = ?
+                delete
+                from bad_words
+                where keyword = ?
                 """, (key_word,)
             )
         else:
-            self.setu_db_connection.execute(
+            execute_db(
+                self.setu_db_path,
                 """
                 insert or replace into bad_words values(?, ?)
                 """, (key_word, multiplier)
             )
 
-        self.commit_change()
-
     def get_monitored_keywords(self) -> set:
-        result = self.stat_db_connection.execute(
+        result = execute_db(
+            self.stat_db_path,
             """
-            select keyword from monitor_xp_data
-            """
-        ).fetchall()
+            select keyword
+            from monitor_xp_data
+            """,
+            fetch_all=True
+        )
 
         return set([x[0] for x in result])
 
     def set_new_xp(self, key_word):
-        self.stat_db_connection.execute(
+        execute_db(
+            self.stat_db_path,
             """
             insert or replace into monitor_xp_data (keyword, hit) values (
                 ?, 0
             ) 
             """, (key_word,)
         )
-        self.commit_change()
 
     def get_xp_data(self) -> List[Tuple[str, str]]:
-        result = self.stat_db_connection.execute(
+        result = execute_db(
+            self.stat_db_path,
             """
-            select keyword, hit from monitor_xp_data order by hit desc limit 10;
-            """
-        ).fetchall()
+            select keyword, hit
+            from monitor_xp_data
+            order by hit desc
+            limit 10;
+            """,
+            fetch_all=True
+        )
 
         return result
 
@@ -275,7 +325,8 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
 
             pixiv_id = int(pixiv_id)
 
-        self.stat_db_connection.execute(
+        execute_db(
+            self.stat_db_path,
             """
             insert or replace into user_activity_count (user_id, tag, hit, nickname) values (
                 ?, ?, ?, ?
@@ -283,23 +334,29 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             """, (user_id, 'pixiv_id', pixiv_id, nickname)
         )
 
-        self.commit_change()
         return True
 
     def get_user_pixiv(self, user_id) -> int:
         if isinstance(user_id, int):
             user_id = str(user_id)
 
-        result = self.stat_db_connection.execute(
+        result = execute_db(
+            self.stat_db_path,
             """
-            select hit from user_activity_count where user_id = ? and tag = ? limit 1;
-            """, (user_id, 'pixiv_id')
-        ).fetchone()
+            select hit
+            from user_activity_count
+            where user_id = ?
+              and tag = ?
+            limit 1;
+            """, (user_id, 'pixiv_id'),
+            fetch_one=True
+        )
 
         return fetch_one_or_default(result, -1)
 
     def _update_global_tag(self, tag: str):
-        self.stat_db_connection.execute(
+        execute_db(
+            self.stat_db_path,
             """
             insert or replace into global_stat (keyword, hit) values (
                 ?, coalesce(
@@ -308,10 +365,10 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             )
             """, (tag, tag)
         )
-        self.commit_change()
 
     def _update_user_activity(self, user_id: str, tag: str, nickname: str):
-        self.stat_db_connection.execute(
+        execute_db(
+            self.stat_db_path,
             """
             insert or replace into user_activity_count (user_id, tag, hit, nickname) values (
                 ?, ?, coalesce(
@@ -320,7 +377,6 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             )
             """, (user_id, tag, user_id, tag, nickname)
         )
-        self.commit_change()
 
     def set_user_xp(self, user_id: Union[int, str], keyword: str, nickname: str):
         self.set_user_data(user_id, USER_XP, nickname, keyword)
@@ -346,11 +402,16 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
                 self._update_user_xp_data(user_id, keyword, user_nickname)
 
     def get_global_stat(self, keyword) -> Optional[int]:
-        result = self.stat_db_connection.execute(
+        result = execute_db(
+            self.stat_db_path,
             """
-            select hit from global_stat where keyword = ? limit 1;
-            """, (keyword,)
-        ).fetchone()
+            select hit
+            from global_stat
+            where keyword = ?
+            limit 1;
+            """, (keyword,),
+            fetch_one=True
+        )
 
         return fetch_one_or_default(result, None)
 
@@ -358,12 +419,14 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
         if isinstance(user_id, int):
             user_id = str(user_id)
 
-        result = self.stat_db_connection.execute(
+        result = execute_db(
+            self.stat_db_path,
             f"""
             select keyword, hit from user_xp_count where user_id = ? 
             and {self._keyword_filter_query()} order by hit desc limit 1;
-            """, (user_id, *self.blacklist_freq_keyword)
-        ).fetchone()
+            """, (user_id, *self.blacklist_freq_keyword),
+            fetch_one=True
+        )
 
         return [result[0], result[1]] if result else []
 
@@ -371,24 +434,32 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
         if isinstance(user_id, int):
             user_id = str(user_id)
 
-        result = self.stat_db_connection.execute(
+        result = execute_db(
+            self.stat_db_path,
             """
-            select hit from user_activity_count where user_id = ? and tag = ? limit 1;
-            """, (user_id, tag)
-        ).fetchone()
+            select hit
+            from user_activity_count
+            where user_id = ?
+              and tag = ?
+            limit 1;
+            """, (user_id, tag),
+            fetch_one=True
+        )
 
         return fetch_one_or_default(result, 0)
 
     def _get_data_rank(self, user_id: str, tag: str) -> int:
-        result = self.stat_db_connection.execute(
+        result = execute_db(
+            self.stat_db_path,
             f"""
             select Rank, user_id
             from (
                   select dense_rank() over (order by hit desc) Rank, user_id from user_activity_count 
                   where tag = ?
             ) where user_id = ?
-            """, (tag, user_id)
-        ).fetchone()
+            """, (tag, user_id),
+            fetch_one=True
+        )
 
         return fetch_one_or_default(result, -1)
 
@@ -396,12 +467,15 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
         if isinstance(user_id, int):
             user_id = str(user_id)
 
-        result = self.stat_db_connection.execute(
+        result = execute_db(
+            self.stat_db_path,
             """
             select tag, hit
-            from user_activity_count where user_id = ?
-            """, (user_id,)
-        ).fetchall()
+            from user_activity_count
+            where user_id = ?
+            """, (user_id,),
+            fetch_all=True
+        )
 
         if result is None:
             return {}
@@ -421,18 +495,21 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
 
     def get_group_xp(self, group_id: Union[int, str]) -> List[Tuple[str]] | None:
         group_id = str(group_id)
-        result = self.setu_db_connection.execute(
+        result = execute_db(
+            self.setu_db_path,
             f"""
             select keyword, hit from setu_group_keyword where group_id = ? and {self._keyword_filter_query()}
                 order by hit desc limit 5;
-            """, (group_id, *self.blacklist_freq_keyword)
-        ).fetchall()
+            """, (group_id, *self.blacklist_freq_keyword),
+            fetch_all=True
+        )
 
         return result
 
     def _update_group_xp(self, group_id: Union[str, int], keyword):
         group_id = str(group_id)
-        self.setu_db_connection.execute(
+        execute_db(
+            self.setu_db_path,
             """
             insert or replace into setu_group_keyword 
                 values (?, coalesce(
@@ -440,10 +517,10 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
                 ) + 1, ?)
             """, (keyword, keyword, group_id, group_id)
         )
-        self.setu_db_connection.commit()
 
     def _set_group_usage_helper(self, group_id, tag, hit=1):
-        self.stat_db_connection.execute(
+        execute_db(
+            self.stat_db_path,
             """
             insert or replace into group_activity_count (group_id, tag, hit) values (
                 ?, ?, coalesce(
@@ -471,8 +548,6 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
                 self._set_group_usage_helper(group_id, 'pulls5', data['5'])
                 self._set_group_usage_helper(group_id, 'pulls6', data['6'])
 
-        self.commit_change()
-
     def compare_group_activity_rank(self, tag: str, original_rank: int, hit: int) -> int:
         if original_rank <= 0:
             return original_rank
@@ -482,53 +557,71 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
         else:
             original_rank -= 1
 
-        result = self.stat_db_connection.execute(
+        result = execute_db(
+            self.stat_db_path,
             """
-            select * from (
-                select hit, rank () over ( 
-                        partition by tag
-                        order by hit desc
-                ) rank from group_activity_count where tag = ?
-            ) where rank = ?;
-            """, (tag, original_rank)
-        ).fetchone()
+            select *
+            from (select hit,
+                         rank() over (
+                             partition by tag
+                             order by hit desc
+                             ) rank
+                  from group_activity_count
+                  where tag = ?)
+            where rank = ?;
+            """, (tag, original_rank),
+            fetch_one=True
+        )
 
         return abs(hit - result[0]) if result else -1
 
     def get_group_activity_rank(self, group_id: Union[int, str], tag: str) -> int:
         group_id = str(group_id)
-        result = self.stat_db_connection.execute(
+        result = execute_db(
+            self.stat_db_path,
             """
-            select rank, group_id from (
-                select rank () over (
-                        partition by tag
-                        order by hit desc
-                ) rank, group_id from group_activity_count where tag = ?
-            ) where group_id = ?
-            """, (tag, group_id)
-        ).fetchone()
+            select rank, group_id
+            from (select rank() over (
+                partition by tag
+                order by hit desc
+                ) rank,
+                         group_id
+                  from group_activity_count
+                  where tag = ?)
+            where group_id = ?
+            """, (tag, group_id),
+            fetch_one=True
+        )
 
         return fetch_one_or_default(result, -1)
 
     def get_group_usage(self, group_id: Union[int, str], tag: str) -> int:
         group_id = str(group_id)
-        result = self.stat_db_connection.execute(
+        result = execute_db(
+            self.stat_db_path,
             """
-            select hit from group_activity_count where group_id = ? and tag = ? limit 1
-            """, (group_id, tag)
-        ).fetchone()
+            select hit
+            from group_activity_count
+            where group_id = ?
+              and tag = ?
+            limit 1
+            """, (group_id, tag),
+            fetch_one=True
+        )
 
         return fetch_one_or_default(result, 0)
 
     def get_group_top_xp(self, group_id: Union[int, str]) -> str:
         group_id = str(group_id)
-        query_result = self.setu_db_connection.execute(
+        query_result = execute_db(
+            self.setu_db_path,
             f"""
             select keyword from setu_group_keyword 
             where group_id = ? and {self._keyword_filter_query()}
             order by hit desc limit 1;
-            """, (group_id, *self.blacklist_freq_keyword)
-        ).fetchone()
+            """, (group_id, *self.blacklist_freq_keyword),
+            fetch_one=True
+        )
 
         return fetch_one_or_default(query_result, '')
 
@@ -563,12 +656,9 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             'group_xp': freq_xp_keyword
         }
 
-    def commit_change(self):
-        self.stat_db_connection.commit()
-        self.setu_db_connection.commit()
-
     def _update_user_xp_data(self, user_id: str, keyword: str, nickname: str):
-        self.stat_db_connection.execute(
+        execute_db(
+            self.stat_db_path,
             """
             insert or replace into user_xp_count (user_id, keyword, hit, nickname) values (
                 ?, ?, coalesce(
@@ -577,4 +667,3 @@ create unique index if not exists setu_keyword_replacer_original_keyword_uindex
             )
             """, (user_id, keyword, user_id, keyword, nickname)
         )
-        self.commit_change()

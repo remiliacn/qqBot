@@ -119,70 +119,106 @@ class LiveNotification:
             'Referer': 'https://www.bilibili.com/'
         }
         self.cookies = None
-        self.live_database = connect(f'{getcwd()}/data/db/live_notification_data.db')
+        self.db_path = f'{getcwd()}/data/db/live_notification_data.db'
         self.bilibili_live_check_url = 'https://api.live.bilibili.com/room/v1/Room/get_info?room_id='
         self._init_database()
 
+    def _execute(self, sql: str, params: tuple = ()) -> None:
+        conn = connect(self.db_path)
+        try:
+            conn.execute(sql, params)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def _executemany(self, sql: str, params_list: List[tuple]) -> None:
+        conn = connect(self.db_path)
+        try:
+            conn.executemany(sql, params_list)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def _fetchone(self, sql: str, params: tuple = ()) -> Optional[tuple]:
+        conn = connect(self.db_path)
+        try:
+            cursor = conn.execute(sql, params)
+            return cursor.fetchone()
+        finally:
+            conn.close()
+
+    def _fetchall(self, sql: str, params: tuple = ()) -> List[tuple]:
+        conn = connect(self.db_path)
+        try:
+            cursor = conn.execute(sql, params)
+            return cursor.fetchall()
+        finally:
+            conn.close()
+
     def _init_database(self):
-        self.live_database.execute(
-            """
-            create table if not exists live_notification_bilibili
-            (
-                name              text unique on conflict ignore,
-                isEnabled         boolean,
-                uid               varchar(200),
-                last_checked_date varchar(200),
-                last_record_live_status boolean,
-                group_to_notify   text,
-                fetch_gift_price  boolean
-            );
-            """
-        )
-        self.live_database.execute(
-            """
-            create table if not exists room_to_medal_name_table
-            (
-                room_uid   varchar(200) not null unique on conflict ignore,
-                medal_name varchar(200) not null
-            );
-            """
-        )
-        self.live_database.execute(
-            """
-            create table if not exists bilibili_danmaku_data
-            (
-                uid text not null unique on conflict ignore,
-                data_dump text
+        conn = connect(self.db_path)
+        try:
+            conn.execute(
+                """
+                create table if not exists live_notification_bilibili
+                (
+                    name                    text unique on conflict ignore,
+                    isEnabled               boolean,
+                    uid                     varchar(200),
+                    last_checked_date       varchar(200),
+                    last_record_live_status boolean,
+                    group_to_notify         text,
+                    fetch_gift_price        boolean
+                );
+                """
             )
-            """
-        )
-        self.live_database.execute(
-            """
-            create table if not exists sail_data_check
-            (
-                uid         varchar(200) not null unique on conflict ignore,
-                guard_level integer      not null default 0,
-                room_id     varchar(200) not null,
-                username    varchar(200) not null,
-                expiry_time varchar(200) not null
+            conn.execute(
+                """
+                create table if not exists room_to_medal_name_table
+                (
+                    room_uid   varchar(200) not null unique on conflict ignore,
+                    medal_name varchar(200) not null
+                );
+                """
             )
-            """
-        )
+            conn.execute(
+                """
+                create table if not exists bilibili_danmaku_data
+                (
+                    uid       text not null unique on conflict ignore,
+                    data_dump text
+                )
+                """
+            )
+            conn.execute(
+                """
+                create table if not exists sail_data_check
+                (
+                    uid         varchar(200) not null unique on conflict ignore,
+                    guard_level integer      not null default 0,
+                    room_id     varchar(200) not null,
+                    username    varchar(200) not null,
+                    expiry_time varchar(200) not null
+                )
+                """
+            )
 
-        self.live_database.execute(
-            """create index if not exists idx_live_notification_bilibili_uid
-                on live_notification_bilibili (uid)"""
-        )
-        self.live_database.execute(
-            """create index if not exists idx_room_to_medal_name_table_medal_name
-                on room_to_medal_name_table (medal_name)"""
-        )
-        self.live_database.execute(
-            """create index if not exists idx_sail_data_check_uid_room_id
-                on sail_data_check (uid, room_id)"""
-        )
+            conn.execute(
+                """create index if not exists idx_live_notification_bilibili_uid
+                    on live_notification_bilibili (uid)"""
+            )
+            conn.execute(
+                """create index if not exists idx_room_to_medal_name_table_medal_name
+                    on room_to_medal_name_table (medal_name)"""
+            )
+            conn.execute(
+                """create index if not exists idx_sail_data_check_uid_room_id
+                    on sail_data_check (uid, room_id)"""
+            )
 
-        self.live_database.commit()
+            conn.commit()
+        finally:
+            conn.close()
 
     @staticmethod
     def _ensure_group_id_list(raw: Union[str, list, None]) -> List[str]:
@@ -207,13 +243,13 @@ class LiveNotification:
         return []
 
     async def _get_one_notification_data_from_db(self, streamer_name: str):
-        data = self.live_database.execute(
+        data = self._fetchone(
             """
             select *
             from live_notification_bilibili
             where name = ?
             """, (streamer_name,)
-        ).fetchone()
+        )
 
         return data
 
@@ -232,29 +268,29 @@ class LiveNotification:
         return data is not None
 
     def get_room_uid_from_medal_name(self, medal_name: str) -> str:
-        data = self.live_database.execute(
+        data = self._fetchone(
             """
             select room_uid
             from room_to_medal_name_table
             where medal_name = ?
-            """, (medal_name.strip(),)).fetchone()
+            """, (medal_name.strip(),))
 
         return data if not isinstance(data, tuple) else data[0]
 
     def get_medal_name_from_room_uid(self, room_id: str) -> str:
-        data = self.live_database.execute(
+        data = self._fetchone(
             """
             select medal_name
             from room_to_medal_name_table
             where room_uid = ?
-            """, (room_id,)).fetchone()
+            """, (room_id,))
 
         return data if not isinstance(data, tuple) else data[0]
 
     def insert_sail_data(
             self, uid: Union[int, str], guard_level: int,
             room_id: Union[int, str], username: str, expiry_date=None):
-        self.live_database.execute(
+        self._execute(
             """
             insert or replace into sail_data_check(uid, guard_level, room_id, username, expiry_time) 
             values (?, ?, ?, ?, ?)
@@ -262,15 +298,14 @@ class LiveNotification:
                 str(uid), guard_level, str(room_id), username,
                 str(time() + 60 * 60 * 24 * 31) if not expiry_date else expiry_date)
         )
-        self.live_database.commit()
 
     def retrieve_sail_data(self, uid: Union[int, str], room_id: Union[int, str]):
-        data = self.live_database.execute("""
-                                          select guard_level, username, expiry_time
-                                          from sail_data_check
-                                          where uid = ?
-                                            and room_id = ?
-                                          """, (str(uid), str(room_id))).fetchone()
+        data = self._fetchone("""
+                              select guard_level, username, expiry_time
+                              from sail_data_check
+                              where uid = ?
+                                and room_id = ?
+                              """, (str(uid), str(room_id)))
 
         if data is None:
             return None
@@ -278,13 +313,13 @@ class LiveNotification:
         return data
 
     def get_group_ids_for_streamer(self, name: str):
-        data = self.live_database.execute(
+        data = self._fetchone(
             """
             select group_to_notify
             from live_notification_bilibili
             where name = ?
             """, (name,)
-        ).fetchone()
+        )
 
         if data is None:
             return None
@@ -297,7 +332,7 @@ class LiveNotification:
 
         group_ids.append(str(group_id))
         group_ids = dumps(list(set(group_ids)))
-        self.live_database.execute(
+        self._execute(
             """
             update live_notification_bilibili
             set uid             = ?,
@@ -306,7 +341,6 @@ class LiveNotification:
             where name = ?
             """, (uid, group_ids, is_enabled, name)
         )
-        self.live_database.commit()
 
     async def add_data_to_bilibili_notify_database(self, name: str, uid: str, group_id: str):
         streamer_groups_raw = self.get_group_ids_for_streamer(name)
@@ -319,7 +353,7 @@ class LiveNotification:
         streamer_group_list.append(str(group_id))
         streamer_group_list = list(set(streamer_group_list))
 
-        self.live_database.execute(
+        self._execute(
             """
             insert or replace into live_notification_bilibili
                 (name, isEnabled, uid, last_checked_date, last_record_live_status, group_to_notify)
@@ -327,10 +361,8 @@ class LiveNotification:
             """, (name, True, uid, time(), False, dumps(streamer_group_list))
         )
 
-        self.live_database.commit()
-
     async def update_live_status(self, streamer_name: str, status: Union[int, bool]):
-        self.live_database.execute(
+        self._execute(
             """
             update live_notification_bilibili
             set last_checked_date       = ?,
@@ -338,7 +370,6 @@ class LiveNotification:
             where name = ?
             """, (time(), status, streamer_name)
         )
-        self.live_database.commit()
 
     @staticmethod
     async def convert_live_data_to_string(data: LiveNotificationData) -> List[MessageSegment]:
@@ -355,21 +386,20 @@ class LiveNotification:
 
     def dump_live_data(self, data: str):
         uid = str(uuid1())
-        self.live_database.execute(
+        self._execute(
             """
             insert into bilibili_danmaku_data (uid, data_dump)
             values (?, ?)
             """, (uid, data)
         )
-        self.live_database.commit()
 
     def get_dumped_live_data(self):
-        data = self.live_database.execute(
+        data = self._fetchall(
             """
             select *
             from bilibili_danmaku_data
             """
-        ).fetchall()
+        )
 
         return self._analyze_dumped_live_data(data)
 
@@ -398,16 +428,6 @@ class LiveNotification:
             MessageSegment.image(word_cloud_file_path),
             danmaku_graph_data)
 
-    def _delete_dumped_live_data(self, uid):
-        self.live_database.execute(
-            """
-            delete
-            from bilibili_danmaku_data
-            where uid = ?
-            """, (uid,)
-        )
-        self.live_database.commit()
-
     def _analyze_dumped_live_data(self, datas) -> List[LivestreamDanmakuData]:
         unpickled_data_list = []
         uids_to_delete: List[str] = []
@@ -420,24 +440,23 @@ class LiveNotification:
             uids_to_delete.append(uid)
 
         if uids_to_delete:
-            self.live_database.executemany(
+            self._executemany(
                 """delete
                    from bilibili_danmaku_data
                    where uid = ?""",
                 [(uid,) for uid in uids_to_delete],
             )
-            self.live_database.commit()
 
         return unpickled_data_list
 
     def check_if_live_cached(self, room_id: str) -> bool:
-        user_needs_to_be_checked = self.live_database.execute(
+        user_needs_to_be_checked = self._fetchone(
             """
             select last_record_live_status
             from live_notification_bilibili
             where uid = ?
             """, (room_id,)
-        ).fetchone()
+        )
 
         is_live = user_needs_to_be_checked is not None and user_needs_to_be_checked[0]
         logger.success(f'Live cache hit, result returned: {is_live}')
@@ -445,13 +464,13 @@ class LiveNotification:
         return is_live
 
     def is_fetch_gift_price(self, room_id: str) -> bool:
-        user_needs_to_be_checked = self.live_database.execute(
+        user_needs_to_be_checked = self._fetchone(
             """
             select fetch_gift_price
             from live_notification_bilibili
             where uid = ?
             """, (room_id,)
-        ).fetchone()
+        )
 
         fetch_gift_price = user_needs_to_be_checked is not None and user_needs_to_be_checked[0]
         logger.success(f'If fetch gift price?: {fetch_gift_price}')
@@ -506,12 +525,12 @@ class LiveNotification:
         )
 
     async def check_live_bilibili(self) -> List[LiveNotificationData]:
-        user_needs_to_be_checked = self.live_database.execute(
+        user_needs_to_be_checked = self._fetchall(
             """
             select name, isEnabled, uid, last_record_live_status, group_to_notify
             from live_notification_bilibili
             """
-        ).fetchall()
+        )
 
         live_data_list = []
 
@@ -657,36 +676,39 @@ class BilibiliDynamicNotifcation(LiveNotification):
         self._init_database()
 
     def _init_database(self):
-        self.live_database.execute(
-            """
-            create table if not exists dynamic_notification_bilibili
-            (
-                name            text     not null unique on conflict ignore,
-                isEnabled       boolean  not null,
-                mid             text     not null,
-                last_dynamic_id var(200) not null,
-                dynamic_time    var(100) not null,
-                group_to_notify text     not null
+        conn = connect(self.db_path)
+        try:
+            conn.execute(
+                """
+                create table if not exists dynamic_notification_bilibili
+                (
+                    name            text     not null unique on conflict ignore,
+                    isEnabled       boolean  not null,
+                    mid             text     not null,
+                    last_dynamic_id var(200) not null,
+                    dynamic_time    var(100) not null,
+                    group_to_notify text     not null
+                )
+                """
             )
-            """
-        )
 
-        self.live_database.execute(
-            """create index if not exists idx_dynamic_notification_bilibili_name
-                on dynamic_notification_bilibili (name)"""
-        )
+            conn.execute(
+                """create index if not exists idx_dynamic_notification_bilibili_name
+                    on dynamic_notification_bilibili (name)"""
+            )
 
-        self.live_database.commit()
+            conn.commit()
+        finally:
+            conn.close()
 
     async def stop_notification_for_someone(self, name: str):
-        self.live_database.execute(
+        self._execute(
             """
             update dynamic_notification_bilibili
             set isEnabled = ?
             where name = ?
             """, (False, name)
         )
-        self.live_database.commit()
 
     async def add_to_dynamic_notification_queue(self, name: str, mid: str, group_id: Union[str, int]):
         group_ids = await self.get_group_to_notify(name)
@@ -700,7 +722,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
         group_ids.append(group_id)
         group_ids = list(set(group_ids))
         if not should_update:
-            self.live_database.execute(
+            self._execute(
                 """
                 insert or replace into dynamic_notification_bilibili
                  (name, isEnabled, mid, last_dynamic_id, dynamic_time, group_to_notify)
@@ -708,7 +730,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
                 """, (name, True, mid, '0', '0', dumps(group_ids))
             )
         else:
-            self.live_database.execute(
+            self._execute(
                 """
                 update dynamic_notification_bilibili
                 set group_to_notify = ?,
@@ -717,16 +739,14 @@ class BilibiliDynamicNotifcation(LiveNotification):
                 """, (dumps(group_ids), name)
             )
 
-        self.live_database.commit()
-
     async def get_group_to_notify(self, name) -> Union[List[str], None]:
-        data = self.live_database.execute(
+        data = self._fetchone(
             """
             select group_to_notify
             from dynamic_notification_bilibili
             where name = ?
             """, (name,)
-        ).fetchone()
+        )
 
         if data is None:
             return None
@@ -734,7 +754,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
         return self._ensure_group_id_list(data[0])
 
     async def update_latest_dynamic_id_for_user(self, name, dynamic_id, dynamic_time):
-        self.live_database.execute(
+        self._execute(
             """
             update dynamic_notification_bilibili
             set last_dynamic_id = ?,
@@ -742,16 +762,15 @@ class BilibiliDynamicNotifcation(LiveNotification):
             where name = ?
             """, (dynamic_id, dynamic_time, name)
         )
-        self.live_database.commit()
 
     async def fetch_bilibili_newest_dynamic_for_up(self, name) -> Union[None, DynamicNotificationData]:
-        user_needs_to_be_checked = self.live_database.execute(
+        user_needs_to_be_checked = self._fetchone(
             """
             select *
             from dynamic_notification_bilibili
             where name = ?
             """, (name,)
-        ).fetchone()
+        )
 
         if user_needs_to_be_checked is not None:
             user_name = user_needs_to_be_checked[0]
@@ -908,12 +927,12 @@ class BilibiliDynamicNotifcation(LiveNotification):
         return orig_text
 
     async def fetch_all_dynamic_updates(self):
-        datas = self.live_database.execute(
+        datas = self._fetchall(
             """
             select *
             from dynamic_notification_bilibili
             """
-        ).fetchall()
+        )
 
         notify_list = []
         for data in datas:

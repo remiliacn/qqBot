@@ -9,7 +9,7 @@ from os.path import exists
 from re import findall
 from shutil import move
 from time import time
-from typing import Union, List
+from typing import Union, List, Optional
 
 from loguru import logger
 from nonebot.adapters.onebot.v11 import MessageSegment
@@ -39,13 +39,39 @@ class TwitchLiveData:
 
 class TwitchService:
     def __init__(self):
-        self.live_database = sqlite3.connect(f'{getcwd()}/data/db/live_notification_data.db')
+        self.db_path = f'{getcwd()}/data/db/live_notification_data.db'
         self.client = HttpxHelperClient()
         self._init_database()
 
+    def _execute(self, sql: str, params: tuple = ()) -> None:
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute(sql, params)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def _fetchone(self, sql: str, params: tuple = ()) -> Optional[tuple]:
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(sql, params)
+            return cursor.fetchone()
+        finally:
+            conn.close()
+
+    def _fetchall(self, sql: str, params: tuple = ()) -> List[tuple]:
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(sql, params)
+            return cursor.fetchall()
+        finally:
+            conn.close()
+
     def _init_database(self):
-        self.live_database.execute(
-            """
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute(
+                """
 create table if not exists live_notification_twitch
 (
     channel_name            text unique on conflict ignore,
@@ -55,25 +81,27 @@ create table if not exists live_notification_twitch
     last_video_vault_time   integer,
     group_to_notify         text
 )
-            """
-        )
-        self.live_database.commit()
+                """
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
     async def _get_one_notification_data_from_db(self, streamer_name: str):
-        data = self.live_database.execute(
+        data = self._fetchone(
             """
             select * from live_notification_twitch where channel_name = ?
             """, (streamer_name,)
-        ).fetchone()
+        )
 
         return data
 
     async def _get_last_twitch_archive_id(self, streamer_name: str) -> Union[int, None]:
-        data = self.live_database.execute(
+        data = self._fetchone(
             """
             select last_video_vault_time from live_notification_twitch where channel_name = ?
             """, (streamer_name,)
-        ).fetchone()
+        )
 
         return data
 
@@ -98,19 +126,18 @@ create table if not exists live_notification_twitch
 
         group_ids.append(group_id)
         group_ids = dumps(list(set(group_ids)))
-        self.live_database.execute(
+        self._execute(
             """
             update live_notification_twitch set group_to_notify = ?, isEnabled = ? where channel_name = ?
             """, (group_ids, is_enabled, channel_name)
         )
-        self.live_database.commit()
 
     def get_group_ids_for_streamer(self, name: str):
-        data = self.live_database.execute(
+        data = self._fetchone(
             """
             select group_to_notify from live_notification_twitch where channel_name = ?
             """, (name,)
-        ).fetchone()
+        )
 
         if data is None:
             return None
@@ -135,7 +162,7 @@ create table if not exists live_notification_twitch
 
         streamer_group_list.append(group_id)
         streamer_group_list = list(set(streamer_group_list))
-        self.live_database.execute(
+        self._execute(
             """
             insert or replace into live_notification_twitch
                 (channel_name, isEnabled, last_checked_date, 
@@ -144,17 +171,15 @@ create table if not exists live_notification_twitch
             """, (name, True, time(), False, dumps(streamer_group_list), 0)
         )
 
-        self.live_database.commit()
 
     async def update_live_status(self, streamer_name: str, status: Union[int, bool]):
-        self.live_database.execute(
+        self._execute(
             """
             update live_notification_twitch 
             set last_checked_date = ?, last_record_live_status = ? 
             where channel_name = ?
             """, (time(), status, streamer_name)
         )
-        self.live_database.commit()
 
     @staticmethod
     async def convert_live_data_to_string(data: LiveNotificationData) -> str:
@@ -189,11 +214,11 @@ create table if not exists live_notification_twitch
         return TwitchLiveData(channel_name, is_live, live_title, stream_thumbnail_filename, live_time)
 
     async def check_live_twitch(self) -> List[LiveNotificationData]:
-        user_needs_to_be_checked = self.live_database.execute(
+        user_needs_to_be_checked = self._fetchall(
             """
             select * from live_notification_twitch
             """
-        ).fetchall()
+        )
 
         live_data_list = []
 

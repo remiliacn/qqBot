@@ -26,25 +26,17 @@ class DiscordService:
                           ' Chrome/126.0.0.0 Safari/537.36'
         }
         self.db_file_path = path.join(DB_PATH, 'live_notification_data.db')
-        self.database: Optional[aiosqlite.Connection] = None
         self.client = HttpxHelperClient()
 
-    async def _ensure_database(self) -> aiosqlite.Connection:
-        if self.database is not None:
-            return self.database
-
-        self.database = await aiosqlite.connect(self.db_file_path)
-        await self._init_database()
-        return self.database
-
-    async def _init_database(self) -> None:
-        database = await self._ensure_database()
+    @staticmethod
+    async def _init_database(database: aiosqlite.Connection) -> None:
         await database.execute(
             """
-            create table if not exists discord_notification (
-                channel_id varchar(200) unique on conflict ignore,
-                is_enabled boolean,
-                channel_name varchar(250) not null,
+            create table if not exists discord_notification
+            (
+                channel_id      varchar(200) unique on conflict ignore,
+                is_enabled      boolean,
+                channel_name    varchar(250) not null,
                 last_updated_time integer,
                 group_to_notify text
             )
@@ -53,33 +45,39 @@ class DiscordService:
         await database.commit()
 
     async def _fetchone(self, sql: str, params: tuple[Any, ...]) -> Optional[tuple[Any, ...]]:
-        database = await self._ensure_database()
-        async with database.execute(sql, params) as cursor:
-            return await cursor.fetchone()
+        async with aiosqlite.connect(self.db_file_path) as database:
+            await self._init_database(database)
+            async with database.execute(sql, params) as cursor:
+                return await cursor.fetchone()
 
     async def _fetchall(self, sql: str, params: tuple[Any, ...] = ()) -> list[tuple[Any, ...]]:
-        database = await self._ensure_database()
-        async with database.execute(sql, params) as cursor:
-            rows = await cursor.fetchall()
+        async with aiosqlite.connect(self.db_file_path) as database:
+            await self._init_database(database)
+            async with database.execute(sql, params) as cursor:
+                rows = await cursor.fetchall()
 
         return rows or []
 
     async def _execute(self, sql: str, params: tuple[Any, ...]) -> None:
-        database = await self._ensure_database()
-        await database.execute(sql, params)
-        await database.commit()
+        async with aiosqlite.connect(self.db_file_path) as database:
+            await self._init_database(database)
+            await database.execute(sql, params)
+            await database.commit()
 
     async def _retrieve_all_record_in_db(self) -> list[tuple[Any, ...]]:
         return await self._fetchall(
             """
-            select * from discord_notification
+            select *
+            from discord_notification
             """
         )
 
     async def _get_group_ids_for_notification_by_channel_id(self, channel_id: str) -> Optional[str]:
         data = await self._fetchone(
             """
-            select group_to_notify from discord_notification where channel_id = ?
+            select group_to_notify
+            from discord_notification
+            where channel_id = ?
             """, (channel_id,)
         )
 
@@ -105,7 +103,9 @@ class DiscordService:
     async def _get_one_notification_data_from_db(self, streamer_name: str) -> Optional[tuple[Any, ...]]:
         return await self._fetchone(
             """
-            select * from discord_notification where channel_name = ?
+            select *
+            from discord_notification
+            where channel_name = ?
             """, (streamer_name,)
         )
 
@@ -343,7 +343,11 @@ class DiscordService:
         unique_group_ids = dumps(list(set(group_id_list)))
         await self._execute(
             """
-            update discord_notification set channel_id = ?, group_to_notify = ?, is_enabled = ? where channel_name = ?
+            update discord_notification
+            set channel_id      = ?,
+                group_to_notify = ?,
+                is_enabled      = ?
+            where channel_name = ?
             """, (channel_id, unique_group_ids, is_enabled, channel_name)
         )
 
@@ -408,16 +412,11 @@ class DiscordService:
     async def _update_previous_timestamp(self, channel_id: str, latest_msg_timestamp: int) -> None:
         await self._execute(
             """
-            update discord_notification set last_updated_time = ? where channel_id = ?
+            update discord_notification
+            set last_updated_time = ?
+            where channel_id = ?
             """, (latest_msg_timestamp, channel_id)
         )
-
-    async def close(self) -> None:
-        if self.database is None:
-            return
-
-        await self.database.close()
-        self.database = None
 
     async def get_group_ids_for_notification(self, channel_id: str) -> Optional[str]:
         return await self._get_group_ids_for_notification_by_channel_id(channel_id)

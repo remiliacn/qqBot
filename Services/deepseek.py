@@ -1,5 +1,3 @@
-from re import split, sub
-
 from nonebot import logger, get_bot
 from nonebot.adapters.onebot.v11 import MessageSegment
 from openai import APIError, APIConnectionError, RateLimitError, APITimeoutError
@@ -61,7 +59,7 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
         self.web_search_judge_model_name: str = "deepseek-chat"
         self._summary_by_group: dict[str, str] = {}
 
-        self._chat_intervals: int = -30
+        self._chat_intervals: int = -20
         self._summary_config: DeepSeekSummaryConfig = default_deepseek_summary_config()
 
     def set_summary_config(self, config: DeepSeekSummaryConfig) -> None:
@@ -72,6 +70,23 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
 
     def _summarizer_system_prompt(self) -> str:
         return str(getattr(self._summary_config, 'summarizer_system_prompt', '') or '')
+
+    # noinspection PyTypeChecker
+    async def _judge_llm_raw(self, user_text: str) -> str:
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.web_search_judge_model_name,
+                messages=[
+                    {"role": "system", "content": self._judge_instructions},
+                    {"role": "user", "content": user_text}
+                ],
+                temperature=0.3,
+                stream=False
+            )
+            return (response.choices[0].message.content or "").strip()
+        except Exception as err:
+            logger.error(f"DeepSeek judge LLM call failed: {err}")
+            return ""
 
     def get_group_summary(self, group_id: str) -> str:
         return (self._summary_by_group.get(str(group_id)) or '').strip()
@@ -114,6 +129,11 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
                 return existing
 
             self._summary_by_group[gid] = new_summary
+
+            # Clear conversation context after summarization to avoid redundant token usage
+            self._clear_dict_by_group(gid)
+            logger.info(f'Cleared conversation context for group_id={gid} after summarization')
+
             return new_summary
         except BaseException as err:
             logger.error(f'Failed to refresh summary for group_id={group_id}: {err}')
@@ -246,11 +266,6 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
         logger.info(f'Message parsed in: {message.message}')
 
         model_response = await self._invoke_model(message)
-        message_aftersplit = split(r'[:：]', model_response)
-        if len(message_aftersplit) > 1:
-            model_response = ''.join(message_aftersplit[1:])
-
-        model_response = sub(r'(哈{2,}|呸)[，！、。？…]', '', model_response).strip('，').strip()
         return Status(True, model_response)
 
     @staticmethod

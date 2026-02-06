@@ -68,7 +68,6 @@ class WebSearchJudgeMixin:
         return create_task(self._judge_need_web_search_uncached(raw_text))
 
     async def _judge_need_web_search_uncached(self, user_text: str) -> WebSearchJudgeResult:
-        raw = ""
         try:
             raw = (await self._judge_llm_raw(user_text)) or ""
         except Exception as err:

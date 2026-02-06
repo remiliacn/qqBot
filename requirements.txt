@@ -1,100 +1,56 @@
-aiocache~=0.12.2
-aiofiles~=24.1.0
-aiohappyeyeballs~=2.3.5
-aiohttp~=3.10.3
-aiosignal~=1.3.1
-annotated-types~=0.7.0
-anyio~=4.4.0
-APScheduler~=3.10.4
-async-timeout~=4.0.3
-attrs~=24.2.0
-blinker~=1.8.2
-Brotli~=1.1.0
-certifi~=2024.7.4
-cffi~=1.17.0
-charset-normalizer~=3.3.2
-click~=8.1.7
-colorama~=0.4.6
-contourpy~=1.2.1
-cycler~=0.12.1
-exceptiongroup~=1.2.2
-fastapi~=0.112.0
-Flask~=3.0.3
-fonttools~=4.53.1
-frozenlist~=1.4.1
-h11~=0.14.0
-h2~=4.1.0
-hpack~=4.0.0
-httpcore~=1.0.5
-httptools~=0.6.1
-httpx~=0.27.0
-Hypercorn~=0.17.3
-hyperframe~=6.0.1
-idna~=3.7
-itsdangerous~=2.2.0
-jieba~=0.42.1
-Jinja2~=3.1.4
-kiwisolver~=1.4.5
-loguru~=0.7.2
-lxml~=5.2.2
-lxml_html_clean~=0.2.0
-m3u8~=4.1.0
-markdown2~=2.5.0
-MarkupSafe~=2.1.5
-matplotlib~=3.9.1.post1
-msgpack~=1.0.8
-multidict~=6.0.5
-nonebot-adapter-onebot~=2.4.4
+# Core Dependencies - Direct imports only
+# Bot Framework
+nonebot2>=2.4.4
+nonebot-adapter-onebot>=2.4.6
 nonebot-plugin-apscheduler~=0.5.0
-nonebot2~=2.3.2
-numpy~=2.0.1
-outcome~=1.3.0.post0
-openai~=1.45.0
-packaging~=24.1
-pandas~=2.2.2
-pillow~=10.4.0
-pixivpy3~=3.7.5
-plotly~=5.23.0
-priority~=2.0.0
-pure-protobuf~=3.1.1
-pycparser~=2.22
+
+# HTTP Clients & Web
+aiohttp>=3.10.3,<3.11.0
+httpx>=0.28.1
+requests>=2.32.5
+urllib3>=2.6.3
+
+# Data Processing & Analysis
+numpy>=2.2.6
+scipy>=1.14.1
+matplotlib>=3.10.8
+wordcloud>=1.9.6
+jieba~=0.42.1
+
+# Image Processing
+pillow>=12.1.0
+
+# Parsing & Serialization
+lxml>=6.0.2
+markdown2>=2.5.4
+pure-protobuf>=3.1.5
+
+# API Clients
+openai>=2.17.0
+pixivpy3>=3.7.5
+
+# Browser Automation
+playwright>=1.58.0
+
+# Utilities
+loguru>=0.7.3
+python-dotenv>=1.2.1
 pydantic~=2.8.2
-pydantic_core~=2.20.1
-pygtrie~=2.5.0
-pyparsing~=3.1.2
-PySocks~=1.7.1
-python-dateutil~=2.9.0.post0
-python-dotenv~=1.0.1
-pytz~=2024.1
-PyYAML~=6.0.2
-Quart~=0.19.6
-requests~=2.32.3
-requests-toolbelt~=1.0.0
-scipy~=1.14.0
-six~=1.16.0
-sniffio~=1.3.1
-sortedcontainers~=2.4.0
-starlette~=0.37.2
-taskgroup~=0.0.0a4
-tenacity~=9.0.0
-tomli~=2.0.1
-tqdm~=4.66.5
-trio~=0.26.2
-trio-websocket~=0.11.1
-twitch-dl~=2.3.1
 typing_extensions~=4.12.2
-tzdata~=2024.1
-tzlocal~=5.2
-urllib3~=2.2.2
-uvicorn~=0.30.5
-watchfiles~=0.23.0
-websocket-client~=1.8.0
-websockets~=12.0
-Werkzeug~=3.0.3
-win32-setctime~=1.1.0
-wordcloud~=1.9.3
-wsproto~=1.2.0
-yarl~=1.9.4
+yarl>=1.22.0
+tqdm>=4.67.3
+aiocache>=0.12.3
+
+# Media Download
 youtube-dl~=2021.12.17
 
-playwright>=1.58.0
+# Compression
+Brotli>=1.1.0
+
+# NoneBot2 Core Dependencies (explicitly listed for clarity)
+pygtrie~=2.5.0
+tomli>=2.4.0
+
+# APScheduler (required by nonebot-plugin-apscheduler)
+APScheduler>=3.11.2
+

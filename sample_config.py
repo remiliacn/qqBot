@@ -8,8 +8,31 @@ NICKNAME = {}
 # 机器人主人在群里的偏好称呼（可选）
 SUPER_USER_PREFERRED_NAME: str = ''
 
-# 群聊人设/系统提示词（可选，但 group_based_function 会用到）
-SYSTEM_MESSAGE = ''
+
+# 群聊人设/系统提示词
+# 系统提示词现在从 system_prompt.md 文件加载，如需修改请编辑该文件
+def _load_system_prompt() -> str:
+    from pathlib import Path
+    from loguru import logger
+
+    prompt_file = Path(__file__).parent / 'system_prompt.md'
+
+    try:
+        if prompt_file.exists():
+            return prompt_file.read_text(encoding='utf-8')
+        else:
+            logger.warning(f'System prompt file not found: {prompt_file}, using fallback')
+            return ''
+    except Exception as e:
+        logger.error(f'Failed to load system prompt: {e}')
+        return ''
+
+
+def get_system_message() -> str:
+    return _load_system_prompt()
+
+
+SYSTEM_MESSAGE = get_system_message()
 
 # Pixiv
 PIXIV_REFRESH_TOKEN = ''  # 选填，用于搜图功能
@@ -41,7 +64,7 @@ CLOUD_STORAGE_SIZE_LIMIT_GB = 90
 
 # 其他第三方
 SAUCE_API_KEY = ''  # 选填，如果需要sauceNAO逆向图片搜索
-DISCORD_AUTH = ''  # 选填，如果需要discord跟踪功能
+DISCORD_AUTH = ''  # 选填，如果需要discord跟踪功能，Token格式通常为：`<bot_user_id>.<bot_user_name>.<bot_token>`
 
 # 其他会话/开关
 COMMAND_START = {'/', '!', '／', '！', '#'}

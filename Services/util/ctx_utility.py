@@ -14,5 +14,5 @@ def get_group_id(event: GroupMessageEvent | PrivateMessageEvent) -> int:
 
 
 def get_nickname(event: GroupMessageEvent) -> str:
-    logger.info(f'sender event: {event.sender.card}, {event.sender.nickname}')
-    return event.sender.card if event.sender.card else event.sender.nickname
+    logger.info(f'sender event card: [{event.sender.card}], sender nickname: [{event.sender.nickname}]')
+    return event.sender.card.strip() if event.sender.card.strip() else event.sender.nickname.strip()

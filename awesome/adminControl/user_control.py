@@ -1,5 +1,4 @@
 import json
-import sqlite3
 from os import remove
 from os.path import exists
 from sqlite3 import OperationalError
@@ -11,6 +10,7 @@ from nonebot import logger
 from Services.util.common_util import OptionalDict
 from awesome.Constants.user_permission import *
 from config import SUPER_USER
+from util.db_utils import execute_db
 
 USER_T = Union[OWNER, ADMIN, WHITELIST, BANNED]
 
@@ -51,7 +51,6 @@ class UserControl:
         self.answer_dict = _init_data(self.WORD_DICT_PATH)
 
         self.user_settings_db_path = 'data/db/user_settings.db'
-        self.user_settings_db = sqlite3.connect(self.user_settings_db_path)
         self._init_user_settings_db()
         self._import_user_privilege_from_json_if_needed(self.USER_DICT_PATH)
         self._ensure_super_user_seed()
@@ -60,12 +59,14 @@ class UserControl:
         self.user_repeat_question_count = {}
 
     def _init_user_settings_db(self):
-        self.user_settings_db.execute(
+        execute_db(
+            self.user_settings_db_path,
             """
-            create table if not exists user_settings (
-                user_id varchar(20) unique on conflict ignore,
-                is_owner boolean not null default false,
-                is_admin boolean not null default false,
+            create table if not exists user_settings
+            (
+                user_id      varchar(20) unique on conflict ignore,
+                is_owner     boolean not null default false,
+                is_admin     boolean not null default false,
                 is_whitelist boolean not null default false,
                 is_banned       boolean not null default false,
                 banned_until_ts integer null
@@ -74,7 +75,8 @@ class UserControl:
         )
 
         try:
-            self.user_settings_db.execute(
+            execute_db(
+                self.user_settings_db_path,
                 """
                 alter table user_settings
                     add column banned_until_ts integer null
@@ -84,8 +86,6 @@ class UserControl:
             logger.warning(
                 f'Failed to add column, but it is probably fine because it is already existed. {err.__class__}'
             )
-
-        self.user_settings_db.commit()
 
     def _import_user_privilege_from_json_if_needed(self, json_path: str):
         if not exists(json_path):
@@ -110,20 +110,19 @@ class UserControl:
                 is_whitelist = bool(OptionalDict(settings).map('WHITELIST').or_else(False))
                 is_banned = bool(OptionalDict(settings).map('BANNED').or_else(False))
 
-                self.user_settings_db.execute(
+                execute_db(
+                    self.user_settings_db_path,
                     """
                     insert into user_settings (user_id, is_owner, is_admin, is_whitelist, is_banned)
                     values (?, ?, ?, ?, ?)
-                    on conflict(user_id) do update set
-                        is_owner = excluded.is_owner,
-                        is_admin = excluded.is_admin,
-                        is_whitelist = excluded.is_whitelist,
-                        is_banned = excluded.is_banned
+                    on conflict(user_id) do update set is_owner     = excluded.is_owner,
+                                                       is_admin     = excluded.is_admin,
+                                                       is_whitelist = excluded.is_whitelist,
+                                                       is_banned    = excluded.is_banned
                     """,
                     (str(user_id), int(is_owner), int(is_admin), int(is_whitelist), int(is_banned)),
                 )
 
-            self.user_settings_db.commit()
         except OperationalError as err:
             logger.error(f'Failed to import legacy privileges from {json_path}: {err}')
             return
@@ -142,19 +141,18 @@ class UserControl:
             exit(-1)
 
         super_user_id = str(SUPER_USER)
-        self.user_settings_db.execute(
+        execute_db(
+            self.user_settings_db_path,
             """
             insert into user_settings (user_id, is_owner, is_admin, is_whitelist, is_banned)
             values (?, 1, 1, 1, 0)
-            on conflict(user_id) do update set
-                is_owner = 1,
-                is_admin = 1,
-                is_whitelist = 1,
-                is_banned = coalesce(user_settings.is_banned, 0)
+            on conflict(user_id) do update set is_owner     = 1,
+                                               is_admin     = 1,
+                                               is_whitelist = 1,
+                                               is_banned    = coalesce(user_settings.is_banned, 0)
             """,
             (super_user_id,),
         )
-        self.user_settings_db.commit()
 
     @staticmethod
     def _tag_to_column(tag: USER_T) -> Optional[str]:
@@ -189,9 +187,11 @@ class UserControl:
         columns_to_set = list(dict.fromkeys(columns_to_set))
 
         try:
-            self.user_settings_db.execute(
+            execute_db(
+                self.user_settings_db_path,
                 """
-                insert into user_settings (user_id) values (?)
+                insert into user_settings (user_id)
+                values (?)
                 on conflict(user_id) do nothing
                 """,
                 (user_id,),
@@ -203,7 +203,8 @@ class UserControl:
             if tag == 'BANNED' and not stat:
                 set_clause = f"{set_clause}, banned_until_ts = null"
 
-            self.user_settings_db.execute(
+            execute_db(
+                self.user_settings_db_path,
                 f"""
                 update user_settings
                 set {set_clause}
@@ -212,7 +213,6 @@ class UserControl:
                 (user_id,),
             )
 
-            self.user_settings_db.commit()
         except OperationalError as err:
             logger.error(f'Failed to set privilege {tag} for user {user_id}: {err}')
 
@@ -226,12 +226,14 @@ class UserControl:
             return False
 
         try:
-            result = self.user_settings_db.execute(
+            result = execute_db(
+                self.user_settings_db_path,
                 f"""
                 select {column} from user_settings where user_id = ?
                 """,
                 (user_id,),
-            ).fetchone()
+                fetch_one=True
+            )
         except OperationalError as err:
             logger.error(f'Failed to get privilege {tag} for user {user_id}: {err}')
             return False
@@ -246,7 +248,8 @@ class UserControl:
             user_id = str(user_id)
 
         try:
-            self.user_settings_db.execute(
+            execute_db(
+                self.user_settings_db_path,
                 """
                 insert into user_settings (user_id)
                 values (?)
@@ -254,7 +257,8 @@ class UserControl:
                 """,
                 (user_id,),
             )
-            self.user_settings_db.execute(
+            execute_db(
+                self.user_settings_db_path,
                 """
                 update user_settings
                 set is_banned       = 1,
@@ -263,7 +267,6 @@ class UserControl:
                 """,
                 (int(banned_until_ts), user_id),
             )
-            self.user_settings_db.commit()
         except OperationalError as err:
             logger.error(f'Failed to set temporary ban until for user {user_id}: {err}')
 
@@ -272,7 +275,8 @@ class UserControl:
             user_id = str(user_id)
 
         try:
-            self.user_settings_db.execute(
+            execute_db(
+                self.user_settings_db_path,
                 """
                 update user_settings
                 set banned_until_ts = null
@@ -280,7 +284,6 @@ class UserControl:
                 """,
                 (user_id,),
             )
-            self.user_settings_db.commit()
         except OperationalError as err:
             logger.error(f'Failed to clear temporary ban until for user {user_id}: {err}')
 
@@ -288,7 +291,8 @@ class UserControl:
         now = int(time())
 
         try:
-            rows = self.user_settings_db.execute(
+            rows = execute_db(
+                self.user_settings_db_path,
                 """
                 select user_id, banned_until_ts
                 from user_settings
@@ -297,7 +301,8 @@ class UserControl:
                   and banned_until_ts > ?
                 """,
                 (now,),
-            ).fetchall()
+                fetch_all=True
+            )
         except OperationalError as err:
             logger.error(f'Failed to query active temporary bans: {err}')
             return []
@@ -316,7 +321,8 @@ class UserControl:
         now = int(time())
 
         try:
-            rows = self.user_settings_db.execute(
+            rows = execute_db(
+                self.user_settings_db_path,
                 """
                 select user_id
                 from user_settings
@@ -325,7 +331,8 @@ class UserControl:
                   and banned_until_ts <= ?
                 """,
                 (now,),
-            ).fetchall()
+                fetch_all=True
+            )
         except OperationalError as err:
             logger.error(f'Failed to query expired temporary bans: {err}')
             return []
