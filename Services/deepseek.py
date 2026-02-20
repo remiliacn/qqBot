@@ -225,16 +225,14 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
         return await self._invoke_chat_model(message)
 
     async def _invoke_with_tavily_search(self, message: ChatGPTRequestMessage, query: str = "") -> str:
-        q = (query or "").strip() or message.message.strip()[:200]
-
-        results = await tavily_search(q, max_results=5)
+        results = await tavily_search(query, max_results=5)
         if results is None:
             formatted = "(web search unavailable)"
         else:
             formatted = format_search_results_for_llm(results)
 
         try:
-            await self._notify_super_user_search_results(q, formatted)
+            await self._notify_super_user_search_results(query, formatted)
         except Exception as err:
             logger.error(f"Failed to notify SUPER_USER about search results: {err}")
 
@@ -242,7 +240,7 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
             "role": "assistant",
             "content": (
                 "【联网搜索结果】\n"
-                f"Query: {q}\n"
+                f"Query: {query}\n"
                 f"Results:\n{formatted}\n\n"
                 "请基于以上内容决定如何回应用户。"
             ),

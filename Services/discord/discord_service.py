@@ -1,7 +1,6 @@
 from datetime import datetime
 from json import JSONDecodeError, dumps, loads
 from os import path
-from re import findall, sub
 from typing import Any, List, Optional
 
 import aiosqlite
@@ -9,6 +8,7 @@ from loguru import logger
 from nonebot.adapters.onebot.v11 import MessageSegment
 from youtube_dl.utils import sanitize_filename
 
+from Services.discord.discord_parser import discord_md_to_text
 from Services.util.common_util import HttpxHelperClient
 from awesome.Constants.path_constants import BILIBILI_PIC_PATH, DB_PATH
 from config import DISCORD_AUTH
@@ -212,21 +212,43 @@ class DiscordService:
         from Services import chatgpt_api
         from Services.chatgpt import ChatGPTRequestMessage
 
+        message_text = '\n'.join([x.__str__() for x in discord_status.message if x.type == 'text'])
+
         chatgpt_message = await chatgpt_api.chat(
             ChatGPTRequestMessage(
-                message='\n'.join([sub(r'\[CQ:.*?]', '', x.__str__()) for x in discord_status.message]),
+                message=message_text,
                 is_chat=False,
-                model_name='gpt-5-nano',
+                model_name='gpt-5-mini',
                 force_no_web_search=True,
-                context='Please help to translate the following message to Chinese, While translating,'
-                        'please ignore and remove messges that in this pattern: `[CQ:.*?]` '
-                        'in your response and only response with the result of the translation. '
-                        'Do not translate names, and translate "stream" to 直播: \n\n.'
-                        ' Do not translate markdown and timestamp in ISO 8601 format.'
+                context="""You are a professional translator for VTuber announcements.
+
+Translate English to natural Simplified Chinese.
+
+Guidelines:
+- Keep emotional tone.
+- Use natural fan-community style.
+- Do not translate names.
+- Translate "stream" as 直播.
+- Keep timestamps unchanged.
+- Make the result sound friendly and fluent.
+- Do not add explanations.
+- Output translation only.                
+
+Example:
+
+EN:
+I'll take a short break after this week.
+Thanks for your support 💙
+
+ZH:
+这周结束后我会休息一下，谢谢大家一直以来的支持💙
+
+Now translate:
+                """
             ))
 
         if chatgpt_message.is_success:
-            return sub(r'\[CQ:.*?]', '', chatgpt_message.message)
+            return chatgpt_message.message
 
         return None
 
@@ -353,26 +375,11 @@ class DiscordService:
 
     @staticmethod
     async def _analyze_discord_message(discord_msg_result: str) -> List[MessageSegment]:
-        discord_msg_result = (discord_msg_result.replace('[(', '')
-                              .replace('])', '')
-                              .replace('()', ''))
-        special_message_data: List[str] = findall(r'<(.*?)>', discord_msg_result)
-        replacement_dict: dict[str, str] = {}
+        if not discord_msg_result or not discord_msg_result.strip():
+            return []
 
-        for message in special_message_data:
-            if message.startswith('t') and message.endswith('F'):
-                timestamp = message.replace('t:', '').replace(':F', '')
-                if timestamp.isdigit():
-                    dt = datetime.fromtimestamp(float(timestamp))
-                    translated_timestamp = dt.isoformat()
-                    replacement_dict[message] = translated_timestamp
-            else:
-                replacement_dict[message] = ''
-
-        for key, item in replacement_dict.items():
-            discord_msg_result = discord_msg_result.replace(f'<{key}>', item)
-
-        return [MessageSegment.text(discord_msg_result)]
+        parsed = discord_md_to_text(discord_msg_result)
+        return [MessageSegment.text(parsed)]
 
     async def _analyze_discord_attachments(self, attachments: List[dict[str, Any]]) -> List[MessageSegment]:
         orig_text: List[MessageSegment] = []

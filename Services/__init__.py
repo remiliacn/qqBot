@@ -1,7 +1,7 @@
+from Services.discord.discord_service import DiscordService
 from .BotYouTubeMusic import BotYouTubeMusic
 from .chatgpt import ChatGPTBaseAPI
 from .deepseek import DeepSeekAPI
-from .discord_service import DiscordService
 from .live_notification import LiveNotification, BilibiliDynamicNotifcation, BilibiliOnSail
 from .rate_limiter import RateLimiter
 from .twitch_service import TwitchService, TwitchClippingService
