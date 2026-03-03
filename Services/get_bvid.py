@@ -4,6 +4,7 @@ import json
 import random
 import struct
 import time
+from typing import Tuple
 
 import httpx
 from aiohttp import ClientSession
@@ -308,16 +309,14 @@ def get_payload() -> str:
     )
 
 
-async def update_buvid_params() -> (dict, dict):
+async def update_buvid_params() -> Tuple[dict, dict]:
     """为接口激活 buvid"""
     _spi_url: str = 'https://api.bilibili.com/x/frontend/finger/spi'
     _exclimbwuzhi_url = 'https://api.bilibili.com/x/internal/gaia-gateway/ExClimbWuzhi'
 
     headers = {
         "user-agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-            " AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0"
-            " Safari/537.36"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0"
         ),
     }
 

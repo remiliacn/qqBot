@@ -1,13 +1,14 @@
 import codecs
 import pickle
 import subprocess
-from asyncio import get_running_loop
+from asyncio import get_running_loop, sleep
 from dataclasses import dataclass, field
 from datetime import datetime
 from distutils.spawn import find_executable
 from json import dumps, loads
 from os import getcwd, path
 from os import name as os_name
+from random import uniform, shuffle
 from shlex import quote as shlex_quote
 from sqlite3 import connect
 from subprocess import Popen
@@ -27,6 +28,8 @@ from Services.util.common_util import OptionalDict
 from awesome.Constants.path_constants import BILIBILI_PIC_PATH
 from config import DANMAKU_PROCESS
 from util.helper_util import construct_message_chain
+
+THIRTY_ONE_DAYS = 60 * 60 * 24 * 31
 
 
 @dataclass
@@ -64,7 +67,7 @@ def _parse_line(line: str) -> Tuple[int, str, str, float]:
 
     user_id: str = parts[1]
     # onsail time + 31 days.
-    ts: float = datetime.fromisoformat(parts[-1]).timestamp() + 60 * 60 * 24 * 31
+    ts: float = datetime.fromisoformat(parts[-1]).timestamp() + THIRTY_ONE_DAYS
     uname: str = " ".join(parts[2:-1])
 
     return gd_lvl, user_id, uname, ts
@@ -296,7 +299,7 @@ class LiveNotification:
             values (?, ?, ?, ?, ?)
             """, (
                 str(uid), guard_level, str(room_id), username,
-                str(time() + 60 * 60 * 24 * 31) if not expiry_date else expiry_date)
+                str(time() + THIRTY_ONE_DAYS) if not expiry_date else expiry_date)
         )
 
     def retrieve_sail_data(self, uid: Union[int, str], room_id: Union[int, str]):
@@ -586,8 +589,10 @@ class BilibiliOnSail(LiveNotification):
         prefix = ''
         text = '啥也木有'
         medal_name = medal_name.strip()
+
+        result = GuardCheckResult(False, text, icon_url=None)
         if medal_name.isdigit():
-            result = await self._retrieve_sail_from_cache(medal_name, prefix, uid)
+            result = await self._retrieve_sail_from_cache(medal_name, uid)
             if result.success:
                 return result
 
@@ -595,7 +600,7 @@ class BilibiliOnSail(LiveNotification):
         else:
             room_uid = self.get_room_uid_from_medal_name(medal_name)
             if room_uid:
-                result = await self._retrieve_sail_from_cache(room_uid, prefix, uid)
+                result = await self._retrieve_sail_from_cache(room_uid, uid)
                 if result.success:
                     return result
 
@@ -637,9 +642,11 @@ class BilibiliOnSail(LiveNotification):
 
             logger.info(f'Medal info data: {medal_info}')
             if medal_name_inner == medal_name:
-                return _parse_guard_level_info(medal_info, medal_name, prefix, icon_data)
+                result = _parse_guard_level_info(medal_info, medal_name, prefix, icon_data)
+                if result.success:
+                    return result
 
-        return GuardCheckResult(False, text, icon_url=icon_data)
+        return GuardCheckResult(False, result.text, icon_url=icon_data)
 
     def backfill_sail_data(self):
         with open(f'{getcwd()}/0111.txt', "r", encoding="utf-8") as infile:
@@ -651,13 +658,18 @@ class BilibiliOnSail(LiveNotification):
                 logger.info(f'Inserting {gd_lvl} {user_id} {uname} {ts}')
                 self.insert_sail_data(user_id, gd_lvl, 1852504554, uname, ts)
 
-    async def _retrieve_sail_from_cache(self, room_id, prefix, uid) -> GuardCheckResult:
+    async def _retrieve_sail_from_cache(self, room_id, uid) -> GuardCheckResult:
         if (cached_data := self.retrieve_sail_data(uid, room_id)) is None:
-            return GuardCheckResult(False, prefix + '啥也木有')
+            return GuardCheckResult(False, '')
         logger.debug(f'Sail data: {cached_data}')
         guard_level, username, expiry_time = cached_data
         if float(expiry_time) < time():
-            return GuardCheckResult(False, '以前有牌子但是过期了的老舰长')
+            date_time_to_expire = datetime.fromtimestamp(float(expiry_time)).isoformat()
+            return GuardCheckResult(
+                False, f'{username} 是以前有牌子但是过期了的老舰长呢\n\n'
+                       f'原上舰时间：'
+                       f'{date_time_to_expire}')
+
         medal_name_str = self.get_medal_name_from_room_uid(room_id)
         if medal_name_str:
             room_id = medal_name_str
@@ -935,12 +947,18 @@ class BilibiliDynamicNotifcation(LiveNotification):
         )
 
         notify_list = []
+        shuffle(datas)
+
         for data in datas:
             name, is_enabled, _, _, _, _ = data
             if is_enabled:
-                dynamic_info = await self.fetch_bilibili_newest_dynamic_for_up(name)
-                if dynamic_info is not None:
-                    notify_list.append(dynamic_info)
+                try:
+                    dynamic_info = await self.fetch_bilibili_newest_dynamic_for_up(name)
+                    if dynamic_info is not None:
+                        notify_list.append(dynamic_info)
+                except Exception as err:
+                    logger.error(f'Failed to fetch dynamic for {name} with error: {err.__class__}')
+                await sleep(uniform(3.0, 10.0))
 
         return notify_list
 

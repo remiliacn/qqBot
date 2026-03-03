@@ -1,3 +1,4 @@
+from loguru import logger
 from nonebot import on_command, on_notice
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message, GroupBanNoticeEvent, Bot
 from nonebot.internal.matcher import Matcher
@@ -33,9 +34,13 @@ async def _group_handle_ban_events(bot: Bot, event: GroupBanNoticeEvent):
     group_id = event.group_id
     duration = event.duration
 
-    if user_id == event.self_id and duration >= 60 * 60 * 24:
+    logger.warning(f'Received group banning event: {event}')
+    if user_id == str(event.self_id) and duration >= 60 * 60 * 12:
         await bot.set_group_leave(group_id=group_id)
         await bot.send_private_msg(user_id=SUPER_USER,
                                    message=f'Quitting group: {group_id} because long ban time.')
-    elif user_id == event.self_id:
+    elif user_id == str(event.self_id) and duration > 0:
         group_control.set_group_permission(group_id, group_permission.NLP, False)
+        await bot.send_private_msg(
+            user_id=SUPER_USER,
+            message=f'我在群「{group_id}」被「{event.operator_id}」禁言了「{duration}」秒。')
