@@ -73,7 +73,8 @@ def _parse_line(line: str) -> Tuple[int, str, str, float]:
     return gd_lvl, user_id, uname, ts
 
 
-def _parse_guard_level_info(medal_info: dict, medal_name: Union[str, int], prefix='', icon=None) -> GuardCheckResult:
+def _parse_guard_level_info(
+        medal_info: dict, medal_name: Union[str, int, None], prefix='', icon=None) -> GuardCheckResult:
     match medal_info.get('guard_level', 0):
         case 0:
             return GuardCheckResult(False, prefix + f'啥也木有', icon_url=icon)
@@ -142,7 +143,7 @@ class LiveNotification:
         finally:
             conn.close()
 
-    def _fetchone(self, sql: str, params: tuple = ()) -> Optional[tuple]:
+    def _fetchone(self, sql: str, params: tuple = ()) -> Optional[Tuple[str]]:
         conn = connect(self.db_path)
         try:
             cursor = conn.execute(sql, params)
@@ -224,7 +225,7 @@ class LiveNotification:
             conn.close()
 
     @staticmethod
-    def _ensure_group_id_list(raw: Union[str, list, None]) -> List[str]:
+    def _ensure_group_id_list(raw: Optional[Tuple[str] | str]) -> List[str]:
         if raw is None:
             return []
 
@@ -256,6 +257,7 @@ class LiveNotification:
 
         return data
 
+    # noinspection PyUnresolvedReferences
     async def stop_live_follow(self, streamer_name):
         logger.info(f'Received request to stop follow for {streamer_name}')
         if await self._check_if_notification_exist_in_db(streamer_name):
@@ -270,7 +272,7 @@ class LiveNotification:
         data = await self._get_one_notification_data_from_db(streamer_name)
         return data is not None
 
-    def get_room_uid_from_medal_name(self, medal_name: str) -> str:
+    def get_room_uid_from_medal_name(self, medal_name: str) -> Optional[str]:
         data = self._fetchone(
             """
             select room_uid
@@ -280,7 +282,7 @@ class LiveNotification:
 
         return data if not isinstance(data, tuple) else data[0]
 
-    def get_medal_name_from_room_uid(self, room_id: str) -> str:
+    def get_medal_name_from_room_uid(self, room_id: str) -> Optional[str]:
         data = self._fetchone(
             """
             select medal_name
@@ -315,7 +317,7 @@ class LiveNotification:
 
         return data
 
-    def get_group_ids_for_streamer(self, name: str):
+    def get_group_ids_for_streamer(self, name: str) -> Optional[Tuple[str] | str]:
         data = self._fetchone(
             """
             select group_to_notify
@@ -464,7 +466,7 @@ class LiveNotification:
         is_live = user_needs_to_be_checked is not None and user_needs_to_be_checked[0]
         logger.success(f'Live cache hit, result returned: {is_live}')
 
-        return is_live
+        return bool(is_live)
 
     def is_fetch_gift_price(self, room_id: str) -> bool:
         user_needs_to_be_checked = self._fetchone(
@@ -478,7 +480,7 @@ class LiveNotification:
         fetch_gift_price = user_needs_to_be_checked is not None and user_needs_to_be_checked[0]
         logger.success(f'If fetch gift price?: {fetch_gift_price}')
 
-        return fetch_gift_price
+        return bool(fetch_gift_price)
 
     async def check_if_live(self, room_id: str, streamer_name: str) -> LiveNotificationData:
         logger.info(f'Checking live stat for {streamer_name}, room id: {room_id}')
@@ -589,30 +591,28 @@ class BilibiliOnSail(LiveNotification):
         prefix = ''
         text = '啥也木有'
         medal_name = medal_name.strip()
+        expired_fallback: Optional[GuardCheckResult] = None
 
-        result = GuardCheckResult(False, text, icon_url=None)
         if medal_name.isdigit():
             result = await self._retrieve_sail_from_cache(medal_name, uid)
             if result.success:
                 return result
+            if self._is_expired_cache_prompt(result.text):
+                expired_fallback = result
 
-            medal_name = self.get_medal_name_from_room_uid(medal_name)
+            medal_name: Optional[str] = self.get_medal_name_from_room_uid(medal_name)
         else:
             room_uid = self.get_room_uid_from_medal_name(medal_name)
             if room_uid:
                 result = await self._retrieve_sail_from_cache(room_uid, uid)
                 if result.success:
                     return result
+                if self._is_expired_cache_prompt(result.text):
+                    expired_fallback = result
 
                 logger.info('Failed to find sail data from cache. Falling back...')
 
-        if not self.cookies:
-            self.cookies, self.headers = await update_buvid_params()
-        async with ClientSession() as client:
-            async with client.get(
-                    self.sail_verification_url + uid + f'&_={int(time())}',
-                    headers=self.headers, cookies=self.cookies) as resp:
-                data_json = await resp.json()
+        data_json = await self._fetch_medal_wall_data(uid)
 
         code = OptionalDict(data_json).map("code").or_else("?")
         logger.info(f'Live sail data for {uid} for {medal_name}: {OptionalDict(data_json).map("code").or_else("?")}')
@@ -642,11 +642,25 @@ class BilibiliOnSail(LiveNotification):
 
             logger.info(f'Medal info data: {medal_info}')
             if medal_name_inner == medal_name:
-                result = _parse_guard_level_info(medal_info, medal_name, prefix, icon_data)
-                if result.success:
-                    return result
+                return _parse_guard_level_info(medal_info, medal_name, prefix, icon_data)
 
-        return GuardCheckResult(False, result.text, icon_url=icon_data)
+        if expired_fallback is not None:
+            return GuardCheckResult(False, expired_fallback.text, icon_url=icon_data)
+
+        return GuardCheckResult(False, text, icon_url=icon_data)
+
+    async def _fetch_medal_wall_data(self, uid: str) -> dict:
+        if not self.cookies:
+            self.cookies, self.headers = await update_buvid_params()
+        async with ClientSession() as client:
+            async with client.get(
+                    self.sail_verification_url + uid + f'&_={int(time())}',
+                    headers=self.headers, cookies=self.cookies) as resp:
+                return await resp.json()
+
+    @staticmethod
+    def _is_expired_cache_prompt(text: str) -> bool:
+        return '过期了的老舰长' in text
 
     def backfill_sail_data(self):
         with open(f'{getcwd()}/0111.txt', "r", encoding="utf-8") as infile:
@@ -660,7 +674,7 @@ class BilibiliOnSail(LiveNotification):
 
     async def _retrieve_sail_from_cache(self, room_id, uid) -> GuardCheckResult:
         if (cached_data := self.retrieve_sail_data(uid, room_id)) is None:
-            return GuardCheckResult(False, '')
+            return GuardCheckResult(False, '啥也木有')
         logger.debug(f'Sail data: {cached_data}')
         guard_level, username, expiry_time = cached_data
         if float(expiry_time) < time():
@@ -731,7 +745,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
         else:
             group_ids = []
 
-        group_ids.append(group_id)
+        group_ids.append(str(group_id))
         group_ids = list(set(group_ids))
         if not should_update:
             self._execute(
@@ -775,6 +789,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
             """, (dynamic_id, dynamic_time, name)
         )
 
+    # noinspection PyTypeChecker
     async def fetch_bilibili_newest_dynamic_for_up(self, name) -> Union[None, DynamicNotificationData]:
         user_needs_to_be_checked = self._fetchone(
             """
@@ -784,7 +799,7 @@ class BilibiliDynamicNotifcation(LiveNotification):
             """, (name,)
         )
 
-        if user_needs_to_be_checked is not None:
+        if user_needs_to_be_checked:
             user_name = user_needs_to_be_checked[0]
             is_enabled = user_needs_to_be_checked[1]
             if not is_enabled:

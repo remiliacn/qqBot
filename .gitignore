@@ -141,3 +141,23 @@ dmypy.json
 .pytype/
 
 # End of https://www.toptal.com/developers/gitignore/api/python
+
+.idea
+__pycache__/
+.pytest_cache/
+data/live/*
+data/lol/*
+data/biaoqing/*
+*.db
+data/temp/*
+tests/
+package.json
+package-lock.json
+LICENSE
+.package-lock.json
+*.mp3
+system_prompt.md
+config.py
+config/
+data/started.json
+data/util/*.json
