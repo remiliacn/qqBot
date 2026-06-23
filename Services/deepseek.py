@@ -353,7 +353,7 @@ class DeepSeekAPI(ChatGPTBaseAPI, WebSearchJudgeMixin):
     async def _invoke_deepseek(self, context_data, _model_name, _group_id):
         try:
             response = await self.client.chat.completions.create(
-                model="deepseek-chat", messages=context_data, temperature=1.3, stream=False
+                model="deepseek-chat", messages=context_data, temperature=.5, stream=False
             )
 
             content = response.choices[0].message.content
