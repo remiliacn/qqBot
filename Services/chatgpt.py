@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from random import random
 from re import sub
 from typing import List, Literal, Dict, Any, Optional, Union, Tuple
+from datetime import datetime
 
 from nonebot import logger
 from openai import AsyncOpenAI
@@ -208,6 +209,7 @@ class ChatGPTBaseAPI(WebSearchJudgeMixin):
             "仅输出 JSON: {\"need_search\": true/false, \"query\": \"...\"}\n"
             "need_search=true: 明确要最新/事实核验/数据价格政策新闻/链接来源，或消歧后仍需最新信息。\n"
             "否则 need_search=false。如果消息内容莫名其妙，need_search=false\n\n"
+            f"当前时间：{datetime.now().strftime('%Y年%m月%d日 %H:%M')}"
             f"[ctx]\n{(history_text or '').strip()}\n\n"
             f"[last]\n{(last_user_message or '').strip()}"
         ).strip()

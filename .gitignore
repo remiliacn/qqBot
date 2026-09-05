@@ -161,3 +161,9 @@ config.py
 config/
 data/started.json
 data/util/*.json
+
+# testing features
+
+awesome/plugins/group_based_function/**
+Services/deepinfra.py
+Services/deepseek_summary_config.py
