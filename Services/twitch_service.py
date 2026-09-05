@@ -1,13 +1,13 @@
 import dataclasses
 import re
 import sqlite3
-from asyncio import create_subprocess_shell, sleep
+from asyncio import create_subprocess_exec, sleep
 from asyncio.subprocess import PIPE
 from json import loads, JSONDecodeError, dumps
 from os import getcwd, walk, path, listdir, mkdir
 from os.path import exists
 from re import findall
-from shutil import move
+from shutil import move, which
 from time import time
 from typing import Union, List, Optional
 
@@ -271,27 +271,33 @@ class TwitchClippingService:
             return Status(False,
                           '指令错误，应该为！切片 视频id 开始时间戳 停切时间戳\n例子：！切片 2206229026 00:00:00 00:05:00')
 
-        video_id = message_arg[0]
+        raw_video_input = message_arg[0]
         await session.send('我去去就回~')
-        if len(message_arg) == 1 and (video_id.isnumeric() or 'videos/' in video_id):
-            return Status(True, TwitchClipInstruction(video_id))
+
+        if raw_video_input.isnumeric():
+            video_id = raw_video_input
+        elif 'videos/' in raw_video_input:
+            match = re.search(r'videos/(\d+)', raw_video_input)
+            if not match:
+                return Status(False, '你这是让我切谁呢？ 要不给一个主播名试试？')
+            video_id = match.group(1)
+        else:
+            try:
+                video_list = await self._get_twitch_archive_list(raw_video_input)
+                if not video_list['videos']:
+                    return Status(False, '你这是让我切谁呢？要不你给个videoID我再试试？')
+            except Exception as err:
+                logger.exception(f'Failed to retrieve streamer data: {err.__class__}')
+                return Status(False, f'出问题了！{err}')
+
+            video_id = str(video_list['videos'][0]['id'])
+            logger.info(f'Found video id: {video_id}')
 
         if not video_id.isnumeric():
-            if 'videos/' not in video_id:
-                try:
-                    video_list = await self._get_twitch_archive_list(video_id)
-                    if not video_list['videos']:
-                        return Status(False, '你这是让我切谁呢？要不你给个videoID我再试试？')
-                except Exception as err:
-                    logger.exception(f'Failed to retrieve streamer data: {err.__class__}')
-                    return Status(False, f'出问题了！{err}')
+            return Status(False, '你这是让我切谁呢？ 要不给一个主播名试试？')
 
-                video_id = video_list['videos'][0]['id']
-                logger.info(f'Found video id: {video_id}')
-            else:
-                video_id = video_id.split('/')[-1]
-                if not video_id.isnumeric():
-                    return Status(False, '你这是让我切谁呢？ 要不给一个主播名试试？')
+        if len(message_arg) == 1:
+            return Status(True, TwitchClipInstruction(video_id))
 
         start_time = ''
         end_time = ''
@@ -312,7 +318,10 @@ class TwitchClippingService:
                 return Status(False, '结束时间戳必须是小时:分钟:秒钟的格式')
 
             if len(message_arg) >= 4:
-                file_name = f'{sanitize_filename("_".join(message_arg[3:]).strip())}.mp4'
+                custom_name = sanitize_filename("_".join(message_arg[3:]).strip()).rstrip('.mp4').strip()
+                custom_name = re.sub(r'[{}\s]+', '_', custom_name)
+                if custom_name:
+                    file_name = f'{custom_name}.mp4'
 
         start_time = start_time.replace('：', ':')
         end_time = end_time.replace('：', ':')
@@ -320,17 +329,18 @@ class TwitchClippingService:
         if not start_time and not end_time:
             return Status(True, TwitchClipInstruction(video_id))
 
-        validate_start_time = await self._validate_timestamp(start_time)
-        validate_end_time = await self._validate_timestamp(end_time)
+        if start_time:
+            validate_start_time = await self._validate_timestamp(start_time)
+            if not validate_start_time.is_success:
+                return validate_start_time
+            start_time = validate_start_time.validated_timestamp
 
-        if not validate_end_time.is_success:
-            return validate_end_time
+        if end_time:
+            validate_end_time = await self._validate_timestamp(end_time)
+            if not validate_end_time.is_success:
+                return validate_end_time
+            end_time = validate_end_time.validated_timestamp
 
-        if not validate_start_time.is_success:
-            return validate_start_time
-
-        start_time = validate_start_time.validated_timestamp
-        end_time = validate_end_time.validated_timestamp
         return Status(True, TwitchClipInstruction(video_id, start_time, end_time, file_name))
 
     @staticmethod
@@ -389,16 +399,35 @@ class TwitchClippingService:
         if not disk_check_status.is_success:
             return TwitchDownloadStatus(disk_check_status.is_success, message='')
         try:
-            file_name = ('{channel_login}_{date}*_{title_slug}.{format}'.replace(
-                '*',
-                f'+{instruction.start_time.replace(":", "_")}+{instruction.end_time.replace(":", "_")}'))
+            if not instruction.video_id or not instruction.video_id.isnumeric():
+                return TwitchDownloadStatus(False, 'VideoID 发错了？')
+
+            time_suffix = (
+                f'+{instruction.start_time.replace(":", "_")}+{instruction.end_time.replace(":", "_")}'
+                if instruction.start_time or instruction.end_time
+                else ''
+            )
+            file_name = '{channel_login}_{date}*_{title_slug}.{format}'.replace('*', time_suffix)
 
             if instruction.file_name:
-                file_name = file_name.replace('{title_slug}', sanitize_filename(instruction.file_name).rstrip('.mp4'))
-            process = await create_subprocess_shell(
-                f'twitch-dl download '
-                f'-o {file_name} -q source {f"-s {instruction.start_time}" if instruction.start_time else ""} '
-                f'{f"-e {instruction.end_time}" if instruction.end_time else ""} -f mp4 {instruction.video_id}',
+                custom_slug = (
+                    sanitize_filename(instruction.file_name)
+                    .rstrip('.mp4')
+                    .replace('{', '_')
+                    .replace('}', '_')
+                )
+                file_name = file_name.replace('{title_slug}', custom_slug)
+
+            executable = which('twitch-dl') or 'twitch-dl'
+            cmd = [executable, 'download', '-o', file_name, '-q', 'source']
+            if instruction.start_time:
+                cmd.extend(['-s', instruction.start_time])
+            if instruction.end_time:
+                cmd.extend(['-e', instruction.end_time])
+            cmd.extend(['-f', 'mp4', instruction.video_id])
+
+            process = await create_subprocess_exec(
+                *cmd,
                 stdout=PIPE,
                 stderr=PIPE,
                 limit=1024 * 1024 * 100  # 100 MB
