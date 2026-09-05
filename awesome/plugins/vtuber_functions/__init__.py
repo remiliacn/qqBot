@@ -92,9 +92,6 @@ twitch_clip_cmd = on_command('切片')
 
 @twitch_clip_cmd.handle()
 async def twitch_clip_command(bot: Bot, event: GroupMessageEvent, matcher: Matcher, args: Message = CommandArg()):
-    if not await start_verification(event):
-        return
-
     args = args.extract_plain_text().strip()
     verification_status = await twitch_clipping.analyze_clip_comment(args, matcher)
     if not verification_status.is_success:

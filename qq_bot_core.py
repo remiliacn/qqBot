@@ -1,16 +1,37 @@
 from json import dump
 from logging import getLogger, ERROR
 from os import path, getcwd, mkdir, environ
+import sys
 from time import sleep
 
 import nonebot
 from loguru import logger
 from nonebot.adapters.onebot.v11 import Adapter as OneBotdapter
+from nonebot.exception import FinishedException
+from nonebot.log import default_filter, default_format
 
 # 如果下面这行报错，请暂时注释掉这行然后运行下面的main()
 from awesome.adminControl import group_control
 
 nonebot.init()
+
+
+def _console_log_filter(record):
+    if record["exception"]:
+        exc_type = record["exception"].type
+        if exc_type and isinstance(exc_type, type) and issubclass(exc_type, FinishedException):
+            return False
+    return default_filter(record)
+
+
+logger.remove()
+logger.add(
+    sys.stdout,
+    level=0,
+    diagnose=False,
+    filter=_console_log_filter,
+    format=default_format,
+)
 
 driver = nonebot.get_driver()
 driver.register_adapter(OneBotdapter)
