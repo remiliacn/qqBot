@@ -5,7 +5,7 @@ nonebot-adapter-onebot>=2.4.6
 nonebot-plugin-apscheduler~=0.5.0
 
 # HTTP Clients & Web
-aiohttp>=3.10.3,<3.11.0
+aiohttp>=3.14.5
 httpx>=0.28.1
 requests>=2.32.5
 urllib3>=2.6.3
