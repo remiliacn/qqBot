@@ -218,7 +218,7 @@ class DiscordService:
             ChatGPTRequestMessage(
                 message=message_text,
                 is_chat=False,
-                model_name='gpt-5-mini',
+                model_name='gpt-6-luna',
                 force_no_web_search=True,
                 context="""You are a professional translator for VTuber announcements.
 
