@@ -496,7 +496,8 @@ async def the_poker_game(event: GroupMessageEvent, matcher: Matcher):
                                                        f"{player_one_card}。\n"
                                                        f"玩家", MessageSegment.at(response), "获胜！"))
 
-            setu_function_control.set_user_data(response, POKER_GAME, nickname)
+            winner_nickname = nickname if str(response) == str(user_id) else ""
+            setu_function_control.set_user_data(response, POKER_GAME, winner_nickname)
 
         poker.clear_result(str(get_group_id(event)))
 

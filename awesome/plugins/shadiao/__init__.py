@@ -262,7 +262,7 @@ async def stat_player(bot: Bot, session: GroupMessageEvent):
                 f'用户', MessageSegment.at(user_id), '：\n',
                 f'比大小赢得{poker_win}次（排名第{poker_rank}）\n' if poker_win != 0 else '',
                 f'方舟抽卡共抽到{six_star_pull}个六星干员（排名第{six_star_rank}）\n ' if six_star_pull != 0 else '',
-                f'紫气东来{unlucky}次（排名第{unlucky}）\n' if unlucky != 0 else '',
+                f'紫气东来{unlucky}次（排名第{unlucky_rank}）\n' if unlucky != 0 else '',
                 f'查了{setu_stat}次的色图！（排名第{setu_rank}）\n' if setu_stat != 0 else '',
                 f'问了{question}次问题（排名第{question_rank}）\n' if question != 0 else '',
                 f'和bot主人 臭 味 相 投{same}次（排名第{same_rank}）\n' if same != 0 else '',

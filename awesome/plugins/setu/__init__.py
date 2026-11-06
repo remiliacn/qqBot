@@ -317,25 +317,40 @@ async def _do_blacklist_keyword_process(bot: Bot, key_word: str, matcher: Matche
 async def _setu_data_collection(
         event: GroupMessageEvent | PrivateMessageEvent, key_word: str,
         monitored: bool, setu_file_path: str, illust=None, bot=None):
-    if isinstance(event, GroupMessageEvent):
-        setu_function_control.set_group_data(get_group_id(event), SETU)
+    is_group = isinstance(event, GroupMessageEvent)
+    group_id = get_group_id(event) if is_group else -1
+
+    if is_group:
+        setu_function_control.set_group_data(group_id, SETU)
 
     nickname = get_nickname(event)
     user_id = get_user_id(event)
     setu_function_control.set_user_data(user_id, SETU, nickname)
-    key_word_list = split(r'[\s\u3000,]+', key_word)
+
+    key_word_list = [
+        k.strip() for k in split(r'[\s\u3000,]+', key_word or '')
+        if k.strip() and not k.strip().isdigit()
+    ]
     for keyword in key_word_list:
         setu_function_control.set_user_xp(user_id, keyword, nickname)
-        setu_function_control.set_group_xp(get_group_id(event), keyword)
+        if is_group:
+            setu_function_control.set_group_xp(group_id, keyword)
 
     if illust is not None:
-        tags = illust.tags
-        tags = [x for x in list(tags) if x not in setu_function_control.blacklist_freq_keyword]
-        if len(tags) > 5:
-            tags = tags[:5]
-        for tag in tags:
-            setu_function_control.set_group_xp(get_group_id(event), tag['name'])
-            setu_function_control.set_user_xp(user_id, tag['name'], nickname)
+        raw_tags = getattr(illust, 'tags', []) or []
+        tags_to_process = []
+        for tag in raw_tags:
+            tag_name = (tag.get('name') if isinstance(tag, dict) else getattr(tag, 'name', '')) or ''
+            tag_name = tag_name.strip()
+            if tag_name and tag_name not in setu_function_control.blacklist_freq_keyword:
+                tags_to_process.append(tag_name)
+            if len(tags_to_process) >= 5:
+                break
+
+        for tag_name in tags_to_process:
+            if is_group:
+                setu_function_control.set_group_xp(group_id, tag_name)
+            setu_function_control.set_user_xp(user_id, tag_name, nickname)
 
     if monitored and not get_privilege(user_id, perm.OWNER):
         await bot.send_private_msg(
@@ -459,16 +474,30 @@ async def _get_xp_information(xp_information: SetuRequester, matcher: Matcher) -
         illust, is_r18 = await _attempt_to_extract_sfw_pixiv_img(illust, json_result, '', matcher)
 
     nickname = xp_information.nickname
+    is_group = xp_information.group_id != -1
 
-    if xp_information.group_id != -1:
+    if is_group:
         setu_function_control.set_group_data(xp_information.group_id, SETU)
 
-    tags = illust['tags']
-    for tag in tags:
-        tag_name = tag['name']
-        setu_function_control.set_user_xp(xp_information.search_target_qq, tag_name, nickname)
+    target_user_id = str(xp_information.search_target_qq)
+    requester_user_id = str(xp_information.requester_qq)
+    target_nickname = nickname if target_user_id == requester_user_id else ""
+
+    raw_tags = (illust.get('tags') if isinstance(illust, dict) else getattr(illust, 'tags', [])) or []
+    tags_to_process = []
+    for tag in raw_tags:
+        tag_name = (tag.get('name') if isinstance(tag, dict) else getattr(tag, 'name', '')) or ''
+        tag_name = tag_name.strip()
+        if tag_name and tag_name not in setu_function_control.blacklist_freq_keyword:
+            tags_to_process.append(tag_name)
+        if len(tags_to_process) >= 5:
+            break
+
+    for tag_name in tags_to_process:
+        setu_function_control.set_user_xp(target_user_id, tag_name, target_nickname)
         setu_function_control.track_keyword(tag_name)
-        setu_function_control.set_group_xp(xp_information.group_id, tag_name)
+        if is_group:
+            setu_function_control.set_group_xp(xp_information.group_id, tag_name)
 
     response += construct_message_chain(
         f'标题：{illust.title}\n'

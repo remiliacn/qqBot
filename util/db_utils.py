@@ -3,7 +3,7 @@ from typing import Any, Optional, Union
 
 
 def fetch_one_or_default(fetch_one_result: Union[list, tuple], default_value: Any) -> Any:
-    return fetch_one_result[0] if fetch_one_result and fetch_one_result[0] else default_value
+    return fetch_one_result[0] if fetch_one_result and fetch_one_result[0] is not None else default_value
 
 
 def execute_db(db_path: str, query: str, params: tuple = (), fetch_one: bool = False, fetch_all: bool = False) -> \

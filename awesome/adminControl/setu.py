@@ -74,6 +74,18 @@ class SetuFunctionControl:
             );
             """
         )
+        execute_db(
+            self.stat_db_path,
+            "create index if not exists idx_user_activity_tag_hit on user_activity_count (tag, hit desc);"
+        )
+        execute_db(
+            self.stat_db_path,
+            "create index if not exists idx_group_activity_tag_hit on group_activity_count (tag, hit desc);"
+        )
+        execute_db(
+            self.stat_db_path,
+            "create index if not exists idx_user_xp_user_hit on user_xp_count (user_id, hit desc);"
+        )
 
     def _init_setu_db(self):
         execute_db(
@@ -91,9 +103,9 @@ class SetuFunctionControl:
             """
             create table if not exists setu_group_keyword
             (
-                keyword  text unique on conflict ignore,
+                keyword  text not null,
                 hit      integer not null default 0,
-                group_id varchar(20)
+                group_id varchar(20) not null
             );
             """
         )
@@ -125,6 +137,30 @@ class SetuFunctionControl:
                 on setu_keyword_replacer (original_keyword);
             """
         )
+        self._ensure_setu_group_keyword_unique_index()
+
+    def _ensure_setu_group_keyword_unique_index(self):
+        try:
+            execute_db(
+                self.setu_db_path,
+                """
+                delete from setu_group_keyword
+                where rowid not in (
+                    select max(rowid)
+                    from setu_group_keyword
+                    group by group_id, keyword
+                );
+                """
+            )
+            execute_db(
+                self.setu_db_path,
+                """
+                create unique index if not exists idx_setu_group_keyword_group_keyword
+                    on setu_group_keyword (group_id, keyword);
+                """
+            )
+        except Exception:
+            pass
 
     def get_setu_usage(self) -> int:
         result = execute_db(
@@ -143,12 +179,11 @@ class SetuFunctionControl:
         execute_db(
             self.setu_db_path,
             """
-            insert or replace into setu_keyword values (?, 
-                coalesce(
-                    (select hit from setu_keyword where keyword = ?), 0
-                ) + 1
-            )
-            """, (key_word, key_word)
+            insert into setu_keyword (keyword, hit)
+            values (?, 1)
+            on conflict(keyword) do update set
+                hit = hit + 1
+            """, (key_word,)
         )
 
     def get_user_xp_by_keyword(self, key_word: str, user_id: Union[int, str]) -> List[Tuple[str, Union[None, str]]]:
@@ -161,7 +196,7 @@ class SetuFunctionControl:
             where keyword like ?
               and user_id = ?
               and nickname not null
-            order by hit
+            order by hit desc
             limit 5;
             """, (f'%{key_word}%', user_id),
             fetch_all=True
@@ -185,27 +220,28 @@ class SetuFunctionControl:
         return fetch_one_or_default(result, None)
 
     def _get_keyword_usage_expand(self, key_word: str):
-        results = execute_db(
+        result = execute_db(
             self.stat_db_path,
             """
-            select user_id, hit
+            select user_id, sum(hit) as total_hit, max(nickname)
             from user_xp_count
             where keyword like ?
-            order by hit desc
-            limit 5;
+            group by user_id
+            order by total_hit desc
+            limit 1;
             """, (f'%{key_word}%',),
-            fetch_all=True
+            fetch_one=True
         )
 
-        if not results:
+        if not result or not result[0]:
             return ''
 
-        for result in results:
-            if result[0] and result[1]:
-                user_id = result[0]
-                nickname = self._get_user_nickname(user_id)
-                if nickname is not None:
-                    return f'其中，{nickname}最喜欢该XP，已经查询了{result[1]}次！！'
+        user_id, total_hit, nickname = result
+        if not nickname:
+            nickname = self._get_user_nickname(user_id)
+
+        if nickname is not None:
+            return f'其中，{nickname}最喜欢该XP，已经查询了{total_hit}次！！'
 
         return ''
 
@@ -358,24 +394,27 @@ class SetuFunctionControl:
         execute_db(
             self.stat_db_path,
             """
-            insert or replace into global_stat (keyword, hit) values (
-                ?, coalesce(
-                    (select hit from global_stat where keyword = ?), 0
-                ) + 1
-            )
-            """, (tag, tag)
+            insert into global_stat (keyword, hit)
+            values (?, 1)
+            on conflict(keyword) do update set
+                hit = hit + 1
+            """, (tag,)
         )
 
     def _update_user_activity(self, user_id: str, tag: str, nickname: str):
         execute_db(
             self.stat_db_path,
             """
-            insert or replace into user_activity_count (user_id, tag, hit, nickname) values (
-                ?, ?, coalesce(
-                    (select hit from user_activity_count where user_id = ? and tag = ?), 0
-                ) + 1, ?
-            )
-            """, (user_id, tag, user_id, tag, nickname)
+            insert into user_activity_count (user_id, tag, hit, nickname)
+            values (?, ?, 1, ?)
+            on conflict(user_id, tag) do update set
+                hit = hit + 1,
+                nickname = case
+                    when excluded.nickname is not null and excluded.nickname != ''
+                    then excluded.nickname
+                    else user_activity_count.nickname
+                end
+            """, (user_id, tag, nickname)
         )
 
     def set_user_xp(self, user_id: Union[int, str], keyword: str, nickname: str):
@@ -467,29 +506,30 @@ class SetuFunctionControl:
         if isinstance(user_id, int):
             user_id = str(user_id)
 
-        result = execute_db(
+        rows = execute_db(
             self.stat_db_path,
             """
-            select tag, hit
-            from user_activity_count
+            select tag, hit, rank
+            from (
+                select tag, hit, user_id,
+                       dense_rank() over (partition by tag order by hit desc) as rank
+                from user_activity_count
+                where tag != 'pixiv_id'
+            )
             where user_id = ?
             """, (user_id,),
             fetch_all=True
         )
 
-        if result is None:
+        if not rows:
             return {}
 
         stat_dict = {}
-
-        for r in result:
-            if r[0] == 'pixiv_id':
-                continue
-
-            stat_dict[r[0]] = {}
-            stat_dict[r[0]]['count'] = r[1]
-            rank = self._get_data_rank(user_id, r[0])
-            stat_dict[r[0]]['rank'] = rank
+        for tag, hit, rank in rows:
+            stat_dict[tag] = {
+                'count': hit,
+                'rank': rank
+            }
 
         return stat_dict
 
@@ -511,23 +551,22 @@ class SetuFunctionControl:
         execute_db(
             self.setu_db_path,
             """
-            insert or replace into setu_group_keyword 
-                values (?, coalesce(
-                    (select hit from setu_group_keyword where keyword = ? and group_id = ?), 0
-                ) + 1, ?)
-            """, (keyword, keyword, group_id, group_id)
+            insert into setu_group_keyword (keyword, hit, group_id)
+            values (?, 1, ?)
+            on conflict(group_id, keyword) do update set
+                hit = hit + 1
+            """, (keyword, group_id)
         )
 
     def _set_group_usage_helper(self, group_id, tag, hit=1):
         execute_db(
             self.stat_db_path,
             """
-            insert or replace into group_activity_count (group_id, tag, hit) values (
-                ?, ?, coalesce(
-                    (select hit from group_activity_count where group_id = ? and tag = ?), 0
-                ) + ?
-            )
-            """, (group_id, tag, group_id, tag, hit)
+            insert into group_activity_count (group_id, tag, hit)
+            values (?, ?, ?)
+            on conflict(group_id, tag) do update set
+                hit = hit + excluded.hit
+            """, (group_id, tag, hit)
         )
 
     def set_group_xp(self, group_id, data):
@@ -660,10 +699,14 @@ class SetuFunctionControl:
         execute_db(
             self.stat_db_path,
             """
-            insert or replace into user_xp_count (user_id, keyword, hit, nickname) values (
-                ?, ?, coalesce(
-                    (select hit from user_xp_count where user_id = ? and keyword = ?), 0
-                ) + 1, ?
-            )
-            """, (user_id, keyword, user_id, keyword, nickname)
+            insert into user_xp_count (user_id, keyword, hit, nickname)
+            values (?, ?, 1, ?)
+            on conflict(user_id, keyword) do update set
+                hit = hit + 1,
+                nickname = case
+                    when excluded.nickname is not null and excluded.nickname != ''
+                    then excluded.nickname
+                    else user_xp_count.nickname
+                end
+            """, (user_id, keyword, nickname)
         )

@@ -140,10 +140,8 @@ class MyDanmakuHandler(BaseHandler):
 
         msg = msg.lower().translate(_DANMAKU_STRIP_TRANSLATION_TABLE)
 
-        if msg.startswith('['):
-            return
-
         if self._is_blacklist_word(msg):
+            logger.info(f'message: {msg} is blacklisted.')
             return
 
         self.danmaku_count += 1
@@ -154,6 +152,10 @@ class MyDanmakuHandler(BaseHandler):
         if time_elapsed_time > FIVE_MINUTES:
             bucket = float(int(time_elapsed_time // _RAW_EVENT_BUCKET_SECONDS) * _RAW_EVENT_BUCKET_SECONDS)
             self.stream_danmaku_bucket_counts[bucket] = self.stream_danmaku_bucket_counts.get(bucket, 0) + 1
+
+        if message.dm_type != 0:
+            logger.debug(f'message: {msg} is not text type (dm_type={message.dm_type}), skipping word cloud.')
+            return
 
         if _DANMAKU_ONLY_SEPARATORS_PATTERN.fullmatch(msg) is not None:
             message_list = [msg]
