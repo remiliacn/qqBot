@@ -410,13 +410,19 @@ class LiveNotification:
 
     @staticmethod
     def stringify_danmaku_data(data: LivestreamDanmakuData) -> Message:
-        word_cloud = WordCloud(font_path=f'{getcwd()}/Services/util/SourceHanSansSC-Bold.otf',
-                               background_color='#fff',
-                               max_words=90,
-                               width=1920,
-                               height=1080).generate_from_frequencies(data.danmaku_frequency_dict)
-        word_cloud_file_path = f'{getcwd()}/data/pixivPic/{int(time_ns())}.png'
-        word_cloud.to_file(word_cloud_file_path)
+        word_cloud_image = ''
+        if data.danmaku_frequency_dict:
+            try:
+                word_cloud = WordCloud(font_path=f'{getcwd()}/Services/util/SourceHanSansSC-Bold.otf',
+                                       background_color='#fff',
+                                       max_words=90,
+                                       width=1920,
+                                       height=1080).generate_from_frequencies(data.danmaku_frequency_dict)
+                word_cloud_file_path = f'{getcwd()}/data/pixivPic/{int(time_ns())}.png'
+                word_cloud.to_file(word_cloud_file_path)
+                word_cloud_image = MessageSegment.image(word_cloud_file_path)
+            except (ValueError, OSError, RuntimeError) as err:
+                logger.error(f'Failed to generate word cloud image: {err}')
 
         new_captains_prompt = f'新舰长{data.new_captains}个\n' if data.new_captains >= 3 else ''
         gift_price_string = f'（预估收入：￥{data.gift_total_price:.2f}）\n' if data.gift_total_price > 0 else ''
@@ -430,7 +436,7 @@ class LiveNotification:
             f'{gift_price_string}',
             f'最高人气排名：{data.highest_rank}\n',
             # f'{hotspot_data_prompt}\n\n',
-            MessageSegment.image(word_cloud_file_path),
+            word_cloud_image,
             danmaku_graph_data)
 
     def _analyze_dumped_live_data(self, datas) -> List[LivestreamDanmakuData]:
