@@ -4,7 +4,7 @@ import subprocess
 from asyncio import get_running_loop, sleep
 from dataclasses import dataclass, field
 from datetime import datetime
-from distutils.spawn import find_executable
+from shutil import which
 from json import dumps, loads
 from os import getcwd, path
 from os import name as os_name
@@ -470,7 +470,7 @@ class LiveNotification:
         )
 
         is_live = user_needs_to_be_checked is not None and user_needs_to_be_checked[0]
-        logger.success(f'Live cache hit, result returned: {is_live}')
+        logger.debug(f'Live cache hit, result returned: {is_live}')
 
         return bool(is_live)
 
@@ -1038,7 +1038,7 @@ def _start_danmaku_process_in_new_terminal(room_id: str, group_ids: str, stream_
     ]
 
     for exe, base_argv in terminal_emulators:
-        if find_executable(exe):
+        if which(exe):
             try:
                 return Popen(base_argv + ['sh', '-lc', danmaku_cmd])
             except OSError as err:

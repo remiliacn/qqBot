@@ -8,7 +8,7 @@
 
 ## 需求
 
-* Python版本为 3.10+
+* Python版本为 3.13+
 * 安装requirements.txt中的所有依赖 `pip install -r requirements.txt`
 * 运行Go-CQHTTP[具体文档清参考这里](https://github.com/Mrs4s/go-cqhttp)
 * 参考[nonebot2](https://nonebot.dev/docs/quick-start)的***运行项目***部分在本项目的根目录用`nb run`即可运行机器人。
